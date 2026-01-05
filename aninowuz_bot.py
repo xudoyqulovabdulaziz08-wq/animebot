@@ -185,46 +185,58 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_name = update.effective_user.first_name
     username = f"@{update.effective_user.username}" if update.effective_user.username else "yo'q"
     
-    # 1. FOYDALANUVCHINI BAZAGA QO'SHISH VA ADMINNI OGOHLANTIRISH
+    # 1. BAZAGA QO'SHISH (Xatolarni tekshirish bilan)
     conn = get_db_connection()
     is_new = False
     if conn:
-        cur = conn.cursor()
-        cur.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
-        if not cur.fetchone():
-            cur.execute("INSERT INTO users (user_id, joined_at) VALUES (%s, %s)", (user_id, datetime.datetime.now()))
-            conn.commit()
-            is_new = True
-        cur.close()
-        conn.close()
+        try:
+            cur = conn.cursor()
+            cur.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
+            if not cur.fetchone():
+                cur.execute("INSERT INTO users (user_id, joined_at) VALUES (%s, %s)", 
+                            (user_id, datetime.datetime.now()))
+                conn.commit()
+                is_new = True
+            cur.close()
+            conn.close()
+        except Exception as e:
+            logger.error(f"DB Xatosi: {e}")
 
-    # Yangi foydalanuvchi haqida adminga xabar
+    # Yangi foydalanuvchi haqida adminga xabar (Faqat birinchi marta)
     if is_new:
         try:
             msg = f"🆕 Yangi foydalanuvchi:\n👤 Ism: {user_name}\n🆔 ID: {user_id}\n🌐 Username: {username}"
             await context.bot.send_message(chat_id=MAIN_ADMIN_ID, text=msg)
-        except: pass
+        except Exception as e:
+            logger.error(f"Admin xabar yuborishda xato: {e}")
     
     context.user_data.clear()
     
-    # 2. OBUNANI TEKSHIRISH (HAR SAFAR /START BOSILGANDA)
-    not_joined = await check_subscription(user_id, context.bot)
-    
-    if not_joined:
-        buttons = []
-        for ch in not_joined:
-            buttons.append([InlineKeyboardButton(f"Obuna bo'lish: {ch}", url=f"https://t.me/{ch.replace('@','')}")])
-        buttons.append([InlineKeyboardButton("Tekshirish 🔄", callback_data="check_subs")])
+    # 2. OBUNANI TEKSHIRISH
+    try:
+        not_joined = await check_subscription(user_id, context.bot)
+        
+        if not_joined:
+            buttons = []
+            for ch in not_joined:
+                buttons.append([InlineKeyboardButton(f"Obuna bo'lish: {ch}", url=f"https://t.me/{ch.replace('@','')}")])
+            buttons.append([InlineKeyboardButton("Tekshirish 🔄", callback_data="check_subs")])
+            
+            await update.message.reply_text(
+                f"Salom {user_name}! 👋\n\nBotdan foydalanish uchun quyidagi kanallarga obuna bo'lishingiz shart:",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+            return
+            
+        # 3. ASOSIY MENYU (Agar obuna bo'lgan bo'lsa yoki kanallar bo'sh bo'lsa)
         await update.message.reply_text(
-            f"Salom {user_name}! 👋\n❗ Botdan to'liq foydalanish uchun quyidagi kanallarga obuna bo'lishingiz shart:",
-            reply_markup=InlineKeyboardMarkup(buttons)
+            f"Xush kelibsiz, {user_name}!\nBotdan foydalanish uchun quyidagi menyudan foydalaning:",
+            reply_markup=await main_menu_keyboard(user_id)
         )
-        return
-
-    await update.message.reply_text(
-        f"Xush kelibsiz, {user_name}!\nBotdan foydalanish uchun quyidagi menyudan foydalaning:",
-        reply_markup=await main_menu_keyboard(user_id)
-    )
+    except Exception as e:
+        # Agar xato bo'lsa, foydalanuvchiga bildirish (debug uchun)
+        await update.message.reply_text(f"Xatolik yuz berdi: {e}")
+        logger.error(f"Start command error: {e}")
 
 async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -489,3 +501,4 @@ Doimiy tekshiruv: /start bosilganda bot har doim kanallarga a'zolikni tekshiradi
 Optimizatsiya: Kodning barcha qismlari siz so'ragandek saqlandi va professional tarzda ulandi.
 
 Kodni yuklab test qilib ko'rishingiz mumkin. Yana biron xizmat kerakmi?
+
