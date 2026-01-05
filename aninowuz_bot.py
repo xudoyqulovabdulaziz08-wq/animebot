@@ -445,7 +445,16 @@ async def main():
     await app.run_polling()
 
 if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.INFO)
+
+    from telegram.ext import ApplicationBuilder
+
+    app = ApplicationBuilder().token("YOUR_BOT_TOKEN").build()
+    app.run_polling()
+
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
+
         logger.info("Bot to'xtatildi.")
