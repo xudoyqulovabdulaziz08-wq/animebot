@@ -1,4 +1,5 @@
 python-telegram-bot==22.5
 mysql-connector-python==9.5.0
 python-dotenv==1.0.0
+
 python-multipart==0.0.6
