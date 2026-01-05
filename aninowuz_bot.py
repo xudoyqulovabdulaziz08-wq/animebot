@@ -475,7 +475,6 @@ async def main():
     await app.initialize()
     await app.start()
     
-    # MANA SHU QATORNI TO'G'RILADIK:
     asyncio.create_task(update_anime_list_file())
     
     logger.info("Bot ishga tushdi.")
@@ -488,3 +487,9 @@ async def main():
         await app.updater.stop()
         await app.stop()
         await app.shutdown()
+
+if __name__ == "__main__":
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass
