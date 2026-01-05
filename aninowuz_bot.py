@@ -180,12 +180,14 @@ async def update_anime_list_file():
         await asyncio.sleep(6 * 3600)
 
 # ====================== BOT COMMAND HANDLERS ======================
+# ====================== BOT COMMAND HANDLERS ======================
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     user_name = update.effective_user.first_name
     username = f"@{update.effective_user.username}" if update.effective_user.username else "yo'q"
     
-    # 1. BAZAGA QO'SHISH (Xatolarni tekshirish bilan)
+    # 1. BAZAGA QO'SHISH VA ADMINNI OGOHLANTIRISH
     conn = get_db_connection()
     is_new = False
     if conn:
@@ -202,7 +204,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"DB Xatosi: {e}")
 
-    # Yangi foydalanuvchi haqida adminga xabar (Faqat birinchi marta)
     if is_new:
         try:
             msg = f"🆕 Yangi foydalanuvchi:\n👤 Ism: {user_name}\n🆔 ID: {user_id}\n🌐 Username: {username}"
@@ -210,6 +211,78 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Admin xabar yuborishda xato: {e}")
     
+    context.user_data.clear()
+    
+    # 2. OBUNANI TEKSHIRISH
+    try:
+        not_joined = await check_subscription(user_id, context.bot)
+        
+        if not_joined:
+            buttons = []
+            for ch in not_joined:
+                buttons.append([InlineKeyboardButton(f"Obuna bo'lish: {ch}", url=f"https://t.me/{ch.replace('@','')}")])
+            buttons.append([InlineKeyboardButton("Tekshirish 🔄", callback_data="check_subs")])
+            
+            await update.message.reply_text(
+                f"Salom {user_name}! 👋\n\nBotdan foydalanish uchun quyidagi kanallarga obuna bo'lishingiz shart:",
+                reply_markup=InlineKeyboardMarkup(buttons)
+            )
+            return
+            
+        # 3. ASOSIY MENYU
+        await update.message.reply_text(
+            f"Xush kelibsiz, {user_name}!\nBotdan foydalanish uchun quyidagi menyudan foydalaning:",
+            reply_markup=await main_menu_keyboard(user_id)
+        )
+    except Exception as e:
+        await update.message.reply_text(f"Xatolik yuz berdi: {e}")
+        logger.error(f"Start command error: {e}")
+
+async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    uid = query.from_user.id
+    data = query.data
+    await query.answer()
+    admin_status = await is_user_admin(uid)
+
+    # --- OBUNANI TEKSHIRISH VA TOZALASH ---
+    if data == "check_subs":
+        not_joined = await check_subscription(uid, context.bot)
+        if not not_joined:
+            # OBUNA BO'LGAN BO'LSA: Eski xabarni o'chirish
+            try:
+                await query.message.delete()
+            except Exception as e:
+                logger.error(f"Xabarni o'chirishda xatolik: {e}")
+            
+            # Yangi xabar va menyu yuborish
+            await context.bot.send_message(
+                chat_id=uid,
+                text="✅ Tabriklaymiz! Obuna tasdiqlandi. Marhamat, botdan foydalanishingiz mumkin:",
+                reply_markup=await main_menu_keyboard(uid)
+            )
+        else:
+            # OBUNA BO'LMAGAN BO'LSA: Ogohlantirish
+            await query.answer("❌ Siz hali barcha kanallarga obuna bo'lmadingiz!", show_alert=True)
+
+    # --- QOLGAN CALLBACKLAR (O'zgarishsiz qoladi) ---
+    elif data == "mode_name":
+        context.user_data["search_mode"] = "name"
+        await query.message.reply_text("📝 Anime nomini yuboring (Masalan: Naruto):")
+    
+    elif data == "mode_id":
+        context.user_data["search_mode"] = "id"
+        await query.message.reply_text("🆔 Anime ID raqamini yuboring:")
+
+    elif data == "mode_ep":
+        context.user_data["search_mode"] = "ep"
+        await query.message.reply_text("🔢 Qism raqamini yuboring:")
+
+    elif data == "add_anime" and admin_status:
+        context.user_data["step"] = "wait_photo"
+        await query.message.reply_text("1️⃣ Anime posterini (rasm) yuboring:")
+    
+    # ... qolgan barcha elif bloklari o'zgarishsiz davom etadi ...
     context.user_data.clear()
     
     # 2. OBUNANI TEKSHIRISH
@@ -500,5 +573,6 @@ if __name__ == "__main__":
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         pass
+
 
 
