@@ -8,7 +8,8 @@ from telegram import (
     InlineKeyboardButton, 
     InlineKeyboardMarkup, 
     ReplyKeyboardMarkup, 
-    KeyboardButton
+    KeyboardButton,
+    ReplyKeyboardRemove
 )
 from telegram.ext import (
     ApplicationBuilder, 
@@ -141,6 +142,18 @@ async def mark_as_watched(user_id, anime_id):
         cur.close()
         conn.close()
 
+# ====================== KLAVIATURALAR ======================
+async def main_menu_keyboard(user_id):
+    keyboard = [
+        [KeyboardButton("🔍 Anime qidirish")],
+        [KeyboardButton("🎁 Mening bonuslarim"), KeyboardButton("📖 Ko'rilganlar")],
+        [KeyboardButton("📜 Barcha animelar"), KeyboardButton("💎 VIP sotib olish")]
+    ]
+    if await is_user_admin(user_id):
+        keyboard.append([KeyboardButton("🛠 ADMIN PANEL")])
+    
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
 # ====================== AVTOMATIK FAYL GENERATORI ======================
 async def update_anime_list_file():
     while True:
@@ -190,18 +203,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    admin_status = await is_user_admin(user_id)
-    keyboard = [
-        [InlineKeyboardButton("🔍 Anime qidirish", callback_data="search_menu")],
-        [InlineKeyboardButton("🎁 Mening bonuslarim", callback_data="my_bonuses"), InlineKeyboardButton("📖 Ko'rilganlar", callback_data="my_watched")],
-        [InlineKeyboardButton("📜 Barcha animelar", callback_data="send_list"), InlineKeyboardButton("💎 VIP sotib olish", callback_data="buy_vip")]
-    ]
-    if admin_status:
-        keyboard.append([InlineKeyboardButton("🛠 ADMIN PANEL", callback_data="admin_panel")])
-        
     await update.message.reply_text(
-        f"Xush kelibsiz, {update.effective_user.first_name}!\nBotdan foydalanish uchun bo'limni tanlang:",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        f"Xush kelibsiz, {update.effective_user.first_name}!\nBotdan foydalanish uchun quyidagi menyudan foydalaning:",
+        reply_markup=await main_menu_keyboard(user_id)
     )
 
 async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -215,36 +219,25 @@ async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         not_joined = await check_subscription(uid, context.bot)
         if not not_joined:
             await query.message.delete()
-            await start_command(update, context)
+            await query.message.reply_text("✅ Obuna tasdiqlandi!", reply_markup=await main_menu_keyboard(uid))
         else:
             await query.answer("Hali hamma kanallarga a'zo bo'lmadingiz!", show_alert=True)
 
-    elif data == "admin_panel" and admin_status:
-        keyboard = [
-            [InlineKeyboardButton("➕ Anime qo'shish", callback_data="add_anime"), InlineKeyboardButton("💎 VIP berish", callback_data="give_vip")],
-            [InlineKeyboardButton("📢 Reklama (Xabar)", callback_data="broadcast"), InlineKeyboardButton("📊 Statistika", callback_data="bot_stats")],
-            [InlineKeyboardButton("⚙️ Kanal sozlamalari", callback_data="chan_settings"), InlineKeyboardButton("🛡 Admin qo'shish", callback_data="add_new_admin")],
-            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_start")]
-        ]
-        await query.edit_message_text("🛡 Admin boshqaruv paneli:", reply_markup=InlineKeyboardMarkup(keyboard))
+    elif data == "mode_name":
+        context.user_data["search_mode"] = "name"
+        await query.message.reply_text("📝 Anime nomini yuboring (Masalan: Naruto):")
+    
+    elif data == "mode_id":
+        context.user_data["search_mode"] = "id"
+        await query.message.reply_text("🆔 Anime ID raqamini yuboring:")
 
-    elif data == "search_menu":
-        kb = [
-            [InlineKeyboardButton("📝 Nomi orqali", callback_data="mode_name")],
-            [InlineKeyboardButton("🆔 ID raqami orqali", callback_data="mode_id")],
-            [InlineKeyboardButton("🔢 Qism raqami orqali", callback_data="mode_ep")],
-            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_start")]
-        ]
-        await query.edit_message_text("Qidiruv turini tanlang:", reply_markup=InlineKeyboardMarkup(kb))
-
-    elif data.startswith("mode_"):
-        mode = data.split("_")[1]
-        context.user_data["search_mode"] = mode
-        await query.edit_message_text("Qidirilayotgan ma'lumotni yuboring (Masalan: Naruto):")
+    elif data == "mode_ep":
+        context.user_data["search_mode"] = "ep"
+        await query.message.reply_text("🔢 Qism raqamini yuboring:")
 
     elif data == "add_anime" and admin_status:
         context.user_data["step"] = "wait_photo"
-        await query.edit_message_text("1️⃣ Anime posterini (rasm) yuboring:")
+        await query.message.reply_text("1️⃣ Anime posterini (rasm) yuboring:")
 
     elif data == "bot_stats" and admin_status:
         conn = get_db_connection()
@@ -256,12 +249,6 @@ async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cur.close(); conn.close()
             await query.message.reply_text(f"📊 STATISTIKA:\n👤 Foydalanuvchilar: {u_count}\n🎬 Jami qismlar: {a_count}\n💎 VIP: {v_count}")
 
-    elif data == "send_list":
-        if os.path.exists("animeroyhat.txt"):
-            await context.bot.send_document(chat_id=uid, document=open("animeroyhat.txt", "rb"), caption="📜 Barcha animelar ro'yxati:")
-        else:
-            await query.message.reply_text("Ro'yxat hali tayyor emas.")
-
     elif data.startswith("watch_"):
         anime_id = data.split("_")[1]
         res = await mark_as_watched(uid, anime_id)
@@ -269,7 +256,6 @@ async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else: await query.answer("Allaqachon ko'rilgan.", show_alert=True)
 
     elif data.startswith("dl_real_"):
-        # VIP tekshirish mantig'i (file_id tegilmadi)
         p = data.split("_")
         anime_id = p[2]
         ep = p[3]
@@ -281,12 +267,9 @@ async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "broadcast" and admin_status:
         context.user_data["step"] = "wait_broadcast"
-        await query.edit_message_text("📢 Xabarni yuboring:")
+        await query.message.reply_text("📢 Xabarni yuboring:")
 
-    elif data == "back_to_start":
-        await query.message.delete()
-        await start_command(update, context)
-
+# ====================== MESSAGE HANDLER (DATA INPUT) ======================
 async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     step = context.user_data.get("step")
@@ -294,6 +277,32 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     admin_status = await is_user_admin(uid)
 
+    # RE REPLY MENU CLICK HANDLING
+    if text == "🔍 Anime qidirish":
+        kb = [
+            [InlineKeyboardButton("📝 Nomi orqali", callback_data="mode_name")],
+            [InlineKeyboardButton("🆔 ID raqami orqali", callback_data="mode_id")],
+            [InlineKeyboardButton("🔢 Qism raqami orqali", callback_data="mode_ep")]
+        ]
+        await update.message.reply_text("Qidiruv turini tanlang:", reply_markup=InlineKeyboardMarkup(kb))
+        return
+
+    elif text == "🛠 ADMIN PANEL" and admin_status:
+        keyboard = [
+            [InlineKeyboardButton("➕ Anime qo'shish", callback_data="add_anime"), InlineKeyboardButton("💎 VIP berish", callback_data="give_vip")],
+            [InlineKeyboardButton("📢 Reklama (Xabar)", callback_data="broadcast"), InlineKeyboardButton("📊 Statistika", callback_data="bot_stats")]
+        ]
+        await update.message.reply_text("🛡 Admin boshqaruv paneli:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    elif text == "📜 Barcha animelar":
+        if os.path.exists("animeroyhat.txt"):
+            await update.message.reply_document(document=open("animeroyhat.txt", "rb"), caption="📜 Barcha animelar ro'yxati:")
+        else:
+            await update.message.reply_text("Ro'yxat hali tayyor emas.")
+        return
+
+    # REKLAMA TARQATISH
     if step == "wait_broadcast" and admin_status:
         conn = get_db_connection()
         cur = conn.cursor(); cur.execute("SELECT user_id FROM users"); users = cur.fetchall()
@@ -308,6 +317,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"✅ {count} ta foydalanuvchiga yuborildi.")
         context.user_data.clear()
 
+    # ANIME QO'SHISH BOSQICHLARI
     elif step == "wait_photo" and update.message.photo and admin_status:
         context.user_data["temp_photo"] = update.message.photo[-1].file_id
         context.user_data["step"] = "wait_video"
@@ -323,8 +333,9 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.commit(); cur.close(); conn.close()
             await update.message.reply_text("✅ Bazaga qo'shildi!")
             context.user_data.clear()
-        except: await update.message.reply_text("Xato format!")
+        except: await update.message.reply_text("Xato format! Captionga ID|Nomi|Til|Qism yozing.")
 
+    # QIDIRUV ISHLASHI
     elif search_mode and text:
         conn = get_db_connection()
         cur = conn.cursor(dictionary=True)
@@ -338,7 +349,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.close(); conn.close()
 
         if not results:
-            await update.message.reply_text("Topilmadi. 😕")
+            await update.message.reply_text("Hech narsa topilmadi. 😕")
             return
 
         for a in results:
@@ -362,16 +373,12 @@ async def main():
     app.add_handler(CallbackQueryHandler(handle_callbacks))
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_messages))
     
-    # Initialize app
     await app.initialize()
     await app.start()
     
-    # Background task
     asyncio.create_task(update_anime_list_file())
     
     logger.info("Bot ishga tushdi.")
-    
-    # Manual polling loop to avoid loop conflicts on Python 3.13
     await app.updater.start_polling()
     
     try:
@@ -387,6 +394,3 @@ if __name__ == "__main__":
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         pass
-
-
-
