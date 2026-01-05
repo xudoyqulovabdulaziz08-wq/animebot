@@ -37,7 +37,7 @@ MAIN_ADMIN_ID = 8244870375
 DB_CONFIG = {
     "host": os.getenv("MYSQLHOST", "mysql.railway.internal"),
     "user": os.getenv("MYSQLUSER", "root"),
-    "password": os.getenv("MYSQLPASSWORD", "QImwYIXtQLLS vqFbAVYexdcjMRYQDawY"),
+    "password": os.getenv("MYSQLPASSWORD", "CIbKpeQrFVJosmzyKZwJiQoTkJxoeBjP"),
     "database": os.getenv("MYSQLDATABASE", "railway"),
     "port": int(os.getenv("MYSQLPORT", 3306)),
     "connect_timeout": 20,
@@ -445,3 +445,4 @@ if __name__ == "__main__":
 
     # Event loopni o‘zi boshqaradi
     app.run_polling()
+
