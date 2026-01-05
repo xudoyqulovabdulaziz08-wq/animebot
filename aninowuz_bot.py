@@ -426,26 +426,22 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.clear()
 
 # ====================== ASOSIY ISHGA TUSHIRISH (SERVER) ======================
-async def main():
+if __name__ == "__main__":
     # Ma'lumotlar bazasini tayyorlash
     init_db()
-    
+
     # Bot ilovasini qurish
     app = ApplicationBuilder().token(TOKEN).build()
-    
+
     # Handlerlarni ro'yxatdan o'tkazish
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(handle_callbacks))
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_messages))
-    
+
     # Fon vazifasini ishga tushirish (Anime ro'yxatini yangilab turish)
     asyncio.create_task(update_anime_list_file())
-    
-    logger.info("Bot serverda muvaffaqiyatli ishga tushdi.")
-    await app.run_polling()
 
-if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        logger.info("Bot to'xtatildi.")
+    logger.info("Bot serverda muvaffaqiyatli ishga tushdi.")
+
+    # Event loopni o‘zi boshqaradi
+    app.run_polling()
