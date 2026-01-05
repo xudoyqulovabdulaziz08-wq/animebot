@@ -270,18 +270,56 @@ async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["step"] = "wait_broadcast"
         await query.message.reply_text("📢 Xabarni yuboring:")
 
+    # --- ADMINLAR BOSHQARUVI ---
     elif data == "manage_admins" and admin_status:
-        kb = [[InlineKeyboardButton("➕ Yangi admin qo'shish", callback_data="add_new_admin")],
-              [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_admin")]]
+        kb = [
+            [InlineKeyboardButton("➕ Yangi admin qo'shish", callback_data="add_new_admin")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_admin")]
+        ]
         await query.edit_message_text("👥 Adminlarni boshqarish bo'limi:", reply_markup=InlineKeyboardMarkup(kb))
 
     elif data == "add_new_admin" and uid == MAIN_ADMIN_ID:
         context.user_data["step"] = "wait_admin_id"
         await query.message.reply_text("👤 Yangi admin qilmoqchi bo'lgan foydalanuvchi ID raqamini yuboring:")
 
+    # --- MAJBURIY KANAL BOSHQARUVI ---
+    elif data == "manage_channels" and admin_status:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT id, channel_username FROM required_channels")
+        ch_list = cur.fetchall()
+        cur.close(); conn.close()
+        
+        msg = "📢 Majburiy kanallar ro'yxati:\n\n"
+        kb = []
+        for cid, cname in ch_list:
+            msg += f"🔹 {cname}\n"
+            kb.append([InlineKeyboardButton(f"❌ O'chirish: {cname}", callback_data=f"del_ch_{cid}")])
+        
+        kb.append([InlineKeyboardButton("➕ Kanal qo'shish", callback_data="add_channel")])
+        kb.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_admin")])
+        
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(kb))
+
+    elif data == "add_channel" and admin_status:
+        context.user_data["step"] = "wait_channel_name"
+        await query.message.reply_text("Kanal username'ini yuboring (Masalan: @kanal_nomi):")
+
+    elif data.startswith("del_ch_") and admin_status:
+        cid = data.split("_")[2]
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM required_channels WHERE id=%s", (cid,))
+        conn.commit(); cur.close(); conn.close()
+        await query.answer("✅ Kanal o'chirildi")
+        # Menyuni yangilash
+        context.user_data["step"] = None
+        await handle_callbacks(update, context) # Qayta chaqirish orqali yangilash
+
     elif data == "back_to_admin" and admin_status:
         keyboard = [
             [InlineKeyboardButton("➕ Anime qo'shish", callback_data="add_anime"), InlineKeyboardButton("👥 Adminlar", callback_data="manage_admins")],
+            [InlineKeyboardButton("📢 Majburiy kanallar", callback_data="manage_channels")],
             [InlineKeyboardButton("📢 Reklama (Xabar)", callback_data="broadcast"), InlineKeyboardButton("📊 Statistika", callback_data="bot_stats")],
             [InlineKeyboardButton("💾 DB Export", callback_data="export_db")]
         ]
@@ -308,15 +346,18 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_status = await is_user_admin(uid)
 
     if text == "🔍 Anime qidirish":
-        kb = [[InlineKeyboardButton("📝 Nomi orqali", callback_data="mode_name")],
-              [InlineKeyboardButton("🆔 ID raqami orqali", callback_data="mode_id")],
-              [InlineKeyboardButton("🔢 Qism raqami orqali", callback_data="mode_ep")]]
+        kb = [
+            [InlineKeyboardButton("📝 Nomi orqali", callback_data="mode_name")],
+            [InlineKeyboardButton("🆔 ID raqami orqali", callback_data="mode_id")],
+            [InlineKeyboardButton("🔢 Qism raqami orqali", callback_data="mode_ep")]
+        ]
         await update.message.reply_text("Qidiruv turini tanlang:", reply_markup=InlineKeyboardMarkup(kb))
         return
 
     elif text == "🛠 ADMIN PANEL" and admin_status:
         keyboard = [
             [InlineKeyboardButton("➕ Anime qo'shish", callback_data="add_anime"), InlineKeyboardButton("👥 Adminlar", callback_data="manage_admins")],
+            [InlineKeyboardButton("📢 Majburiy kanallar", callback_data="manage_channels")],
             [InlineKeyboardButton("📢 Reklama (Xabar)", callback_data="broadcast"), InlineKeyboardButton("📊 Statistika", callback_data="bot_stats")],
             [InlineKeyboardButton("💾 DB Export", callback_data="export_db")]
         ]
@@ -330,6 +371,20 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Ro'yxat hali tayyor emas.")
         return
 
+    # MAJBURIY KANAL QO'SHISH LOGIKASI
+    if step == "wait_channel_name" and admin_status:
+        if text.startswith("@"):
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("INSERT INTO required_channels (channel_username) VALUES (%s)", (text,))
+            conn.commit(); cur.close(); conn.close()
+            await update.message.reply_text(f"✅ {text} kanali ro'yxatga qo'shildi!")
+        else:
+            await update.message.reply_text("❌ Xato! Username @ belgisi bilan boshlanishi kerak.")
+        context.user_data.clear()
+        return
+
+    # REKLAMA TARQATISH
     if step == "wait_broadcast" and admin_status:
         conn = get_db_connection()
         cur = conn.cursor(); cur.execute("SELECT user_id FROM users"); users = cur.fetchall()
@@ -345,6 +400,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.clear()
         return
 
+    # YANGI ADMIN ID QABUL QILISH
     elif step == "wait_admin_id" and uid == MAIN_ADMIN_ID:
         try:
             new_admin = int(text)
@@ -353,10 +409,12 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cur.execute("INSERT IGNORE INTO admins (user_id) VALUES (%s)", (new_admin,))
             conn.commit(); cur.close(); conn.close()
             await update.message.reply_text(f"✅ {new_admin} muvaffaqiyatli admin qilindi.")
-        except: await update.message.reply_text("❌ Xato ID.")
+        except:
+            await update.message.reply_text("❌ Xato ID.")
         context.user_data.clear()
         return
 
+    # ANIME QO'SHISH BOSQICHLARI
     elif step == "wait_photo" and update.message.photo and admin_status:
         context.user_data["temp_photo"] = update.message.photo[-1].file_id
         context.user_data["step"] = "wait_video"
@@ -376,21 +434,32 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except: await update.message.reply_text("Xato format! Captionga ID|Nomi|Til|Qism yozing.")
         return
 
+    # QIDIRUV ISHLASHI
     elif search_mode and text:
         conn = get_db_connection()
         cur = conn.cursor(dictionary=True)
-        if search_mode == "name": cur.execute("SELECT * FROM anime WHERE name LIKE %s", (f"%{text}%",))
-        elif search_mode == "id": cur.execute("SELECT * FROM anime WHERE id=%s", (text,))
-        else: cur.execute("SELECT * FROM anime WHERE episode=%s", (text,))
+        if search_mode == "name":
+            cur.execute("SELECT * FROM anime WHERE name LIKE %s", (f"%{text}%",))
+        elif search_mode == "id":
+            cur.execute("SELECT * FROM anime WHERE id=%s", (text,))
+        else:
+            cur.execute("SELECT * FROM anime WHERE episode=%s", (text,))
         results = cur.fetchall()
         cur.close(); conn.close()
+
         if not results:
             await update.message.reply_text("Hech narsa topilmadi. 😕")
             return
+
         for a in results:
             context.bot_data[f"vid_{a['id']}_{a['episode']}"] = a['video_file_id']
-            kb = [[InlineKeyboardButton("✅ Ko'rdim", callback_data=f"watch_{a['id']}"), InlineKeyboardButton("📥 Yuklab olish (VIP)", callback_data=f"dl_real_{a['id']}_{a['episode']}")]]
-            await update.message.reply_photo(photo=a['photo_file_id'], caption=f"🎬 Nomi: {a['name']}\n🆔 ID: {a['id']}\n🌐 Til: {a['lang']}\n🔢 Qism: {a['episode']}", reply_markup=InlineKeyboardMarkup(kb))
+            kb = [[InlineKeyboardButton("✅ Ko'rdim", callback_data=f"watch_{a['id']}"), 
+                   InlineKeyboardButton("📥 Yuklab olish (VIP)", callback_data=f"dl_real_{a['id']}_{a['episode']}")]]
+            await update.message.reply_photo(
+                photo=a['photo_file_id'],
+                caption=f"🎬 Nomi: {a['name']}\n🆔 ID: {a['id']}\n🌐 Til: {a['lang']}\n🔢 Qism: {a['episode']}",
+                reply_markup=InlineKeyboardMarkup(kb)
+            )
             await update.message.reply_video(video=a['video_file_id'], protect_content=True)
         context.user_data.clear()
 
@@ -398,19 +467,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main():
     init_db()
     app = ApplicationBuilder().token(TOKEN).build()
+    
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(handle_callbacks))
-    app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_messages))
-    await app.initialize()
-    await app.start()
-    asyncio.create_task(update_anime_list_file())
-    logger.info("Bot ishga tushdi.")
-    await app.updater.start_polling()
-    try:
-        while True: await asyncio.sleep(3600)
-    except (KeyboardInterrupt, SystemExit):
-        await app.updater.stop(); await app.stop(); await app.shutdown()
-
-if __name__ == "__main__":
-    try: asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit): pass
+    app.add_handler(MessageHand
