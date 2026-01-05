@@ -1,1 +1,0 @@
-worker: python aninowuz_bot.py
