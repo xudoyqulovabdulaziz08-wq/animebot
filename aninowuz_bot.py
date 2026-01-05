@@ -3,6 +3,7 @@ import logging
 import mysql.connector
 import asyncio
 import datetime
+import json
 from telegram import (
     Update, 
     InlineKeyboardButton, 
@@ -269,6 +270,38 @@ async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["step"] = "wait_broadcast"
         await query.message.reply_text("📢 Xabarni yuboring:")
 
+    # --- YANGI QO'SHILGAN CALLBACK'LAR ---
+    elif data == "manage_admins" and admin_status:
+        kb = [
+            [InlineKeyboardButton("➕ Yangi admin qo'shish", callback_data="add_new_admin")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_admin")]
+        ]
+        await query.edit_message_text("👥 Adminlarni boshqarish bo'limi:", reply_markup=InlineKeyboardMarkup(kb))
+
+    elif data == "add_new_admin" and uid == MAIN_ADMIN_ID:
+        context.user_data["step"] = "wait_admin_id"
+        await query.message.reply_text("👤 Yangi admin qilmoqchi bo'lgan foydalanuvchi ID raqamini yuboring:")
+
+    elif data == "back_to_admin" and admin_status:
+        keyboard = [
+            [InlineKeyboardButton("➕ Anime qo'shish", callback_data="add_anime"), InlineKeyboardButton("👥 Adminlar", callback_data="manage_admins")],
+            [InlineKeyboardButton("📢 Reklama (Xabar)", callback_data="broadcast"), InlineKeyboardButton("📊 Statistika", callback_data="bot_stats")],
+            [InlineKeyboardButton("💾 DB Export", callback_data="export_db")]
+        ]
+        await query.edit_message_text("🛡 Admin boshqaruv paneli:", reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif data == "export_db" and admin_status:
+        conn = get_db_connection()
+        if conn:
+            cur = conn.cursor(dictionary=True)
+            cur.execute("SELECT * FROM anime"); animes = cur.fetchall()
+            cur.execute("SELECT * FROM users"); users = cur.fetchall()
+            cur.close(); conn.close()
+            backup = {"anime": animes, "users": users, "date": str(datetime.datetime.now())}
+            with open("backup.json", "w", encoding="utf-8") as f:
+                json.dump(backup, f, ensure_ascii=False, indent=4, default=str)
+            await context.bot.send_document(chat_id=uid, document=open("backup.json", "rb"), caption="📦 Railway DB Backup")
+
 # ====================== MESSAGE HANDLER (DATA INPUT) ======================
 async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
@@ -289,8 +322,9 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text == "🛠 ADMIN PANEL" and admin_status:
         keyboard = [
-            [InlineKeyboardButton("➕ Anime qo'shish", callback_data="add_anime"), InlineKeyboardButton("💎 VIP berish", callback_data="give_vip")],
-            [InlineKeyboardButton("📢 Reklama (Xabar)", callback_data="broadcast"), InlineKeyboardButton("📊 Statistika", callback_data="bot_stats")]
+            [InlineKeyboardButton("➕ Anime qo'shish", callback_data="add_anime"), InlineKeyboardButton("👥 Adminlar", callback_data="manage_admins")],
+            [InlineKeyboardButton("📢 Reklama (Xabar)", callback_data="broadcast"), InlineKeyboardButton("📊 Statistika", callback_data="bot_stats")],
+            [InlineKeyboardButton("💾 DB Export", callback_data="export_db")]
         ]
         await update.message.reply_text("🛡 Admin boshqaruv paneli:", reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -315,6 +349,19 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await asyncio.sleep(0.05)
             except: pass
         await update.message.reply_text(f"✅ {count} ta foydalanuvchiga yuborildi.")
+        context.user_data.clear()
+
+    # YANGI ADMIN ID QABUL QILISH
+    elif step == "wait_admin_id" and uid == MAIN_ADMIN_ID:
+        try:
+            new_admin = int(text)
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("INSERT IGNORE INTO admins (user_id) VALUES (%s)", (new_admin,))
+            conn.commit(); cur.close(); conn.close()
+            await update.message.reply_text(f"✅ {new_admin} muvaffaqiyatli admin qilindi.")
+        except:
+            await update.message.reply_text("❌ Xato ID.")
         context.user_data.clear()
 
     # ANIME QO'SHISH BOSQICHLARI
