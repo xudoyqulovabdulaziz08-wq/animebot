@@ -474,31 +474,31 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def main():
     init_db()
     app = ApplicationBuilder().token(TOKEN).build()
+    
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(handle_callbacks))
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_messages))
+    
     await app.initialize()
     await app.start()
+    
     asyncio.create_task(update_anime_list_file())
+    
     logger.info("Bot ishga tushdi.")
     await app.updater.start_polling()
+    
     try:
-        while True: await asyncio.sleep(3600)
+        while True:
+            await asyncio.sleep(3600)
     except (KeyboardInterrupt, SystemExit):
         await app.updater.stop()
         await app.stop()
         await app.shutdown()
 
 if __name__ == "__main__":
-    try: asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit): pass
-Funksiyalar:
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        pass
 
-Adminni ogohlantirish: Har safar mutlaqo yangi foydalanuvchi /start bossa, MAIN_ADMIN_ID ga xabar boradi.
-
-Doimiy tekshiruv: /start bosilganda bot har doim kanallarga a'zolikni tekshiradi (hatto foydalanuvchi bazada bo'lsa ham).
-
-Optimizatsiya: Kodning barcha qismlari siz so'ragandek saqlandi va professional tarzda ulandi.
-
-Kodni yuklab test qilib ko'rishingiz mumkin. Yana biron xizmat kerakmi?
 
