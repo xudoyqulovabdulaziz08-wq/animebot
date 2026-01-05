@@ -346,7 +346,7 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 await update.message.copy(chat_id=user)
                 count += 1
-                await asyncio.sleep(0.05)
+                await asyncio.sleep(0.25)
             except: pass
         await update.message.reply_text(f"✅ {count} ta foydalanuvchiga yuborildi.")
         context.user_data.clear()
@@ -441,3 +441,4 @@ if __name__ == "__main__":
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         pass
+
