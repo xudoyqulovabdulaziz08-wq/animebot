@@ -35,10 +35,10 @@ MAIN_ADMIN_ID = 8244870375
 # Agar baza boshqa serverda bo'lsa, localhost o'rniga IP yozing
 # Rasmga asosan Railway o'zgaruvchilari
 DB_CONFIG = {
-    "host": os.getenv("MYSQLHOST", "mysql.railway.internal"),
-    "user": os.getenv("MYSQLUSER", "root"),
-    "password": os.getenv("MYSQLPASSWORD", "CIbKpeQrFVJosmzyKZwJiQoTkJxoeBjP"),
-    "database": os.getenv("MYSQLDATABASE", "railway"),
+    "host": os.getenv("MYSQLHOST"),
+    "user": os.getenv("MYSQLUSER"),
+    "password": os.getenv("MYSQLPASSWORD"),
+    "database": os.getenv("MYSQLDATABASE"),
     "port": int(os.getenv("MYSQLPORT", 3306)),
     "connect_timeout": 20,
     "autocommit": True
@@ -445,4 +445,5 @@ if __name__ == "__main__":
 
     # Event loopni o‘zi boshqaradi
     app.run_polling()
+
 
