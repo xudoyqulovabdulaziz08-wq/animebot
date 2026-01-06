@@ -459,7 +459,16 @@ async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     st = res['status'] if res else "user"
     await update.message.reply_text(f"💰 Ballaringiz: {val}\n⭐ Status: {st.upper()}")
     
-    
+async def show_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (
+        "📖 **Qo‘llanma**\n\n"
+        "🔍 *Anime qidirish* — anime nomi yoki ID orqali topish\n"
+        "🎁 *Bonus ballarim* — sizning ballaringiz\n"
+        "💎 *VIP bo‘lish* — VIP imkoniyatlar\n"
+        "📜 *Anime ro‘yxati* — mavjud animelar\n\n"
+        "❓ Savollar bo‘lsa admin bilan bog‘laning"
+    )
+    await update.message.reply_text(text, parse_mode="Markdown")    
 
     
    
@@ -900,6 +909,7 @@ if __name__ == '__main__':
     main()
     
     
+
 
 
 
