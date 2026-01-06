@@ -52,7 +52,7 @@ DB_CONFIG = {
 }
 
 # ====================== CONVERSATION STATES ======================
-# Yangi professional qidiruv mantiqi uchun holatlar yangilandi
+# Yangi professional qidiruv mantiqi uchun holatlar (Optimallashtirildi)
 (
     A_ADD_CH,            # 0: Kanal qo'shish
     A_REM_CH,            # 1: Kanal o'chirish
@@ -64,15 +64,17 @@ DB_CONFIG = {
     A_ADD_ANI_DATA,      # 7: Anime ma'lumotlarini qabul qilish
     A_SEND_ADS_PASS,     # 8: Reklama parolini tekshirish
     A_SEND_ADS_MSG,      # 9: Reklama xabarini tarqatish
-    A_SEARCH_BY_ID,      # 10: ID orqali qidirish (YANGI)
-    A_SEARCH_BY_NAME     # 11: Nomi orqali qidirish (YANGI)
+    A_SEARCH_BY_ID,      # 10: ID orqali qidirish
+    A_SEARCH_BY_NAME     # 11: Nomi orqali qidirish
 ) = range(12)
 
+# Loglash sozlamalari
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
     level=logging.INFO
 )
 logger = logging.getLogger(__name__)
+
 
 
 # ====================== MA'LUMOTLAR BAZASI (OPTIMAL) ======================
@@ -773,6 +775,7 @@ def main():
     keep_alive()
     app_bot.run_polling()
     
+
 
 
 
