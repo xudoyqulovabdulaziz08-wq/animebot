@@ -36,19 +36,20 @@ def keep_alive():
 # Token va parollar kod ichidan olib tashlandi. 
 # Ularni Render Dashboard -> Settings -> Environment Variables qismiga qo'shing.
 
-TOKEN = os.getenv("BOT_TOKEN") 
+TOKEN = os.getenv("TOKEN") 
 MAIN_ADMIN_ID = int(os.getenv("ADMIN_ID", 8244870375))
 ADVERTISING_PASSWORD = os.getenv("ADS_PASS", "2009")
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
-    "port": int(os.getenv("DB_PORT", 27624)),
+    "port": int(os.getenv("DB_PORT")),
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASS"),
     "database": os.getenv("DB_NAME"),
-    "ssl_mode": "REQUIRED",
-    "autocommit": True
+    "autocommit": True,
+    "ssl_disabled": False
 }
+
 
 # Conversation States
 (
@@ -423,6 +424,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
