@@ -373,6 +373,19 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
 # ====================== ANIME QIDIRISH VA PAGINATION (TUZATILDI) ======================
 
+async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Qidiruv turini tanlash menyusi"""
+    kb = [
+        [InlineKeyboardButton("🆔 ID orqali qidirish", callback_data="search_type_id")],
+        [InlineKeyboardButton("🔎 Nomi orqali qidirish", callback_data="search_type_name")],
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")]
+    ]
+    await update.message.reply_text(
+        "🎬 **Anime qidirish bo'limi**\n\nQidiruv usulini tanlang:", 
+        reply_markup=InlineKeyboardMarkup(kb),
+        parse_mode="Markdown"
+    )
+
 async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Anime nomi yoki ID bo'yicha qidirish mantiqi"""
     if not update.message or not update.message.text:
@@ -380,9 +393,8 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         
     text = update.message.text.strip()
     uid = update.effective_user.id
-    status = await get_user_status(uid) # Statusni aniqlaymiz
+    status = await get_user_status(uid)
     
-    # Orqaga qaytish bosilsa jarayonni to'xtatish
     if text == "⬅️ Orqaga":
         await update.message.reply_text("Bosh menyu", reply_markup=get_main_kb(status))
         return ConversationHandler.END
@@ -394,7 +406,7 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     cur = conn.cursor(dictionary=True)
     
-    # ID yoki Nom bo'yicha qidirish
+    # ID yoki Nom bo'yicha qidirish (Optimallashtirildi)
     if text.isdigit():
         cur.execute("SELECT * FROM anime_list WHERE anime_id=%s", (text,))
     else:
@@ -404,21 +416,22 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     if not anime:
         await update.message.reply_text(
-            "😔 Kechirasiz, bunday anime topilmadi.\n\n"
-            "Iltimos, nomini to'g'ri yozganingizni yoki ID raqam xato emasligini tekshiring.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Qidirishni to'xtatish", callback_data="cancel_search")]])
+            f"😔 `{text}` bo'yicha hech narsa topilmadi.\n\n"
+            "Iltimos, ID raqamni yoki nomini qayta tekshirib ko'ring:",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ To'xtatish", callback_data="cancel_search")]])
         )
-        return # Qayta urinib ko'rish uchun state'da qoladi
+        return # Foydalanuvchi qayta kiritishi uchun state'da qoladi
 
+    # Anime qismlarini olish
     cur.execute("SELECT episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
     episodes = cur.fetchall()
     cur.close(); conn.close()
 
     if not episodes:
-        await update.message.reply_text("Bu animega hali qismlar joylanmagan.", reply_markup=get_main_kb(status))
+        await update.message.reply_text("⚠️ Bu anime topildi, lekin qismlar hali yuklanmagan.")
         return ConversationHandler.END
 
-    # Pagination Keyboard
+    # Pagination Keyboard (Dastlabki 10 ta qism)
     keyboard = []
     row = []
     for ep in episodes[:10]:
@@ -433,48 +446,44 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_photo(
         photo=anime['poster_id'],
-        caption=f"🎬 **{anime['name']}**\n🆔 ID: `{anime['anime_id']}`\n\nQismni tanlang 👇",
+        caption=f"🎬 **{anime['name']}**\n🆔 ID: `{anime['anime_id']}`\n\nQuyidagi qismlardan birini tanlang 👇",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown"
     )
     return ConversationHandler.END
 
-async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Barcha animelar ro'yxatini JSON fayl qilib yuborish (TUZATILDI)"""
-    msg = update.effective_message
-    if update.callback_query:
-        await update.callback_query.answer("Fayl tayyorlanmoqda...")
-
+async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Qism tugmasi bosilganda videoni yuborish (SIZDA SHU QISM YO'Q EDI)"""
+    query = update.callback_query
+    data = query.data.split("_") # get_ep_ID_EPISODE
+    
+    anime_id = data[2]
+    episode_num = data[3]
+    
+    await query.answer("Video yuklanmoqda...")
+    
     conn = get_db()
-    if not conn:
-        await msg.reply_text("❌ Bazaga ulanishda xato.")
-        return
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT * FROM anime_episodes WHERE anime_id=%s AND episode=%s", (anime_id, episode_num))
+    episode_data = cur.fetchone()
+    
+    cur.execute("SELECT name FROM anime_list WHERE anime_id=%s", (anime_id,))
+    anime_info = cur.fetchone()
+    cur.close(); conn.close()
 
-    try:
-        cur = conn.cursor(dictionary=True)
-        cur.execute("SELECT * FROM anime_list")
-        animes = cur.fetchall()
-        cur.close(); conn.close()
-
-        if not animes:
-            await msg.reply_text("📭 Bazada hali birorta ham anime yo'q.")
-            return
-
-        file_name = "anime_list.json"
-        with open(file_name, "w", encoding="utf-8") as f:
-            json.dump(animes, f, indent=4, default=str, ensure_ascii=False)
-        
-        with open(file_name, "rb") as doc:
-            await msg.reply_document(
-                document=doc, 
-                caption=f"🎬 **Barcha animelar bazasi**\n\n📊 Jami: {len(animes)} ta anime.",
-                parse_mode="Markdown"
+    if episode_data:
+        try:
+            await query.message.reply_video(
+                video=episode_data['file_id'],
+                caption=f"🎬 **{anime_info['name']}**\n🔢 **{episode_num}-qism**\n\n✅ @SizningKanalingiz"
             )
-    except Exception as e:
-        await msg.reply_text(f"❌ Eksportda xatolik: {e}")
+        except Exception as e:
+            await query.message.reply_text(f"❌ Videoni yuborishda xatolik: {e}")
+    else:
+        await query.answer("❌ Video topilmadi!", show_alert=True)
 
 async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Keyingi/Oldingi qismlar ro'yxatini ko'rsatish"""
+    """Sahifadan sahifaga o'tish"""
     query = update.callback_query
     parts = query.data.split("_")
     aid = parts[1]
@@ -507,6 +516,7 @@ async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
     await query.answer()
+    
     
 
     
@@ -774,6 +784,7 @@ def main():
     keep_alive()
     app_bot.run_polling()
     
+
 
 
 
