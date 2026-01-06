@@ -746,6 +746,7 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # o'z holicha qolsa bo'ladi, ular to'g'ri yozilgan.
 
 
+
 # ====================== MAIN FUNKSIYA (TUZATILGAN VA TO'LIQ) ======================
 
 async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -769,14 +770,15 @@ def main():
     # Botni qurish
     app_bot = ApplicationBuilder().token(TOKEN).build()
 
-    # 1. Conversation Handler - Faqat ma'lumot kiritish jarayonlari uchun
+    # 1. Conversation Handler - Jarayonlarni boshqarish
+    # MUHIM: handle_callback bu yerda entry_point bo'lishi kerak
     conv_handler = ConversationHandler(
         entry_points=[
-            # Inline tugmalar orqali kirish (Search, Ads, Admin qo'shish va h.k)
-            CallbackQueryHandler(handle_callback, pattern="^(adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins|search_type_id|search_type_name)$"),
+            # Inline tugmalar orqali qidiruv yoki adminlikni boshlash
+            CallbackQueryHandler(handle_callback, pattern="^(search_type_id|search_type_name|adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins)$"),
         ],
         states={
-            # Qidiruv holatlari
+            # Qidiruv holatlari (Endi bot matn kelsa aynan shu funksiyalarga yo'naltiradi)
             A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
             A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
             
@@ -798,49 +800,37 @@ def main():
         allow_reentry=True
     )
 
-    # 2. Asosiy buyruqlar va xabarlar (Tartib muhim!)
+    # 2. Handlerlarni ulash (TARTIB O'TA MUHIM!)
     
-    # Start buyrug'i
+    # Birinchi: Start buyrug'i
     app_bot.add_handler(CommandHandler("start", start))
 
-    # Anime qidirish tugmasi (Asosiy menyudan keladigan matn)
+    # Ikkinchi: Conversation Handler (State'lar o'g'irlanmasligi uchun tepada bo'lishi shart)
+    app_bot.add_handler(conv_handler)
+
+    # Uchinchi: Qolgan barcha tugmalar va callbacklar
     app_bot.add_handler(MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), search_menu_cmd))
+    app_bot.add_handler(MessageHandler(filters.Regex("^🛠 ADMIN PANEL$"), 
+        lambda u, c: u.message.reply_text("🛠 Boshqaruv paneli:", 
+        reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID))))
 
-    # Admin Panel tugmasi
-    app_bot.add_handler(MessageHandler(
-        filters.Regex("^🛠 ADMIN PANEL$"), 
-        lambda u, c: u.message.reply_text(
-            "🛠 Boshqaruv paneli:", 
-            reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
-        )
-    ))
-
-    # DB Export (Xatolik tuzatildi: endi ham matnli, ham inline tugma orqali ishlaydi)
     app_bot.add_handler(MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime))
-    app_bot.add_handler(CallbackQueryHandler(export_all_anime, pattern="^adm_export$"))
-
-    # Boshqa menyu tugmalari
     app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
     app_bot.add_handler(MessageHandler(filters.Regex("^💎 VIP bo'lish ⭐$"), 
         lambda u, c: u.message.reply_text("💎 VIP status olish uchun admin bilan bog'laning: @Admin_Username")))
     app_bot.add_handler(MessageHandler(filters.Regex("^📖 Qo'llanma ❓$"), 
-        lambda u, c: u.message.reply_text("📖 *Qo'llanma:*\nID yoki Nomi orqali animelarni topishingiz mumkin.", parse_mode="Markdown")))
+        lambda u, c: u.message.reply_text("📖 Botdan foydalanish: ID yoki Nomi orqali animelarni topishingiz mumkin.")))
 
-    # 3. Handlerlarni ulash (ConvHandler eng muhimi)
-    app_bot.add_handler(conv_handler)
+    # To'rtinchi: Qolgan CallbackQueryHandler'lar
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
-    
-    # Umumiy Callback Handler (Tepada tutib olinmagan barcha callbacklar uchun)
-    app_bot.add_handler(CallbackQueryHandler(handle_callback))
-    
-    # Hech qanday jarayonda bo'lmagan foydalanuvchi matn yozsa qidiruv deb hisoblash
-    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic))
+    app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
+    app_bot.add_handler(CallbackQueryHandler(handle_callback)) # Qolgan barcha callbacklar uchun
 
-    # Web serverni yuritish (Keep alive)
+    # Web serverni yuritish (Render uchun)
     keep_alive()
 
     # Botni ishga tushirish
-    print("🤖 Bot muvaffaqiyatli ishga tushdi...")
+    print("🤖 Bot polling rejimida muvaffaqiyatli ishga tushdi...")
     app_bot.run_polling()
 
 if __name__ == "__main__":
@@ -849,6 +839,7 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
         
+
 
 
 
