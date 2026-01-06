@@ -389,7 +389,76 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_SEND_ADS_PASS
 
     return None
-        
+
+# ====================== ADMIN VA QO'SHIMCHA ISHLOVCHILAR (YETISHMAYOTGAN) ======================
+
+async def exec_add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kanal qo'shish ijrosi"""
+    text = update.message.text.strip()
+    username = text if text.startswith('@') or text.startswith('-') else f"@{text}"
+    
+    conn = get_db()
+    if not conn: return ConversationHandler.END
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO channels (username) VALUES (%s)", (username,))
+        conn.commit()
+        await update.message.reply_text(f"✅ Kanal qo'shildi: {username}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xatolik: {e}")
+    finally:
+        cur.close(); conn.close()
+    return ConversationHandler.END
+
+async def exec_rem_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kanalni o'chirish ijrosi"""
+    text = update.message.text.strip()
+    username = text if text.startswith('@') or text.startswith('-') else f"@{text}"
+    
+    conn = get_db()
+    if not conn: return ConversationHandler.END
+    cur = conn.cursor()
+    cur.execute("DELETE FROM channels WHERE username=%s", (username,))
+    conn.commit()
+    cur.close(); conn.close()
+    
+    await update.message.reply_text(f"🗑 Kanal o'chirildi: {username}")
+    return ConversationHandler.END
+
+async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin qo'shish ijrosi"""
+    text = update.message.text.strip()
+    if not text.isdigit():
+        await update.message.reply_text("❌ Xato! Foydalanuvchi ID raqamini yuboring.")
+        return A_ADD_ADM
+
+    conn = get_db()
+    if not conn: return ConversationHandler.END
+    cur = conn.cursor()
+    try:
+        cur.execute("INSERT INTO admins (user_id) VALUES (%s)", (int(text),))
+        conn.commit()
+        await update.message.reply_text(f"👮 Yangi admin qo'shildi: {text}")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xatolik: {e}")
+    finally:
+        cur.close(); conn.close()
+    return ConversationHandler.END
+
+async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchi bonusini ko'rsatish"""
+    uid = update.effective_user.id
+    conn = get_db()
+    if not conn: return
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT bonus, status FROM users WHERE user_id=%s", (uid,))
+    res = cur.fetchone()
+    cur.close(); conn.close()
+    
+    val = res['bonus'] if res else 0
+    st = res['status'] if res else "user"
+    await update.message.reply_text(f"💰 Ballaringiz: {val}\n⭐ Status: {st.upper()}")
+    
     
 
     
@@ -830,6 +899,7 @@ if __name__ == '__main__':
     main()
     
     
+
 
 
 
