@@ -359,9 +359,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Anime nomi yoki ID bo'yicha qidirish mantiqi"""
+    if not update.message or not update.message.text:
+        return
+        
     text = update.message.text.strip()
     uid = update.effective_user.id
+    status = await get_user_status(uid) # Statusni aniqlaymiz
     
+    # Orqaga qaytish bosilsa jarayonni to'xtatish
+    if text == "⬅️ Orqaga":
+        await update.message.reply_text("Bosh menyu", reply_markup=get_main_kb(status))
+        return ConversationHandler.END
+
     conn = get_db()
     if not conn:
         await update.message.reply_text("❌ Bazaga ulanishda xato.")
@@ -383,18 +392,17 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
             "Iltimos, nomini to'g'ri yozganingizni yoki ID raqam xato emasligini tekshiring.",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Qidirishni to'xtatish", callback_data="cancel_search")]])
         )
-        return # User yana urinib ko'rishi uchun state saqlanib qoladi
+        return # Qayta urinib ko'rish uchun state'da qoladi
 
     cur.execute("SELECT episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
     episodes = cur.fetchall()
     cur.close(); conn.close()
 
     if not episodes:
-        # get_main_kb funksiyasi async emas, shuning uchun await olib tashlandi
-        await update.message.reply_text("Bu animega hali qismlar joylanmagan.", reply_markup=get_main_kb(uid))
+        await update.message.reply_text("Bu animega hali qismlar joylanmagan.", reply_markup=get_main_kb(status))
         return ConversationHandler.END
 
-    # Pagination Keyboard (Dastlabki 10 qism)
+    # Pagination Keyboard
     keyboard = []
     row = []
     for ep in episodes[:10]:
@@ -415,63 +423,46 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
     return ConversationHandler.END
 
-async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Qism tugmasi bosilganda videoni yuborish"""
-    query = update.callback_query
-    uid = query.from_user.id
-    
-    # pagination callbacklarini (page_) bu funksiya o'tkazib yuborishi kerak
-    if query.data.startswith("page_"):
-        await handle_pagination(update, context)
+async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Barcha animelar ro'yxatini JSON fayl qilib yuborish (TUZATILDI)"""
+    msg = update.effective_message
+    if update.callback_query:
+        await update.callback_query.answer("Fayl tayyorlanmoqda...")
+
+    conn = get_db()
+    if not conn:
+        await msg.reply_text("❌ Bazaga ulanishda xato.")
         return
 
     try:
-        parts = query.data.split("_")
-        aid = parts[2]
-        ep_num = parts[3]
-    except:
-        await query.answer("Ma'lumotda xatolik yuz berdi.")
-        return
-
-    status = await get_user_status(uid)
-    conn = get_db(); cur = conn.cursor(dictionary=True)
-    
-    cur.execute("SELECT * FROM anime_episodes WHERE anime_id=%s AND episode=%s", (aid, ep_num))
-    ep_data = cur.fetchone()
-    
-    if not ep_data:
-        await query.answer("Kechirasiz, bu qism topilmadi.")
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM anime_list")
+        animes = cur.fetchall()
         cur.close(); conn.close()
-        return
 
-    # Bonus ball berish
-    bonus_add = 2 if status == 'vip' else 1
-    cur.execute("UPDATE users SET bonus = bonus + %s WHERE user_id=%s", (bonus_add, uid))
-    conn.commit()
-    
-    is_protected = False if status in ['vip', 'admin', 'main_admin'] else True
+        if not animes:
+            await msg.reply_text("📭 Bazada hali birorta ham anime yo'q.")
+            return
 
-    kb_list = []
-    # Agar orqaga qaytish tugmasi bo'lsa, foydalanuvchi boshqa qismlarni ham ko'ra oladi
-    kb_list.append([InlineKeyboardButton("⬅️ Boshqa qismlar", callback_data=f"page_{aid}_0")])
-
-    await context.bot.send_video(
-        chat_id=uid,
-        video=ep_data['file_id'],
-        caption=f"🎬 **ID: {aid}** | **{ep_num}-qism**\n🌐 Til: {ep_data['lang']}\n\n🎁 Bonus ball: +{bonus_add}",
-        protect_content=is_protected,
-        reply_markup=InlineKeyboardMarkup(kb_list),
-        parse_mode="Markdown"
-    )
-    
-    cur.close(); conn.close()
-    await query.answer(f"+{bonus_add} bonus berildi!")
+        file_name = "anime_list.json"
+        with open(file_name, "w", encoding="utf-8") as f:
+            json.dump(animes, f, indent=4, default=str, ensure_ascii=False)
+        
+        with open(file_name, "rb") as doc:
+            await msg.reply_document(
+                document=doc, 
+                caption=f"🎬 **Barcha animelar bazasi**\n\n📊 Jami: {len(animes)} ta anime.",
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        await msg.reply_text(f"❌ Eksportda xatolik: {e}")
 
 async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Keyingi/Oldingi qismlar ro'yxatini ko'rsatish"""
     query = update.callback_query
-    _, aid, offset = query.data.split("_")
-    offset = int(offset)
+    parts = query.data.split("_")
+    aid = parts[1]
+    offset = int(parts[2])
     
     conn = get_db(); cur = conn.cursor(dictionary=True)
     cur.execute("SELECT episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (aid,))
@@ -480,7 +471,6 @@ async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = []
     row = []
-    # Offsetdan boshlab 10 ta qismni kesib olish
     display_eps = episodes[offset:offset+10]
     
     for ep in display_eps:
@@ -501,6 +491,8 @@ async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
     await query.answer()
+    
+
     
     
 
@@ -804,6 +796,7 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
         
+
 
 
 
