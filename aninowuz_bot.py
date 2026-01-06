@@ -1,95 +1,242 @@
 import os
+
 import logging
+
 import mysql.connector
+
 import asyncio
+
 import datetime
+
 import json
+
 from flask import Flask        # <-- Yangi qo'shildi
+
 from threading import Thread   # <-- Yangi qo'shildi
+
 from telegram import (
+
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
+
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+
 )
+
 from telegram.ext import (
+
     ApplicationBuilder, CommandHandler, MessageHandler,
+
     CallbackQueryHandler, filters, ContextTypes, ConversationHandler
+
 )
+
+
 
 # ====================== WEB SERVICE (RENDER UCHUN) ======================
+
 app = Flask('')
 
+
+
 @app.route('/')
+
 def home():
+
     return "Bot is running..."
 
+
+
 def run():
+
     # Render avtomatik beradigan PORT-ni oladi, bo'lmasa 8080 ishlatadi
+
     port = int(os.environ.get("PORT", 8080))
+
     app.run(host='0.0.0.0', port=port)
 
+
+
 def keep_alive():
+
     t = Thread(target=run)
+
     t.start()
+
 # ====================== KONFIGURATSIYA ======================
+
 TOKEN = "8258233749:AAHdFklNhjGlE7pK0026vJrMYJaK8iiddXo"
+
 MAIN_ADMIN_ID = 8244870375
+
 ADVERTISING_PASSWORD = "2009"
 
-# MySQL Railway/Render ulanishi
-# MySQL Railway/Render ulanishi
+
+
+
+
 DB_CONFIG = {
-    "host": "mysql.railway.internal",
-    "user": "root",
-    "password": "CIbKpeQrFVJosmzyKZwJiQoTkJxoeBjP",
-    "database": "railway",
-    "port": 3306,
+
+    "host": "mysql-animebotuz-xudoyqulovabdulaziz08-0be3.c.aivencloud.com",
+
+    "port": 27624,
+
+    "user": "avnadmin",
+
+    "password": "AVNS_aF3x30aqiRUJFpD16uH",
+
+    "database": "defaultdb",
+
+    "ssl_mode": "REQUIRED",
+
     "autocommit": True
+
 }
 
+
+
 # Conversation States
+
 (
+
     A_ADD_CH, A_REM_CH, A_ADD_ADM, A_REM_ADM, 
+
     A_ADD_VIP, A_REM_VIP, A_ADD_ANI_POSTER, A_ADD_ANI_DATA,
+
     A_SEND_ADS_PASS, A_SEND_ADS_MSG, A_SEARCH_NAME
+
 ) = range(11)
 
+
+
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
 logger = logging.getLogger(__name__)
 
+
+
 # ====================== MA'LUMOTLAR BAZASI ======================
+
 def get_db():
-    return mysql.connector.connect(**DB_CONFIG)
+
+    try:
+
+        # Aiven uchun ssl_disabled=False va port ko'rsatilishi shart
+
+        conn = mysql.connector.connect(
+
+            host=DB_CONFIG["host"],
+
+            port=DB_CONFIG["port"],
+
+            user=DB_CONFIG["user"],
+
+            password=DB_CONFIG["password"],
+
+            database=DB_CONFIG["database"],
+
+            ssl_disabled=False  # SSL ulanishni ta'minlaydi
+
+        )
+
+        return conn
+
+    except mysql.connector.Error as err:
+
+        print(f"❌ Ma'lumotlar bazasiga ulanishda xato: {err}")
+
+        return None
+
+
 
 def init_db():
+
     conn = get_db()
+
+    if not conn:
+
+        return
+
+    
+
     cur = conn.cursor()
-    # Foydalanuvchilar
-    cur.execute("""CREATE TABLE IF NOT EXISTS users (
-        user_id BIGINT PRIMARY KEY, 
-        joined_at DATETIME, 
-        bonus INT DEFAULT 0,
-        status VARCHAR(20) DEFAULT 'user'
-    )""")
-    # Animelar (Siz so'ragan format: id | nomi | Tili | qismi)
-    cur.execute("""CREATE TABLE IF NOT EXISTS anime_list (
-        anime_id VARCHAR(50), 
-        name VARCHAR(255), 
-        poster_id TEXT,
-        PRIMARY KEY(anime_id)
-    )""")
-    cur.execute("""CREATE TABLE IF NOT EXISTS anime_episodes (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        anime_id VARCHAR(50),
-        episode INT,
-        lang VARCHAR(50),
-        file_id TEXT
-    )""")
-    # Adminlar va VIP
-    cur.execute("CREATE TABLE IF NOT EXISTS admins (user_id BIGINT PRIMARY KEY)")
-    cur.execute("CREATE TABLE IF NOT EXISTS channels (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255))")
-    conn.commit()
-    cur.close()
-    conn.close()
+
+    try:
+
+        # 1. Foydalanuvchilar jadvali
+
+        cur.execute("""CREATE TABLE IF NOT EXISTS users (
+
+            user_id BIGINT PRIMARY KEY, 
+
+            joined_at DATETIME, 
+
+            bonus INT DEFAULT 0,
+
+            status VARCHAR(20) DEFAULT 'user'
+
+        )""")
+
+
+
+        # 2. Anime asosiy ma'lumotlari
+
+        cur.execute("""CREATE TABLE IF NOT EXISTS anime_list (
+
+            anime_id VARCHAR(50) PRIMARY KEY, 
+
+            name VARCHAR(255), 
+
+            poster_id TEXT
+
+        )""")
+
+
+
+        # 3. Anime qismlari
+
+        cur.execute("""CREATE TABLE IF NOT EXISTS anime_episodes (
+
+            id INT AUTO_INCREMENT PRIMARY KEY,
+
+            anime_id VARCHAR(50),
+
+            episode INT,
+
+            lang VARCHAR(50),
+
+            file_id TEXT,
+
+            FOREIGN KEY (anime_id) REFERENCES anime_list(anime_id) ON DELETE CASCADE
+
+        )""")
+
+
+
+        # 4. Adminlar jadvali
+
+        cur.execute("CREATE TABLE IF NOT EXISTS admins (user_id BIGINT PRIMARY KEY)")
+
+
+
+        # 5. Majburiy obuna kanallari
+
+        cur.execute("CREATE TABLE IF NOT EXISTS channels (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255))")
+
+        
+
+        conn.commit()
+
+        print("✅ Ma'lumotlar bazasi jadvallari tayyor.")
+
+    except mysql.connector.Error as err:
+
+        print(f"❌ Jadvallarni yaratishda xato: {err}")
+
+    finally:
+
+        cur.close()
+
+        conn.close()
 
 # ====================== YORDAMCHI FUNKSIYALAR ======================
 async def get_user_status(uid):
@@ -395,5 +542,6 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
