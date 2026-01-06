@@ -496,113 +496,95 @@ async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     
 
-# ====================== CONVERSATION STEPS ======================
+# ====================== CONVERSATION STEPS (TUZATILDI) ======================
+
 async def add_ani_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Anime posterini qabul qilish"""
     context.user_data['poster'] = update.message.photo[-1].file_id
     await update.message.reply_text(
-        "✅ Poster qabul qilindi.\n\nEndi ma'lumotni quyidagi formatda yuboring:\n"
-        "`ID | Nomi | Tili | Qismi`\n\n"
-        "Misol: `101 | Naruto | O'zb | 1`", 
+        "✅ Poster qabul qilindi.\n\n"
+        "Endi **VIDEONI** yuboring.\n\n"
+        "⚠️ **DIQQAT:** Video ostiga (caption) quyidagi ma'lumotni yozing:\n"
+        "`ID | Nomi | Tili | Qismi`", 
         parse_mode="Markdown"
     )
     return A_ADD_ANI_DATA
 
 async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Anime ma'lumotlarini yoki videoni qabul qilish"""
+    """Anime ma'lumotlarini va videoni birga yoki ketma-ket qabul qilish"""
     uid = update.effective_user.id
+    status = await get_user_status(uid)
     
-    # 1. Agar matn kelsa (Anime ma'lumotlari)
-    if update.message.text:
-        try:
-            raw_data = update.message.text.split("|")
-            if len(raw_data) < 4:
-                raise ValueError
-            
-            aid, name, lang, ep = [i.strip() for i in raw_data]
-            
-            # Qism raqami butun son ekanini tekshirish
-            if not ep.isdigit():
-                await update.message.reply_text("❌ Qism faqat raqam bo'lishi kerak!")
-                return A_ADD_ANI_DATA
-
-            context.user_data['tmp_ani'] = {
-                "id": aid, 
-                "name": name, 
-                "lang": lang, 
-                "ep": int(ep)
-            }
-            
+    # Videoni va uning captionidagi ma'lumotni olish
+    if update.message.video:
+        v_id = update.message.video.file_id
+        caption = update.message.caption
+        
+        if not caption or "|" not in caption:
             await update.message.reply_text(
-                f"🎬 **Ma'lumotlar saqlandi.**\n\n"
-                f"🆔 ID: {aid}\n"
-                f"📺 Nomi: {name}\n"
-                f"🔢 Qism: {ep}\n\n"
-                f"Endi ushbu qism uchun **VIDEONI** yuboring:",
+                "❌ Xato! Video captioniga ma'lumotni yozmadingiz.\n"
+                "Format: `ID | Nomi | Tili | Qismi`", 
                 parse_mode="Markdown"
             )
             return A_ADD_ANI_DATA
-        except ValueError:
-            await update.message.reply_text("❌ Xato! Iltimos formatni tekshiring:\n`ID | Nomi | Tili | Qismi`")
-            return A_ADD_ANI_DATA
-
-    # 2. Agar video kelsa
-    elif update.message.video:
-        if 'tmp_ani' not in context.user_data:
-            await update.message.reply_text("❌ Avval anime ma'lumotlarini matn shaklida yuboring!")
-            return A_ADD_ANI_DATA
-            
-        if 'poster' not in context.user_data:
-            await update.message.reply_text("❌ Xatolik: Poster topilmadi. Qayta /start bosing.")
-            return ConversationHandler.END
-
-        v_id = update.message.video.file_id
-        d = context.user_data['tmp_ani']
-        p_id = context.user_data['poster']
-
-        conn = get_db()
-        if not conn:
-            await update.message.reply_text("❌ Bazaga ulanishda xato.")
-            return ConversationHandler.END
 
         try:
+            # Ma'lumotlarni ajratib olish
+            parts = [i.strip() for i in caption.split("|")]
+            if len(parts) < 4:
+                raise ValueError("Ma'lumotlar yetarli emas")
+                
+            aid, name, lang, ep = parts
+            p_id = context.user_data.get('poster')
+
+            if not p_id:
+                await update.message.reply_text("❌ Poster topilmadi. Avval rasm yuboring.")
+                return A_ADD_ANI_POSTER
+
+            conn = get_db()
             cur = conn.cursor()
             
-            # 1. Anime listini yangilash yoki qo'shish (Poster yangilanishi uchun)
+            # 1. Anime listini yangilash
             cur.execute("""
                 INSERT INTO anime_list (anime_id, name, poster_id) 
                 VALUES (%s, %s, %s)
                 ON DUPLICATE KEY UPDATE name=%s, poster_id=%s
-            """, (d['id'], d['name'], p_id, d['name'], p_id))
+            """, (aid, name, p_id, name, p_id))
             
-            # 2. Qismni qo'shish (Agar bu qism bo'lsa yangilaydi)
+            # 2. Qismni qo'shish
             cur.execute("""
                 INSERT INTO anime_episodes (anime_id, episode, lang, file_id) 
                 VALUES (%s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE file_id=%s, lang=%s
-            """, (d['id'], d['ep'], d['lang'], v_id, v_id, d['lang']))
+            """, (aid, ep, lang, v_id, v_id, lang))
             
             conn.commit()
-            await update.message.reply_text(
-                f"✅ Muvaffaqiyatli saqlandi!\n\n"
-                f"📺 {d['name']}\n"
-                f"🔢 {d['ep']}-qism tayyor.", 
-                reply_markup=await get_main_kb(uid)
-            )
-        except Exception as e:
-            await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
-        finally:
-            cur.close()
-            conn.close()
-            # Vaqtinchalik ma'lumotlarni tozalash
-            context.user_data.pop('tmp_ani', None)
-            context.user_data.pop('poster', None)
+            cur.close(); conn.close()
+
+            # Tezkor yuklash tugmalari
+            kb = [
+                [InlineKeyboardButton("➕ Keyingi qismni qo'shish", callback_data="add_more_ep")],
+                [InlineKeyboardButton("✅ Jarayonni yakunlash", callback_data="cancel_search")]
+            ]
             
-        return ConversationHandler.END
+            await update.message.reply_text(
+                f"✅ **Muvaffaqiyatli saqlandi!**\n\n"
+                f"📺 Anime: {name}\n"
+                f"🔢 Qism: {ep}\n\n"
+                f"Keyingi qismni qo'shasizmi yoki tugatasizmi?",
+                reply_markup=InlineKeyboardMarkup(kb),
+                parse_mode="Markdown"
+            )
+            return ConversationHandler.END # Tugma bosilganda handle_callback orqali qayta kiradi
+
+        except Exception as e:
+            await update.message.reply_text(f"❌ Xatolik: {e}\nFormatni tekshiring: `ID | Nomi | Tili | Qismi`")
+            return A_ADD_ANI_DATA
 
     else:
-        await update.message.reply_text("Iltimos, video yoki ma'lumotni matn shaklida yuboring.")
+        await update.message.reply_text("Iltimos, videoni caption (matn) bilan birga yuboring.")
         return A_ADD_ANI_DATA
+        
     
             
 
@@ -796,6 +778,7 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
         
+
 
 
 
