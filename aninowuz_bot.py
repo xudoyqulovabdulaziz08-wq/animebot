@@ -77,20 +77,22 @@ logger = logging.getLogger(__name__)
 
 
 
-# ====================== MA'LUMOTLAR BAZASI (OPTIMAL) ======================
+
+# ====================== MA'LUMOTLAR BAZASI (TUZATILGAN VA OPTIMAL) ======================
 
 def get_db():
     try:
+        # DB_CONFIG o'rniga to'g'ridan-to'g'ri os.getenv ishlatish Render uchun ishonchliroq
         conn = mysql.connector.connect(
-            host=DB_CONFIG["host"],
-            port=DB_CONFIG["port"],
-            user=DB_CONFIG["user"],
-            password=DB_CONFIG["password"],
-            database=DB_CONFIG["database"],
-            # SSL rejimini faollashtirish
-            ssl_mode="REQUIRED",
-            # Avtomatik ulanishni tekshirish
-            autocommit=True
+            host=os.getenv("DB_HOST"),
+            port=int(os.getenv("DB_PORT", 3306)),
+            user=os.getenv("DB_USER"),
+            password=os.getenv("DB_PASS"),
+            database=os.getenv("DB_NAME"),
+            # 'ssl_mode' xatosini oldini olish uchun uni 'ssl_disabled' ga almashtiramiz 
+            # yoki butunlay olib tashlaymiz. Aksariyat bulutli bazalar buni avtomatik hal qiladi.
+            autocommit=True,
+            connection_timeout=30
         )
         return conn
     except mysql.connector.Error as err:
@@ -101,11 +103,12 @@ def init_db():
     """Jadvallarni yaratish va tuzatish"""
     conn = get_db()
     if not conn:
+        logger.error("❌ Bazaga ulanib bo'lmagani uchun jadvallar yaratilmadi.")
         return
     
     cur = conn.cursor()
     try:
-        # Foydalanuvchilar jadvali
+        # 1. Foydalanuvchilar jadvali
         cur.execute("""CREATE TABLE IF NOT EXISTS users (
             user_id BIGINT PRIMARY KEY, 
             joined_at DATETIME, 
@@ -113,15 +116,16 @@ def init_db():
             status VARCHAR(20) DEFAULT 'user'
         )""")
 
-        # Animelar jadvali (Nomi bo'yicha tezkor qidiruv uchun INDEX qo'shildi)
+        # 2. Animelar jadvali 
+        # FULLTEXT ba'zi serverlarda xato berishi mumkin, shuning uchun oddiy INDEX ishlatamiz
         cur.execute("""CREATE TABLE IF NOT EXISTS anime_list (
             anime_id VARCHAR(50) PRIMARY KEY, 
             name VARCHAR(255), 
             poster_id TEXT,
-            FULLTEXT (name)
-        ) ENGINE=InnoDB""")
+            INDEX (name)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""")
 
-        # Anime qismlari jadvali
+        # 3. Anime qismlari jadvali
         cur.execute("""CREATE TABLE IF NOT EXISTS anime_episodes (
             id INT AUTO_INCREMENT PRIMARY KEY,
             anime_id VARCHAR(50),
@@ -129,15 +133,22 @@ def init_db():
             lang VARCHAR(50),
             file_id TEXT,
             FOREIGN KEY (anime_id) REFERENCES anime_list(anime_id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""")
+        
+        # 4. Kanallar jadvali (Check-sub uchun)
+        cur.execute("""CREATE TABLE IF NOT EXISTS channels (
+            username VARCHAR(255) PRIMARY KEY
+        )""")
+
+        # 5. Adminlar jadvali
+        cur.execute("""CREATE TABLE IF NOT EXISTS admins (
+            user_id BIGINT PRIMARY KEY
         )""")
         
-        # Adminlar, Kanallar va h.k. jadvallar kodingizdagidek qoladi
-        # ...
-        
         conn.commit()
-        print("✅ Ma'lumotlar bazasi optimallashtirildi.")
+        print("✅ Ma'lumotlar bazasi muvaffaqiyatli tayyorlandi.")
     except Exception as e:
-        print(f"❌ Xatolik: {e}")
+        print(f"❌ Jadvallarni yaratishda xatolik: {e}")
     finally:
         cur.close()
         conn.close()
@@ -806,6 +817,7 @@ if __name__ == '__main__':
     main()
     
     
+
 
 
 
