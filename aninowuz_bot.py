@@ -142,14 +142,16 @@ def init_db():
         
 
 
-# ====================== YORDAMCHI FUNKSIYALAR ======================
+# ====================== YORDAMCHI FUNKSIYALAR (TUZATILDI) ======================
+
 async def get_user_status(uid):
     """Foydalanuvchi statusini aniqlash (Main Admin, Admin, VIP yoki Oddiy foydalanuvchi)"""
     if uid == MAIN_ADMIN_ID: 
         return "main_admin"
     
     conn = get_db()
-    if not conn: return "user"
+    if not conn: 
+        return "user"
     
     cur = conn.cursor()
     try:
@@ -170,27 +172,41 @@ async def get_user_status(uid):
         conn.close()
 
 async def check_sub(uid, bot):
-    """Majburiy obunani tekshirish"""
+    """Majburiy obunani tekshirish mantiqi"""
     conn = get_db()
-    if not conn: return []
+    if not conn: 
+        return []
     
     cur = conn.cursor()
-    cur.execute("SELECT username FROM channels")
-    channels = cur.fetchall()
-    cur.close()
-    conn.close()
+    try:
+        cur.execute("SELECT username FROM channels")
+        channels = cur.fetchall()
+    except Exception as e:
+        logger.error(f"Kanallarni olishda xato: {e}")
+        return []
+    finally:
+        cur.close()
+        conn.close()
     
     not_joined = []
     for (ch,) in channels:
         try:
-            # Username formatini to'g'irlash (@ belgisini tekshirish)
-            target = ch if ch.startswith('@') or ch.startswith('-100') else f"@{ch}"
+            # Username formatini to'g'irlash
+            # Agar ch raqam bo'lsa (ID), stringga o'tkazamiz, agar username bo'lsa @ qo'shamiz
+            target = str(ch)
+            if not target.startswith('@') and not target.startswith('-'):
+                target = f"@{target}"
+                
             member = await bot.get_chat_member(target, uid)
             if member.status not in ['member', 'administrator', 'creator']: 
                 not_joined.append(ch)
-        except Exception: 
+        except Exception as e:
+            # Agar bot kanalga admin bo'lmasa yoki kanal topilmasa xato beradi
+            logger.warning(f"Obunani tekshirishda xato ({ch}): {e}")
             not_joined.append(ch)
+            
     return not_joined
+    
 
 # ====================== KLAVIATURALAR (TUZATILDI) ======================
 
@@ -752,6 +768,7 @@ def main():
     keep_alive()
     app_bot.run_polling()
     
+
 
 
 
