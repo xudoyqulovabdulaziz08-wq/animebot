@@ -80,7 +80,8 @@ def init_db():
 async def check_subscription(user_id, bot):
     conn = get_db_connection()
     if not conn: return []
-    cur = conn.cursor(); cur.execute("SELECT channel_username FROM required_channels")
+    cur = conn.cursor()
+    cur.execute("SELECT channel_username FROM required_channels")
     channels = cur.fetchall(); cur.close(); conn.close()
     not_joined = []
     for (ch,) in channels:
@@ -94,9 +95,23 @@ async def is_user_admin(user_id):
     if user_id == MAIN_ADMIN_ID: return True
     conn = get_db_connection()
     if not conn: return False
-    cur = conn.cursor(); cur.execute("SELECT user_id FROM admins WHERE user_id=%s", (user_id,))
+    cur = conn.cursor()
+    cur.execute("SELECT user_id FROM admins WHERE user_id=%s", (user_id,))
     res = cur.fetchone(); cur.close(); conn.close()
     return bool(res)
+
+async def mark_as_watched(user_id, anime_id):
+    conn = get_db_connection()
+    if not conn: return False
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT 1 FROM watched_anime WHERE user_id=%s AND anime_id=%s", (user_id, anime_id))
+        if not cur.fetchone():
+            cur.execute("INSERT INTO watched_anime (user_id, anime_id) VALUES (%s, %s)", (user_id, anime_id))
+            cur.execute("INSERT INTO bonuses (user_id, bonus_points) VALUES (%s, 1) ON DUPLICATE KEY UPDATE bonus_points = bonus_points + 1", (user_id,))
+            conn.commit(); return True
+        return False
+    finally: cur.close(); conn.close()
 
 async def main_menu_keyboard(user_id):
     keyboard = [
@@ -104,7 +119,8 @@ async def main_menu_keyboard(user_id):
         [KeyboardButton("🎁 Mening bonuslarim"), KeyboardButton("📖 Ko'rilganlar")],
         [KeyboardButton("📜 Barcha animelar"), KeyboardButton("💎 VIP sotib olish")]
     ]
-    if await is_user_admin(user_id): keyboard.append([KeyboardButton("🛠 ADMIN PANEL")])
+    if await is_user_admin(user_id):
+        keyboard.append([KeyboardButton("🛠 ADMIN PANEL")])
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 # ====================== AVTOMATIK FAYL GENERATORI ======================
@@ -123,7 +139,7 @@ async def update_anime_list_file():
         except: pass
         await asyncio.sleep(6 * 3600)
 
-# ====================== BOT HANDLERS ======================
+# ====================== START COMMAND ======================
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     name = update.effective_user.first_name
@@ -133,21 +149,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not cur.fetchone():
             cur.execute("INSERT INTO users (user_id, joined_at) VALUES (%s, %s)", (uid, datetime.datetime.now()))
             conn.commit()
-            try: await context.bot.send_message(MAIN_ADMIN_ID, f"🆕 Yangi user: {name} ({uid})")
+            try:
+                username = f"@{update.effective_user.username}" if update.effective_user.username else "yo'q"
+                await context.bot.send_message(MAIN_ADMIN_ID, f"🆕 Yangi user: {name}\n🆔 ID: {uid}\n🌐 Username: {username}")
             except: pass
         cur.close(); conn.close()
     
     context.user_data.clear()
     not_joined = await check_subscription(uid, context.bot)
     if not_joined:
-        btns = [[InlineKeyboardButton(f"A'zo bo'lish", url=f"https://t.me/{c.replace('@','')}")] for c in not_joined]
+        btns = [[InlineKeyboardButton(f"Obuna bo'lish: {c}", url=f"https://t.me/{c.replace('@','')}")] for c in not_joined]
         btns.append([InlineKeyboardButton("Tekshirish 🔄", callback_data="check_subs")])
-        await update.message.reply_text("❗ Obuna bo'ling:", reply_markup=InlineKeyboardMarkup(btns))
+        await update.message.reply_text(f"Salom {name}! 👋\nBotdan foydalanish uchun kanallarga a'zo bo'ling:", reply_markup=InlineKeyboardMarkup(btns))
         return
-    await update.message.reply_text(f"Salom {name}!", reply_markup=await main_menu_keyboard(uid))
+    await update.message.reply_text(f"Xush kelibsiz, {name}!", reply_markup=await main_menu_keyboard(uid))
 
+# ====================== CALLBACK HANDLER ======================
 async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query; uid = query.from_user.id; data = query.data; await query.answer()
+    query = update.callback_query
+    uid = query.from_user.id
+    data = query.data
+    await query.answer()
     admin = await is_user_admin(uid)
 
     if data == "check_subs":
@@ -155,67 +177,117 @@ async def handle_callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not not_joined:
             try: await query.message.delete()
             except: pass
-            await context.bot.send_message(uid, "✅ Tasdiqlandi!", reply_markup=await main_menu_keyboard(uid))
+            await context.bot.send_message(uid, "✅ Obuna tasdiqlandi!", reply_markup=await main_menu_keyboard(uid))
         else: await query.answer("Hali a'zo emassiz!", show_alert=True)
 
     elif data.startswith("send_vid_"):
-        # send_vid_ID_EPISODE
         parts = data.split("_"); aid, ep = parts[2], parts[3]
         conn = get_db_connection(); cur = conn.cursor(dictionary=True)
         cur.execute("SELECT * FROM anime WHERE id=%s AND episode=%s", (aid, ep))
         anime = cur.fetchone(); cur.close(); conn.close()
         if anime:
-            await context.bot.send_video(uid, anime['video_file_id'], caption=f"🎬 {anime['name']} - {anime['episode']}-qism", protect_content=True)
+            kb = [[InlineKeyboardButton("✅ Ko'rdim", callback_data=f"watch_{aid}")]]
+            await context.bot.send_video(uid, anime['video_file_id'], caption=f"🎬 {anime['name']} - {anime['episode']}-qism", protect_content=True, reply_markup=InlineKeyboardMarkup(kb))
 
-    elif data == "mode_name": context.user_data["search_mode"] = "name"; await query.message.reply_text("📝 Nomni yozing:")
-    elif data == "mode_id": context.user_data["search_mode"] = "id"; await query.message.reply_text("🆔 IDni yozing:")
-    elif data == "add_anime" and admin: context.user_data["step"] = "wait_photo"; await query.message.reply_text("1️⃣ Poster (rasm) yuboring:")
+    elif data.startswith("watch_"):
+        aid = data.split("_")[1]
+        if await mark_as_watched(uid, aid): await query.message.reply_text("✅ Ko'rildi deb belgilandi! +1 bonus.")
+        else: await query.answer("Allaqachon ko'rilgan.", show_alert=True)
+
+    elif data == "mode_name": context.user_data["search_mode"] = "name"; await query.message.reply_text("📝 Anime nomini yuboring:")
+    elif data == "mode_id": context.user_data["search_mode"] = "id"; await query.message.reply_text("🆔 Anime ID raqamini yuboring:")
+
+    elif data == "add_anime" and admin:
+        context.user_data["step"] = "wait_photo"
+        await query.message.reply_text("1️⃣ Poster (rasm) yuboring:")
+
     elif data == "bot_stats" and admin:
         conn = get_db_connection(); cur = conn.cursor()
         cur.execute("SELECT COUNT(*) FROM users"); u = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM anime"); a = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM vip_users"); v = cur.fetchone()[0]
         cur.close(); conn.close()
-        await query.message.reply_text(f"📊 Foydalanuvchilar: {u}\n🎬 Jami videolar: {a}")
-    elif data == "manage_channels" and admin:
-        context.user_data["step"] = "wait_channel"; await query.message.reply_text("Kanal username yuboring (@...):")
+        await query.message.reply_text(f"📊 STATISTIKA:\n👤 Foydalanuvchilar: {u}\n🎬 Jami qismlar: {a}\n💎 VIP: {v}")
+
     elif data == "broadcast" and admin:
-        context.user_data["step"] = "wait_broadcast"; await query.message.reply_text("Xabarni yuboring:")
+        context.user_data["step"] = "wait_broadcast"; await query.message.reply_text("📢 Reklama xabarini yuboring:")
+
+    elif data == "manage_admins" and uid == MAIN_ADMIN_ID:
+        context.user_data["step"] = "wait_admin_id"; await query.message.reply_text("👤 Yangi admin ID raqamini yuboring:")
+
+    elif data == "manage_channels" and admin:
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("SELECT id, channel_username FROM required_channels"); chs = cur.fetchall()
+        cur.close(); conn.close()
+        msg = "📢 Kanallar:\n"
+        kb = []
+        for cid, cname in chs:
+            msg += f"🔹 {cname}\n"
+            kb.append([InlineKeyboardButton(f"❌ {cname}", callback_data=f"del_ch_{cid}")])
+        kb.append([InlineKeyboardButton("➕ Kanal qo'shish", callback_data="add_channel")])
+        kb.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_admin")])
+        await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(kb))
+
+    elif data == "add_channel" and admin:
+        context.user_data["step"] = "wait_channel_name"; await query.message.reply_text("Kanal username kiriting (@kanal):")
+
+    elif data.startswith("del_ch_") and admin:
+        cid = data.split("_")[2]
+        conn = get_db_connection(); cur = conn.cursor()
+        cur.execute("DELETE FROM required_channels WHERE id=%s", (cid,)); conn.commit()
+        cur.close(); conn.close(); await query.answer("Kanal o'chirildi."); await handle_callbacks(update, context)
+
+    elif data == "export_db" and admin:
+        conn = get_db_connection(); cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM anime"); a_data = cur.fetchall()
+        cur.execute("SELECT * FROM users"); u_data = cur.fetchall()
+        cur.close(); conn.close()
+        with open("backup.json", "w") as f: json.dump({"anime": a_data, "users": u_data}, f, default=str)
+        await context.bot.send_document(uid, open("backup.json", "rb"), caption="📦 DB Export")
+
     elif data == "back_to_admin" and admin:
-        kb = [[InlineKeyboardButton("➕ Anime", callback_data="add_anime"), InlineKeyboardButton("📢 Kanallar", callback_data="manage_channels")],
-              [InlineKeyboardButton("📢 Reklama", callback_data="broadcast"), InlineKeyboardButton("📊 Statistika", callback_data="bot_stats")]]
+        kb = [[InlineKeyboardButton("➕ Anime", callback_data="add_anime"), InlineKeyboardButton("👥 Admin", callback_data="manage_admins")],
+              [InlineKeyboardButton("📢 Kanallar", callback_data="manage_channels"), InlineKeyboardButton("📊 Stat", callback_data="bot_stats")],
+              [InlineKeyboardButton("📢 Reklama", callback_data="broadcast"), InlineKeyboardButton("💾 Export", callback_data="export_db")]]
         await query.edit_message_text("🛡 Admin Panel:", reply_markup=InlineKeyboardMarkup(kb))
 
+# ====================== MESSAGE HANDLER ======================
 async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id; text = update.message.text; admin = await is_user_admin(uid)
     step = context.user_data.get("step"); mode = context.user_data.get("search_mode")
 
     if text == "🔍 Anime qidirish":
-        kb = [[InlineKeyboardButton("📝 Nom bo'yicha", callback_data="mode_name")], [InlineKeyboardButton("🆔 ID bo'yicha", callback_data="mode_id")]]
+        kb = [[InlineKeyboardButton("📝 Nomi orqali", callback_data="mode_name")], [InlineKeyboardButton("🆔 ID orqali", callback_data="mode_id")]]
         await update.message.reply_text("Qidiruv turi:", reply_markup=InlineKeyboardMarkup(kb))
     elif text == "🛠 ADMIN PANEL" and admin:
-        kb = [[InlineKeyboardButton("➕ Anime", callback_data="add_anime"), InlineKeyboardButton("📢 Kanallar", callback_data="manage_channels")],
-              [InlineKeyboardButton("📢 Reklama", callback_data="broadcast"), InlineKeyboardButton("📊 Statistika", callback_data="bot_stats")]]
+        kb = [[InlineKeyboardButton("➕ Anime", callback_data="add_anime"), InlineKeyboardButton("👥 Admin", callback_data="manage_admins")],
+              [InlineKeyboardButton("📢 Kanallar", callback_data="manage_channels"), InlineKeyboardButton("📊 Stat", callback_data="bot_stats")],
+              [InlineKeyboardButton("📢 Reklama", callback_data="broadcast"), InlineKeyboardButton("💾 Export", callback_data="export_db")]]
         await update.message.reply_text("🛡 Admin Panel:", reply_markup=InlineKeyboardMarkup(kb))
     elif text == "📜 Barcha animelar":
         if os.path.exists("animeroyhat.txt"): await update.message.reply_document(open("animeroyhat.txt", "rb"))
     elif text == "🎁 Mening bonuslarim":
         conn = get_db_connection(); cur = conn.cursor(); cur.execute("SELECT bonus_points FROM bonuses WHERE user_id=%s", (uid,))
         res = cur.fetchone(); cur.close(); conn.close()
-        p = res[0] if res else 0
-        await update.message.reply_text(f"💰 Sizning bonuslaringiz: {p} ball")
-    
+        await update.message.reply_text(f"💰 Bonuslaringiz: {res[0] if res else 0} ball")
+
     # --- ADMIN BOSQICHLARI ---
-    if step == "wait_channel" and admin:
+    if step == "wait_channel_name" and admin:
         if text.startswith("@"):
             conn = get_db_connection(); cur = conn.cursor()
-            cur.execute("INSERT INTO required_channels (channel_username) VALUES (%s)", (text,))
-            conn.commit(); cur.close(); conn.close()
-            await update.message.reply_text("✅ Qo'shildi.")
+            cur.execute("INSERT INTO required_channels (channel_username) VALUES (%s)", (text,)); conn.commit()
+            cur.close(); conn.close(); await update.message.reply_text("✅ Kanal qo'shildi.")
+        context.user_data.clear()
+    elif step == "wait_admin_id" and uid == MAIN_ADMIN_ID:
+        try:
+            aid = int(text); conn = get_db_connection(); cur = conn.cursor()
+            cur.execute("INSERT IGNORE INTO admins (user_id) VALUES (%s)", (aid,)); conn.commit()
+            cur.close(); conn.close(); await update.message.reply_text(f"✅ {aid} admin bo'ldi.")
+        except: await update.message.reply_text("ID raqam bo'lishi kerak.")
         context.user_data.clear()
     elif step == "wait_broadcast" and admin:
         conn = get_db_connection(); cur = conn.cursor(); cur.execute("SELECT user_id FROM users"); users = cur.fetchall()
-        cur.close(); conn.close()
-        count = 0
+        cur.close(); conn.close(); count = 0
         for (u,) in users:
             try: await update.message.copy(u); count += 1; await asyncio.sleep(0.1)
             except: pass
@@ -232,9 +304,9 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         (p[0], p[1], p[2], p[3], update.message.video.file_id, context.user_data["tmp_photo"]))
             conn.commit(); cur.close(); conn.close()
             await update.message.reply_text(f"✅ {p[3]}-qism qo'shildi! Keyingisini yuboring...")
-        except: await update.message.reply_text("❌ Xato format!")
-    
-    # --- QIDIRUV ---
+        except: await update.message.reply_text("❌ Xato! Format: ID|Nomi|Til|Qism")
+
+    # --- QIDIRUV (GURUHLASH) ---
     elif mode and text:
         conn = get_db_connection(); cur = conn.cursor(dictionary=True)
         if mode == "name": cur.execute("SELECT * FROM anime WHERE name LIKE %s ORDER BY CAST(episode AS UNSIGNED) ASC", (f"%{text}%",))
@@ -251,9 +323,10 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 row.append(InlineKeyboardButton(str(ep), callback_data=f"send_vid_{aid}_{ep}"))
                 if len(row) == 4: kb.append(row); row = []
             if row: kb.append(row)
-            await update.message.reply_photo(d['p'], caption=f"🎬 **{d['n']}**\n🌐 Til: {d['l']}\n🆔 ID: {aid}", reply_markup=InlineKeyboardMarkup(kb))
+            await update.message.reply_photo(d['p'], caption=f"🎬 **{d['n']}**\n🌐 Til: {d['l']}\n🆔 ID: {aid}\n\nQismni tanlang:", reply_markup=InlineKeyboardMarkup(kb))
         context.user_data.clear()
 
+# ====================== ASOSIY ISHGA TUSHIRISH ======================
 async def main():
     init_db()
     app = ApplicationBuilder().token(TOKEN).build()
