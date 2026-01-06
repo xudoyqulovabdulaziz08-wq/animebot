@@ -473,36 +473,83 @@ async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     )
     cur.close(); conn.close()
     
-
-
 # ====================== CONVERSATION STEPS ======================
 async def add_ani_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Anime posterini qabul qilish"""
     context.user_data['poster'] = update.message.photo[-1].file_id
-    await update.message.reply_text("✅ Poster qabul qilindi.\n\nEndi ma'lumotni formatda yuboring:\n`ID | Nomi | Tili | Qismi`\n\nMisol: `101 | Naruto | O'zb | 1`", parse_mode="Markdown")
+    await update.message.reply_text(
+        "✅ Poster qabul qilindi.\n\nEndi ma'lumotni quyidagi formatda yuboring:\n"
+        "`ID | Nomi | Tili | Qismi`\n\n"
+        "Misol: `101 | Naruto | O'zb | 1`", 
+        parse_mode="Markdown"
+    )
     return A_ADD_ANI_DATA
 
 async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        raw_data = update.message.text.split("|")
-        aid, name, lang, ep = [i.strip() for i in raw_data]
-        
-        await update.message.reply_text(f"Oxirgi qadam: {aid} uchun VIDEONI yuboring:")
-        context.user_data['tmp_ani'] = {"id": aid, "name": name, "lang": lang, "ep": ep}
-        return A_ADD_ANI_DATA # Video kutamiz
-    except:
-        if update.message.video:
-            v_id = update.message.video.file_id
-            d = context.user_data['tmp_ani']
-            conn = get_db(); cur = conn.cursor()
-            # Anime ro'yxatiga qo'shish (agar bo'lmasa)
-            cur.execute("INSERT IGNORE INTO anime_list (anime_id, name, poster_id) VALUES (%s, %s, %s)", (d['id'], d['name'], context.user_data['poster']))
-            # Qismni qo'shish
-            cur.execute("INSERT INTO anime_episodes (anime_id, episode, lang, file_id) VALUES (%s, %s, %s, %s)", (d['id'], d['ep'], d['lang'], v_id))
-            conn.commit(); cur.close(); conn.close()
-            await update.message.reply_text("✅ Anime/Qism muvaffaqiyatli qo'shildi!", reply_markup=await get_main_kb(update.effective_user.id))
+    """Anime ma'lumotlarini yoki videoni qabul qilish"""
+    # 1. Agar matn kelsa (Anime ma'lumotlari)
+    if update.message.text:
+        try:
+            raw_data = update.message.text.split("|")
+            if len(raw_data) < 4:
+                raise ValueError
+            
+            aid, name, lang, ep = [i.strip() for i in raw_data]
+            context.user_data['tmp_ani'] = {"id": aid, "name": name, "lang": lang, "ep": ep}
+            
+            await update.message.reply_text(f"🎬 Ma'lumotlar saqlandi.\n\nEndi {name} ({ep}-qism) uchun **VIDEONI** yuboring:")
+            return A_ADD_ANI_DATA
+        except:
+            await update.message.reply_text("❌ Xato! Iltimos formatni tekshiring:\n`ID | Nomi | Tili | Qismi`")
+            return A_ADD_ANI_DATA
+
+    # 2. Agar video kelsa
+    elif update.message.video:
+        if 'tmp_ani' not in context.user_data:
+            await update.message.reply_text("❌ Avval anime ma'lumotlarini matn shaklida yuboring!")
+            return A_ADD_ANI_DATA
+            
+        v_id = update.message.video.file_id
+        d = context.user_data['tmp_ani']
+        p_id = context.user_data.get('poster')
+
+        conn = get_db()
+        if not conn:
+            await update.message.reply_text("❌ Bazaga ulanishda xato.")
             return ConversationHandler.END
-        await update.message.reply_text("Xatolik! Formatni tekshiring.")
+
+        try:
+            cur = conn.cursor()
+            # Anime ro'yxatiga qo'shish (agar bo'lmasa)
+            cur.execute(
+                "INSERT IGNORE INTO anime_list (anime_id, name, poster_id) VALUES (%s, %s, %s)", 
+                (d['id'], d['name'], p_id)
+            )
+            # Qismni qo'shish
+            cur.execute(
+                "INSERT INTO anime_episodes (anime_id, episode, lang, file_id) VALUES (%s, %s, %s, %s)", 
+                (d['id'], d['ep'], d['lang'], v_id)
+            )
+            conn.commit()
+            await update.message.reply_text(
+                f"✅ Muvaffaqiyatli qo'shildi!\n📺 {d['name']} - {d['ep']}-qism", 
+                reply_markup=await get_main_kb(update.effective_user.id)
+            )
+        except Exception as e:
+            await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
+        finally:
+            cur.close()
+            conn.close()
+            # Vaqtinchalik ma'lumotlarni tozalash
+            context.user_data.pop('tmp_ani', None)
+            
+        return ConversationHandler.END
+
+    else:
+        await update.message.reply_text("Iltimos, video yoki matn yuboring.")
         return A_ADD_ANI_DATA
+        
+
 
 # ====================== MAIN FUNKSIYA (RENDER.COM WEB SERVICE UCHUN) ======================
 def main():
@@ -701,6 +748,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
