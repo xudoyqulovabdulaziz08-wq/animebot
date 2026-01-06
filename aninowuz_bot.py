@@ -149,67 +149,91 @@ def init_db():
 
 # ====================== YORDAMCHI FUNKSIYALAR ======================
 async def get_user_status(uid):
-    if uid == MAIN_ADMIN_ID: return "main_admin"
+    """Foydalanuvchi statusini aniqlash (Main Admin, Admin, VIP yoki Oddiy foydalanuvchi)"""
+    if uid == MAIN_ADMIN_ID: 
+        return "main_admin"
     
-    conn = get_db(); cur = conn.cursor()
-    # Avval bazadagi admins jadvalini tekshiramiz
-    cur.execute("SELECT user_id FROM admins WHERE user_id=%s", (uid,))
-    is_admin = cur.fetchone()
+    conn = get_db()
+    if not conn: return "user"
     
-    if is_admin:
-        cur.close(); conn.close()
-        return "admin"
-        
-    # Keyin oddiy statusni tekshiramiz
-    cur.execute("SELECT status FROM users WHERE user_id=%s", (uid,))
-    res = cur.fetchone()
-    cur.close(); conn.close()
-    return res[0] if res else "user"
+    cur = conn.cursor()
+    try:
+        # 1. Avval 'admins' jadvalini tekshiramiz
+        cur.execute("SELECT user_id FROM admins WHERE user_id=%s", (uid,))
+        if cur.fetchone():
+            return "admin"
+            
+        # 2. Keyin 'users' jadvalidagi umumiy statusni (vip/user) tekshiramiz
+        cur.execute("SELECT status FROM users WHERE user_id=%s", (uid,))
+        res = cur.fetchone()
+        return res[0] if res else "user"
+    except Exception as e:
+        logger.error(f"Status aniqlashda xato: {e}")
+        return "user"
+    finally:
+        cur.close()
+        conn.close()
 
 async def check_sub(uid, bot):
-    conn = get_db(); cur = conn.cursor()
+    """Majburiy obunani tekshirish"""
+    conn = get_db()
+    if not conn: return []
+    
+    cur = conn.cursor()
     cur.execute("SELECT username FROM channels")
-    channels = cur.fetchall(); cur.close(); conn.close()
+    channels = cur.fetchall()
+    cur.close()
+    conn.close()
+    
     not_joined = []
     for (ch,) in channels:
         try:
-            # Username formatini to'g'irlash
-            target = ch if ch.startswith('@') else f"@{ch}"
+            # Username formatini to'g'irlash (@ belgisini tekshirish)
+            target = ch if ch.startswith('@') or ch.startswith('-100') else f"@{ch}"
             member = await bot.get_chat_member(target, uid)
             if member.status not in ['member', 'administrator', 'creator']: 
                 not_joined.append(ch)
-        except: 
+        except Exception: 
             not_joined.append(ch)
     return not_joined
 
 # ====================== KLAVIATURALAR ======================
 async def get_main_kb(uid):
+    """Asosiy menyu klaviaturasi"""
     status = await get_user_status(uid)
     kb = [
-        [KeyboardButton("🔍 Anime qidirish 🎬")], # <-- Bu tugma bosilganda A_SEARCH_NAME ga o'tiladi
+        [KeyboardButton("🔍 Anime qidirish 🎬")],
         [KeyboardButton("🎁 Bonus ballarim 💰"), KeyboardButton("💎 VIP bo'lish ⭐")],
         [KeyboardButton("📜 Barcha anime ro'yxati 📂"), KeyboardButton("📖 Qo'llanma ❓")]
     ]
+    # Agar foydalanuvchi admin bo'lsa, admin panel tugmasi qo'shiladi
     if status in ["main_admin", "admin"]:
         kb.append([KeyboardButton("🛠 ADMIN PANEL")])
     return ReplyKeyboardMarkup(kb, resize_keyboard=True)
 
 def get_admin_kb(is_main=False):
-    # Asosiy admin tugmalari (Hamma adminlar uchun)
+    """Admin panel ichidagi inline tugmalar"""
     buttons = [
-        [InlineKeyboardButton("📢 Kanallar", callback_data="adm_ch"), 
-         InlineKeyboardButton("🎬 Anime Qo'shish", callback_data="adm_ani_add")],
-        [InlineKeyboardButton("💎 VIP Qo'shish", callback_data="adm_vip_add"), 
-         InlineKeyboardButton("📊 Statistika", callback_data="adm_stats")],
-        [InlineKeyboardButton("🚀 Reklama", callback_data="adm_ads_start"), 
-         InlineKeyboardButton("📤 DB Export (JSON)", callback_data="adm_export")]
+        [
+            InlineKeyboardButton("📢 Kanallar", callback_data="adm_ch"), 
+            InlineKeyboardButton("🎬 Anime Qo'shish", callback_data="adm_ani_add")
+        ],
+        [
+            InlineKeyboardButton("💎 VIP Qo'shish", callback_data="adm_vip_add"), 
+            InlineKeyboardButton("📊 Statistika", callback_data="adm_stats")
+        ],
+        [
+            InlineKeyboardButton("🚀 Reklama", callback_data="adm_ads_start"), 
+            InlineKeyboardButton("📤 DB Export (JSON)", callback_data="adm_export")
+        ]
     ]
     
-    # Faqat MAIN_ADMIN ko'radigan tugma (Adminlarni boshqarish)
+    # Faqat MAIN_ADMIN uchun adminlarni boshqarish menyusi ko'rinadi
     if is_main:
         buttons.append([InlineKeyboardButton("👮 Adminlarni boshqarish", callback_data="manage_admins")])
         
     return InlineKeyboardMarkup(buttons)
+    
     
 
 # ====================== ASOSIY ISHLOVCHILAR ======================
@@ -586,6 +610,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
