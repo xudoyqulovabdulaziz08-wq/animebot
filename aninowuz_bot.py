@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ====================== CONFIG ======================
-TOKEN = "8589253414:AAFTMMnZkUrNsqGWQmsBmJjyBTbssqn6zTE"
+TOKEN = "8258233749:AAHdFklNhjGlE7pK0026vJrMYJaK8iiddXo"
 MAIN_ADMIN_ID = 8244870375
 
 DB_CONFIG = {
@@ -222,3 +222,4 @@ if __name__ == "__main__":
     asyncio.run(main)
 
 # ======= [ KOD TUGADI ] =======
+
