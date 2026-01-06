@@ -619,7 +619,9 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reklama parolini tekshirish va xabar so'rash"""
     if update.message.text == ADVERTISING_PASSWORD:
-        await update.message.reply_text("✅ Parol tasdiqlandi! \n\nEndi barcha foydalanuvchilarga yubormoqchi bo'lgan **reklama xabaringizni** yuboring (Rasm, Video, Matn yoki Post):")
+        await update.message.reply_text(
+            "✅ Parol tasdiqlandi! \n\nEndi barcha foydalanuvchilarga yubormoqchi bo'lgan **reklama xabaringizni** yuboring (Rasm, Video, Matn yoki Post):"
+        )
         return A_SEND_ADS_MSG
     else:
         status = await get_user_status(update.effective_user.id)
@@ -645,26 +647,28 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for user in users:
         try:
-            # copy_message - caption va tugmalar bilan ko'chiradi
+            # copy_message - caption va tugmalar bilan xabarni ko'chirib beradi
             await context.bot.copy_message(
                 chat_id=user[0],
                 from_chat_id=update.effective_chat.id,
                 message_id=msg.message_id
             )
             count += 1
-            await asyncio.sleep(0.05) # Limitlardan oshmaslik uchun
+            await asyncio.sleep(0.05) # Telegram limitlariga tushmaslik uchun kichik kechikish
 
             if count % 50 == 0:
                 await status_msg.edit_text(f"🚀 Reklama yuborilmoqda ({count}/{len(users)})...")
         except Exception:
             continue
 
-    await update.message.reply_text(f"✅ Reklama yakunlandi. {count} ta foydalanuvchiga yuborildi.", reply_markup=get_main_kb(status))
+    await update.message.reply_text(
+        f"✅ Reklama yakunlandi. {count} ta foydalanuvchiga yuborildi.", 
+        reply_markup=get_main_kb(status)
+    )
     return ConversationHandler.END
 
 async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Barcha animelar ro'yxatini JSON fayl qilib yuborish (TUZATILDI)"""
-    # CallbackQuery orqali kelsa answer berish
+    """Barcha animelar ro'yxatini JSON fayl qilib yuborish"""
     if update.callback_query:
         await update.callback_query.answer("Fayl tayyorlanmoqda...")
         
@@ -705,7 +709,7 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     text = update.message.text.strip()
     if not text.isdigit():
-        await update.message.reply_text("❌ Xato! Faqat ID yuboring.")
+        await update.message.reply_text("❌ Xato! Faqat ID (raqam) yuboring.")
         return A_ADD_VIP
 
     try:
@@ -714,45 +718,56 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
         conn.commit(); cur.close(); conn.close()
         
-        await update.message.reply_text(f"✅ Foydalanuvchi {target_id} VIP qilindi.", reply_markup=get_main_kb(status))
+        await update.message.reply_text(
+            f"✅ Foydalanuvchi {target_id} muvaffaqiyatli VIP qilindi.", 
+            reply_markup=get_main_kb(status)
+        )
     except Exception as e:
         await update.message.reply_text(f"❌ Xatolik: {e}")
     
     return ConversationHandler.END
+    
 
 
 
-# ====================== MAIN FUNKSIYA (TO'LIQ VA TUZATILGAN) ======================
+# ====================== MAIN FUNKSIYA (YAKUNIY VARIANT) ======================
 
 def main():
-    # Ma'lumotlar bazasini tayyorlash
+    # Render yoki boshqa hostingda botni o'chib qolmasligi uchun web-server
+    keep_alive()
+    
+    # Ma'lumotlar bazasi jadvallarini tekshirish/yaratish
     init_db()
 
-    # Botni qurish
+    # Botni qurish (Token Environment Variables'dan olinadi)
     app_bot = ApplicationBuilder().token(TOKEN).build()
 
-    # 1. Conversation Handler (Jarayonlar boshqaruvi)
+    # 1. Conversation Handler: Foydalanuvchi va Admin bilan muloqot bosqichlari
     conv_handler = ConversationHandler(
         entry_points=[
-            # Inline tugmalar orqali qidiruv yoki adminlikni boshlash
+            # Inline tugmalar orqali turli rejimlarni faollashtirish
             CallbackQueryHandler(handle_callback, pattern="^(search_type_id|search_type_name|adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins)$"),
-            # Tezkor yuklash tugmasi uchun (poster so'rab o'tirmaydi)
+            # Poster so'ramasdan to'g'ridan-to'g'ri video yuklash rejimiga o'tish
             CallbackQueryHandler(lambda u, c: A_ADD_ANI_DATA, pattern="^add_more_ep$")
         ],
         states={
-            # Qidiruv holatlari
+            # Qidiruv holatlari (ID yoki Nom kiritishni kutish)
             A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
             A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
             
-            # Admin holatlari
+            # Admin: Kanallar va Adminlar boshqaruvi
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
             A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
+            A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_admin)],
+            
+            # Admin: Anime yuklash (Poster -> Video+Ma'lumot)
             A_ADD_ANI_POSTER: [MessageHandler(filters.PHOTO, add_ani_poster)],
             A_ADD_ANI_DATA: [MessageHandler(filters.VIDEO | filters.TEXT, add_ani_data)],
+            
+            # Admin: Reklama va VIP tizimi
             A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
             A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
             A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_vip_add)],
-            A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_admin)],
         },
         fallbacks=[
             CommandHandler("start", start),
@@ -762,13 +777,15 @@ def main():
         allow_reentry=True
     )
 
-    # Handlerlarni ulash TARTIBI (O'TA MUHIM):
+    # Handlerlarni qo'shish (Tartib juda muhim!)
+    
+    # 1. Start komandasi har doim birinchi
     app_bot.add_handler(CommandHandler("start", start))
     
-    # Ikkinchi o'rinda Conv_handler turishi shart!
+    # 2. ConversationHandler (Holatlarni boshqarish uchun)
     app_bot.add_handler(conv_handler)
 
-    # Qidiruv va boshqa menyu tugmalari (Conv_handlerdan pastda)
+    # 3. Asosiy menyu (Reply Keyboard) tugmalari
     app_bot.add_handler(MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), search_menu_cmd))
     app_bot.add_handler(MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime))
     app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
@@ -776,14 +793,20 @@ def main():
         lambda u, c: u.message.reply_text("🛠 Admin paneli:", 
         reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID))))
 
-    # Callbacklar (Qolgan tugmalar uchun)
+    # 4. Callbacklar (Tugmalar bosilganda bajariladigan funksiyalar)
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
-    app_bot.add_handler(CallbackQueryHandler(handle_callback))
+    app_bot.add_handler(CallbackQueryHandler(handle_callback)) # Qolgan barcha callbacklar uchun
 
-    keep_alive()
+    # Botni ishga tushirish
+    print("Bot muvaffaqiyatli ishga tushdi...")
     app_bot.run_polling()
+
+if __name__ == '__main__':
+    main()
     
+    
+
 
 
 
