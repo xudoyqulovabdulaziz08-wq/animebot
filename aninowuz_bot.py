@@ -213,7 +213,7 @@ async def check_sub(uid, bot):
 def get_main_kb(status):
     """
     Asosiy menyu klaviaturasi. 
-    Xatolikni oldini olish uchun status funksiya tashqarisida aniqlanib uzatiladi.
+    Status funksiya tashqarisida (get_user_status orqali) aniqlanib uzatiladi.
     """
     kb = [
         [KeyboardButton("🔍 Anime qidirish 🎬")],
@@ -221,11 +221,13 @@ def get_main_kb(status):
         [KeyboardButton("📜 Barcha anime ro'yxati 📂"), KeyboardButton("📖 Qo'llanma ❓")]
     ]
     
-    # Agar foydalanuvchi admin bo'lsa, admin panel tugmasi qo'shiladi
+    # Statusga qarab Admin Panel tugmasini qo'shish
     if status in ["main_admin", "admin"]:
         kb.append([KeyboardButton("🛠 ADMIN PANEL")])
     
     return ReplyKeyboardMarkup(kb, resize_keyboard=True)
+
+
 
 def get_admin_kb(is_main=False):
     """Admin panel ichidagi inline tugmalar"""
@@ -244,15 +246,18 @@ def get_admin_kb(is_main=False):
         ]
     ]
     
-    # Faqat MAIN_ADMIN uchun adminlarni boshqarish menyusi ko'rinadi
+    # Faqat MAIN_ADMIN (Asosiy admin) uchun qo'shimcha boshqaruv tugmasi
     if is_main:
         buttons.append([InlineKeyboardButton("👮 Adminlarni boshqarish", callback_data="manage_admins")])
         
     return InlineKeyboardMarkup(buttons)
 
+
+
 def get_cancel_kb():
-    """Jarayonlarni bekor qilish uchun qisqa klaviatura"""
+    """Jarayonlarni bekor qilish uchun 'Orqaga' tugmasi"""
     return ReplyKeyboardMarkup([[KeyboardButton("⬅️ Orqaga")]], resize_keyboard=True)
+    
     
     
 
@@ -768,6 +773,7 @@ def main():
     keep_alive()
     app_bot.run_polling()
     
+
 
 
 
