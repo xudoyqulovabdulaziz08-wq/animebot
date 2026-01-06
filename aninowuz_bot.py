@@ -32,17 +32,20 @@ def keep_alive():
     t.daemon = True
     t.start()
 
-# ====================== KONFIGURATSIYA ======================
-TOKEN = "8258233749:AAHdFklNhjGlE7pK0026vJrMYJaK8iiddXo"
-MAIN_ADMIN_ID = 8244870375
-ADVERTISING_PASSWORD = "2009"
+# ====================== XAVFSIZ KONFIGURATSIYA ======================
+# Token va parollar kod ichidan olib tashlandi. 
+# Ularni Render Dashboard -> Settings -> Environment Variables qismiga qo'shing.
+
+TOKEN = os.getenv("BOT_TOKEN") 
+MAIN_ADMIN_ID = int(os.getenv("ADMIN_ID", 8244870375))
+ADVERTISING_PASSWORD = os.getenv("ADS_PASS", "2009")
 
 DB_CONFIG = {
-    "host": "mysql-animebotuz-xudoyqulovabdulaziz08-0be3.c.aivencloud.com",
-    "port": 27624,
-    "user": "avnadmin",
-    "password": "AVNS_aF3x30aqiRUJFpD16uH",
-    "database": "defaultdb",
+    "host": os.getenv("DB_HOST"),
+    "port": int(os.getenv("DB_PORT", 27624)),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASS"),
+    "database": os.getenv("DB_NAME"),
     "ssl_mode": "REQUIRED",
     "autocommit": True
 }
@@ -60,18 +63,18 @@ logger = logging.getLogger(__name__)
 # ====================== MA'LUMOTLAR BAZASI ======================
 def get_db():
     try:
-        # Aiven uchun ssl_disabled=False va port ko'rsatilishi shart
+        # Tizim o'zgaruvchilaridan olingan ma'lumotlar bilan ulanish
         conn = mysql.connector.connect(
             host=DB_CONFIG["host"],
             port=DB_CONFIG["port"],
             user=DB_CONFIG["user"],
             password=DB_CONFIG["password"],
             database=DB_CONFIG["database"],
-            ssl_disabled=False  # SSL ulanishni ta'minlaydi
+            ssl_disabled=False  # Aiven SSL talab qiladi
         )
         return conn
     except mysql.connector.Error as err:
-        print(f"❌ Ma'lumotlar bazasiga ulanishda xato: {err}")
+        logger.error(f"❌ Ma'lumotlar bazasiga ulanishda xato: {err}")
         return None
 
 def init_db():
@@ -81,7 +84,6 @@ def init_db():
     
     cur = conn.cursor()
     try:
-        # 1. Foydalanuvchilar jadvali
         cur.execute("""CREATE TABLE IF NOT EXISTS users (
             user_id BIGINT PRIMARY KEY, 
             joined_at DATETIME, 
@@ -89,14 +91,12 @@ def init_db():
             status VARCHAR(20) DEFAULT 'user'
         )""")
 
-        # 2. Anime asosiy ma'lumotlari
         cur.execute("""CREATE TABLE IF NOT EXISTS anime_list (
             anime_id VARCHAR(50) PRIMARY KEY, 
             name VARCHAR(255), 
             poster_id TEXT
         )""")
 
-        # 3. Anime qismlari
         cur.execute("""CREATE TABLE IF NOT EXISTS anime_episodes (
             id INT AUTO_INCREMENT PRIMARY KEY,
             anime_id VARCHAR(50),
@@ -106,10 +106,7 @@ def init_db():
             FOREIGN KEY (anime_id) REFERENCES anime_list(anime_id) ON DELETE CASCADE
         )""")
 
-        # 4. Adminlar jadvali
         cur.execute("CREATE TABLE IF NOT EXISTS admins (user_id BIGINT PRIMARY KEY)")
-
-        # 5. Majburiy obuna kanallari
         cur.execute("CREATE TABLE IF NOT EXISTS channels (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255))")
         
         conn.commit()
@@ -426,6 +423,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
