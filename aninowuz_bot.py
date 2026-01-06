@@ -202,20 +202,33 @@ async def handle_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.close()
         await update.message.reply_text(f"🎁 Bonuslar: {r[0] if r else 0}")
 
-# ====================== MAIN ======================
+# =# ====================== MAIN ======================
 async def main():
+    # Bazani tayyorlash
     init_db()
+
+    # Bot ilovasini yaratish
     app = ApplicationBuilder().token(TOKEN).build()
 
+    # Handlerlar qo'shish
     app.add_handler(CommandHandler("start", start_command))
     app.add_handler(CallbackQueryHandler(handle_callbacks))
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_messages))
 
-    # Fayl yangilashni background task sifatida ishga tushirish
+    # Automatik anime ro'yxatini yangilash taskini ishga tushirish
     asyncio.create_task(update_anime_list_file())
 
-    # V20+ uchun yagona to‘g‘ri ishga tushirish
+    # Botni ishga tushirish
+    await app.initialize()
+    await app.start()
+
+    # Zamonaviy PTB da run_polling ishlatish kifoya
     await app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())  # ✅ () kerak
+    # async funksiya to'g'ri chaqirilmoqda
+    try:
+        asyncio.run(main())
+    except (KeyboardInterrupt, SystemExit):
+        print("Bot to‘xtatildi.")
+
