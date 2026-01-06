@@ -623,10 +623,19 @@ def main():
     app_bot.run_polling()
     
 
-
 # ====================== QO'SHIMCHA FUNKSIYALAR ======================
 
+async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Reklama parolini tekshirish va xabar so'rash"""
+    if update.message.text == ADVERTISING_PASSWORD:
+        await update.message.reply_text("✅ Parol tasdiqlandi! \n\nEndi barcha foydalanuvchilarga yubormoqchi bo'lgan **reklama xabaringizni** yuboring (Rasm, Video, Matn yoki Post):")
+        return A_SEND_ADS_MSG
+    else:
+        await update.message.reply_text("❌ Parol noto'g'ri! Reklama paneli yopildi.")
+        return ConversationHandler.END
+
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Reklamani barcha foydalanuvchilarga tarqatish"""
     msg = update.message
     conn = get_db()
     if not conn:
@@ -636,8 +645,7 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cur = conn.cursor()
     cur.execute("SELECT user_id FROM users")
     users = cur.fetchall()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
 
     count = 0
     status_msg = await update.message.reply_text(f"🚀 Reklama yuborish boshlandi (0/{len(users)})...")
@@ -650,10 +658,7 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message_id=msg.message_id
             )
             count += 1
-            
-            # --- MANA SHU YERGA QO'SHILADI ---
-            await asyncio.sleep(0.05) # Har bir xabardan keyin 0.05 soniya kutish
-            # ---------------------------------
+            await asyncio.sleep(0.05) 
 
             if count % 50 == 0:
                 await status_msg.edit_text(f"🚀 Reklama yuborilmoqda ({count}/{len(users)})...")
@@ -662,16 +667,52 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"✅ Reklama yakunlandi. {count} ta foydalanuvchiga yuborildi.")
     return ConversationHandler.END
+
+async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Yangi admin qo'shish ijrosi"""
+    aid = update.message.text.strip()
+    if not aid.isdigit():
+        await update.message.reply_text("❌ Xato! Admin ID raqam bo'lishi kerak.")
+        return A_ADD_ADM
     
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("INSERT IGNORE INTO admins (user_id) VALUES (%s)", (aid,))
+    conn.commit(); cur.close(); conn.close()
+    
+    await update.message.reply_text(f"✅ {aid} muvaffaqiyatli admin qilib tayinlandi!")
+    return ConversationHandler.END
+
+async def exec_add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kanal qo'shish ijrosi"""
+    ch = update.message.text.strip()
+    if not (ch.startswith('@') or ch.startswith('-100')):
+        await update.message.reply_text("❌ Xato! Kanal username @ bilan boshlanishi kerak.")
+        return A_ADD_CH
+    
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("INSERT INTO channels (username) VALUES (%s)", (ch,))
+    conn.commit(); cur.close(); conn.close()
+    
+    await update.message.reply_text(f"✅ {ch} kanali ro'yxatga qo'shildi!")
+    return ConversationHandler.END
+
+async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Barcha animelar ro'yxatini JSON fayl qilib yuborish"""
+    conn = get_db(); cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT * FROM anime_list")
+    animes = cur.fetchall(); cur.close(); conn.close()
+    
+    with open("anime_list.json", "w", encoding="utf-8") as f:
+        json.dump(animes, f, indent=4, default=str, ensure_ascii=False)
+    
+    await update.message.reply_document(open("anime_list.json", "rb"), caption="🎬 Barcha animelar bazasi (JSON).")
 
 async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
-    conn = get_db()
-    cur = conn.cursor()
+    conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT bonus, status FROM users WHERE user_id=%s", (uid,))
     res = cur.fetchone()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     
     if res:
         bonus, status = res
@@ -681,35 +722,22 @@ async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Ma'lumot topilmadi. /start bosing.")
 
 async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin tomonidan foydalanuvchini VIP qilish funksiyasi"""
-    text = update.message.text
-    # Kutilayotgan format: "user_id" yoki "user_id kun"
-    parts = text.split()
-    
-    if not parts:
+    text = update.message.text.split()
+    if not text:
         await update.message.reply_text("❌ Iltimos, User ID kiriting.")
         return A_ADD_VIP
 
     try:
-        target_id = int(parts[0])
-        # Agar kun ko'rsatilmagan bo'lsa, standart 30 kun
-        days = int(parts[1]) if len(parts) > 1 else 30
-        
-        conn = get_db()
-        cur = conn.cursor()
-        # Foydalanuvchi statusini VIP-ga o'zgartirish
+        target_id = int(text[0])
+        conn = get_db(); cur = conn.cursor()
         cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        await update.message.reply_text(f"✅ Foydalanuvchi {target_id} muvaffaqiyatli VIP qilindi ({days} kun).")
-    except ValueError:
-        await update.message.reply_text("❌ Xato! User ID faqat raqamlardan iborat bo'lishi kerak.")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
-
+        conn.commit(); cur.close(); conn.close()
+        await update.message.reply_text(f"✅ Foydalanuvchi {target_id} muvaffaqiyatli VIP qilindi.")
+    except:
+        await update.message.reply_text("❌ Xato yuz berdi. ID raqam ekanligini tekshiring.")
+    
     return ConversationHandler.END
+    
 
 # ====================== MAIN FUNKSIYA ======================
 def main():
@@ -761,6 +789,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
