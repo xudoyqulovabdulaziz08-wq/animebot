@@ -94,10 +94,12 @@ def get_db():
 def init_db():
     conn = get_db()
     if not conn:
+        logger.error("❌ Ma'lumotlar bazasiga ulanish imkonsiz!")
         return
     
     cur = conn.cursor()
     try:
+        # Foydalanuvchilar jadvali
         cur.execute("""CREATE TABLE IF NOT EXISTS users (
             user_id BIGINT PRIMARY KEY, 
             joined_at DATETIME, 
@@ -105,12 +107,14 @@ def init_db():
             status VARCHAR(20) DEFAULT 'user'
         )""")
 
+        # Animelar asosiy jadvali
         cur.execute("""CREATE TABLE IF NOT EXISTS anime_list (
             anime_id VARCHAR(50) PRIMARY KEY, 
             name VARCHAR(255), 
             poster_id TEXT
         )""")
 
+        # Anime qismlari jadvali
         cur.execute("""CREATE TABLE IF NOT EXISTS anime_episodes (
             id INT AUTO_INCREMENT PRIMARY KEY,
             anime_id VARCHAR(50),
@@ -120,8 +124,17 @@ def init_db():
             FOREIGN KEY (anime_id) REFERENCES anime_list(anime_id) ON DELETE CASCADE
         )""")
 
-        cur.execute("CREATE TABLE IF NOT EXISTS admins (user_id BIGINT PRIMARY KEY)")
-        cur.execute("CREATE TABLE IF NOT EXISTS channels (id INT AUTO_INCREMENT PRIMARY KEY, username VARCHAR(255))")
+        # Adminlar jadvali (Qo'shimcha adminlar uchun)
+        cur.execute("""CREATE TABLE IF NOT EXISTS admins (
+            user_id BIGINT PRIMARY KEY,
+            added_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )""")
+
+        # Majburiy obuna kanallari jadvali
+        cur.execute("""CREATE TABLE IF NOT EXISTS channels (
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            username VARCHAR(255)
+        )""")
         
         conn.commit()
         print("✅ Ma'lumotlar bazasi jadvallari tayyor.")
@@ -130,6 +143,7 @@ def init_db():
     finally:
         cur.close()
         conn.close()
+        
 
 # ... (Bu yerda handle_callback, start va boshqa funksiyalar davom etadi)
 
@@ -572,6 +586,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
