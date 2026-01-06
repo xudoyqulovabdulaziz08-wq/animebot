@@ -403,6 +403,40 @@ def main():
 
 # ====================== QO'SHIMCHA FUNKSIYALAR ======================
 
+async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Reklamani barcha foydalanuvchilarga yuborish funksiyasi"""
+    msg = update.message
+    conn = get_db()
+    if not conn:
+        await update.message.reply_text("❌ Bazaga ulanib bo'lmadi.")
+        return ConversationHandler.END
+        
+    cur = conn.cursor()
+    cur.execute("SELECT user_id FROM users")
+    users = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    count = 0
+    status_msg = await update.message.reply_text(f"🚀 Reklama yuborish boshlandi (0/{len(users)})...")
+
+    for user in users:
+        try:
+            # Reklamani hamma foydalanuvchilarga nusxalash
+            await context.bot.copy_message(
+                chat_id=user[0],
+                from_chat_id=update.effective_chat.id,
+                message_id=msg.message_id
+            )
+            count += 1
+            if count % 50 == 0:
+                await status_msg.edit_text(f"🚀 Reklama yuborilmoqda ({count}/{len(users)})...")
+        except Exception:
+            continue
+
+    await update.message.reply_text(f"✅ Reklama yakunlandi. {count} ta foydalanuvchiga yuborildi.")
+    return ConversationHandler.END
+
 async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     conn = get_db()
@@ -419,15 +453,53 @@ async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Ma'lumot topilmadi. /start bosing.")
 
+# ====================== MAIN FUNKSIYA ======================
+def main():
+    init_db()
+
+    app_bot = ApplicationBuilder().token(TOKEN).build()
+
+    conv_handler = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(handle_callback, pattern="^(adm_ani_add|adm_ads_start|adm_vip_add)$")
+        ],
+        states={
+            A_ADD_ANI_POSTER: [MessageHandler(filters.PHOTO, add_ani_poster)],
+            A_ADD_ANI_DATA: [MessageHandler(filters.TEXT | filters.VIDEO, add_ani_data)],
+            A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, 
+                lambda u, c: A_SEND_ADS_MSG if u.message.text == ADVERTISING_PASSWORD else ConversationHandler.END)],
+            A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
+            A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_vip_add)],
+        },
+        fallbacks=[CommandHandler("cancel", start), CommandHandler("start", start)],
+    )
+
+    app_bot.add_handler(CommandHandler("start", start))
+    
+    app_bot.add_handler(MessageHandler(
+        filters.Regex("^🛠 ADMIN PANEL$"), 
+        lambda u, c: u.message.reply_text("Boshqaruv paneli:", 
+        reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID))
+    ))
+
+    app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
+    app_bot.add_handler(MessageHandler(filters.Regex("^💎 VIP bo'lish ⭐$"), 
+        lambda u, c: u.message.reply_text(f"💎 VIP status olish uchun admin bilan bog'laning: @Admin_Username")))
+    
+    app_bot.add_handler(MessageHandler(filters.Regex("^📖 Qo'llanma ❓$"), 
+        lambda u, c: u.message.reply_text("📖 *Botdan foydalanish:*\n1. Anime nomini yozing.\n2. Chiqqan qismlardan birini tanlang.", parse_mode="Markdown")))
+
+    app_bot.add_handler(conv_handler)
+    app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
+    app_bot.add_handler(CallbackQueryHandler(handle_callback))
+    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic))
+
+    keep_alive()
+    print("🤖 Bot polling rejimida ishlamoqda...")
+    app_bot.run_polling()
+
 if __name__ == "__main__":
     try:
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
-
-
-
-
-
-
-
