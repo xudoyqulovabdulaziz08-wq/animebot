@@ -53,9 +53,12 @@ DB_CONFIG = {
 
 # Conversation States
 (
-    A_ADD_CH, A_REM_CH, A_ADD_ADM, A_REM_ADM, 
-    A_ADD_VIP, A_REM_VIP, A_ADD_ANI_POSTER, A_ADD_ANI_DATA,
-    A_SEND_ADS_PASS, A_SEND_ADS_MSG, A_SEARCH_NAME
+    A_ADD_CH, A_REM_CH, 
+    A_ADD_ADM, A_CONFIRM_REM_ADM, # Admin qo'shish va o'chirishni tasdiqlash uchun
+    A_ADD_VIP, A_REM_VIP, 
+    A_ADD_ANI_POSTER, A_ADD_ANI_DATA,
+    A_SEND_ADS_PASS, A_SEND_ADS_MSG, 
+    A_SEARCH_NAME # Qidiruv holati
 ) = range(11)
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -538,5 +541,6 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
