@@ -453,6 +453,37 @@ async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text("Ma'lumot topilmadi. /start bosing.")
 
+async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Admin tomonidan foydalanuvchini VIP qilish funksiyasi"""
+    text = update.message.text
+    # Kutilayotgan format: "user_id" yoki "user_id kun"
+    parts = text.split()
+    
+    if not parts:
+        await update.message.reply_text("❌ Iltimos, User ID kiriting.")
+        return A_ADD_VIP
+
+    try:
+        target_id = int(parts[0])
+        # Agar kun ko'rsatilmagan bo'lsa, standart 30 kun
+        days = int(parts[1]) if len(parts) > 1 else 30
+        
+        conn = get_db()
+        cur = conn.cursor()
+        # Foydalanuvchi statusini VIP-ga o'zgartirish
+        cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        await update.message.reply_text(f"✅ Foydalanuvchi {target_id} muvaffaqiyatli VIP qilindi ({days} kun).")
+    except ValueError:
+        await update.message.reply_text("❌ Xato! User ID faqat raqamlardan iborat bo'lishi kerak.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
+
+    return ConversationHandler.END
+
 # ====================== MAIN FUNKSIYA ======================
 def main():
     init_db()
@@ -503,3 +534,4 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
