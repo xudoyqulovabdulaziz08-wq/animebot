@@ -516,8 +516,6 @@ async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     await query.answer(f"+{bonus_add} bonus berildi!")
     
 
-
-    
 # ====================== CONVERSATION STEPS ======================
 async def add_ani_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Anime posterini qabul qilish"""
@@ -532,6 +530,8 @@ async def add_ani_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Anime ma'lumotlarini yoki videoni qabul qilish"""
+    uid = update.effective_user.id
+    
     # 1. Agar matn kelsa (Anime ma'lumotlari)
     if update.message.text:
         try:
@@ -540,11 +540,29 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 raise ValueError
             
             aid, name, lang, ep = [i.strip() for i in raw_data]
-            context.user_data['tmp_ani'] = {"id": aid, "name": name, "lang": lang, "ep": ep}
             
-            await update.message.reply_text(f"🎬 Ma'lumotlar saqlandi.\n\nEndi {name} ({ep}-qism) uchun **VIDEONI** yuboring:")
+            # Qism raqami butun son ekanini tekshirish
+            if not ep.isdigit():
+                await update.message.reply_text("❌ Qism faqat raqam bo'lishi kerak!")
+                return A_ADD_ANI_DATA
+
+            context.user_data['tmp_ani'] = {
+                "id": aid, 
+                "name": name, 
+                "lang": lang, 
+                "ep": int(ep)
+            }
+            
+            await update.message.reply_text(
+                f"🎬 **Ma'lumotlar saqlandi.**\n\n"
+                f"🆔 ID: {aid}\n"
+                f"📺 Nomi: {name}\n"
+                f"🔢 Qism: {ep}\n\n"
+                f"Endi ushbu qism uchun **VIDEONI** yuboring:",
+                parse_mode="Markdown"
+            )
             return A_ADD_ANI_DATA
-        except:
+        except ValueError:
             await update.message.reply_text("❌ Xato! Iltimos formatni tekshiring:\n`ID | Nomi | Tili | Qismi`")
             return A_ADD_ANI_DATA
 
@@ -554,9 +572,13 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ Avval anime ma'lumotlarini matn shaklida yuboring!")
             return A_ADD_ANI_DATA
             
+        if 'poster' not in context.user_data:
+            await update.message.reply_text("❌ Xatolik: Poster topilmadi. Qayta /start bosing.")
+            return ConversationHandler.END
+
         v_id = update.message.video.file_id
         d = context.user_data['tmp_ani']
-        p_id = context.user_data.get('poster')
+        p_id = context.user_data['poster']
 
         conn = get_db()
         if not conn:
@@ -565,20 +587,27 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             cur = conn.cursor()
-            # Anime ro'yxatiga qo'shish (agar bo'lmasa)
-            cur.execute(
-                "INSERT IGNORE INTO anime_list (anime_id, name, poster_id) VALUES (%s, %s, %s)", 
-                (d['id'], d['name'], p_id)
-            )
-            # Qismni qo'shish
-            cur.execute(
-                "INSERT INTO anime_episodes (anime_id, episode, lang, file_id) VALUES (%s, %s, %s, %s)", 
-                (d['id'], d['ep'], d['lang'], v_id)
-            )
+            
+            # 1. Anime listini yangilash yoki qo'shish (Poster yangilanishi uchun)
+            cur.execute("""
+                INSERT INTO anime_list (anime_id, name, poster_id) 
+                VALUES (%s, %s, %s)
+                ON DUPLICATE KEY UPDATE name=%s, poster_id=%s
+            """, (d['id'], d['name'], p_id, d['name'], p_id))
+            
+            # 2. Qismni qo'shish (Agar bu qism bo'lsa yangilaydi)
+            cur.execute("""
+                INSERT INTO anime_episodes (anime_id, episode, lang, file_id) 
+                VALUES (%s, %s, %s, %s)
+                ON DUPLICATE KEY UPDATE file_id=%s, lang=%s
+            """, (d['id'], d['ep'], d['lang'], v_id, v_id, d['lang']))
+            
             conn.commit()
             await update.message.reply_text(
-                f"✅ Muvaffaqiyatli qo'shildi!\n📺 {d['name']} - {d['ep']}-qism", 
-                reply_markup=await get_main_kb(update.effective_user.id)
+                f"✅ Muvaffaqiyatli saqlandi!\n\n"
+                f"📺 {d['name']}\n"
+                f"🔢 {d['ep']}-qism tayyor.", 
+                reply_markup=await get_main_kb(uid)
             )
         except Exception as e:
             await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
@@ -587,13 +616,15 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.close()
             # Vaqtinchalik ma'lumotlarni tozalash
             context.user_data.pop('tmp_ani', None)
+            context.user_data.pop('poster', None)
             
         return ConversationHandler.END
 
     else:
-        await update.message.reply_text("Iltimos, video yoki matn yuboring.")
+        await update.message.reply_text("Iltimos, video yoki ma'lumotni matn shaklida yuboring.")
         return A_ADD_ANI_DATA
-        
+    
+            
 
 # ====================== MAIN FUNKSIYA (TO'LIQ VA TUZATILGAN) ======================
 def main():
@@ -861,6 +892,7 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
         
+
 
 
 
