@@ -235,8 +235,8 @@ def get_admin_kb(is_main=False):
         
     return InlineKeyboardMarkup(buttons)
     
-    
-# ====================== ASOSIY ISHLOVCHILAR ======================
+
+# ====================== ASOSIY ISHLOVCHILAR (TUZATILGAN) ======================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
@@ -255,7 +255,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         btn.append([InlineKeyboardButton("Tekshirish ✅", callback_data="recheck")])
         return await update.message.reply_text("👋 Botdan foydalanish uchun kanallarga a'zo bo'ling:", reply_markup=InlineKeyboardMarkup(btn))
     
-    await update.message.reply_text("✨ Xush kelibsiz! Anime olamiga marhamat.", reply_markup=await get_main_kb(uid))
+    # get_main_kb async emas, await olib tashlandi
+    await update.message.reply_text("✨ Xush kelibsiz! Anime olamiga marhamat.", reply_markup=get_main_kb(uid))
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -268,7 +269,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "recheck":
         if not await check_sub(uid, context.bot):
             await query.message.delete()
-            await context.bot.send_message(uid, "Tabriklaymiz! ✅ Obuna tasdiqlandi.", reply_markup=await get_main_kb(uid))
+            # get_main_kb xatosi tuzatildi
+            await context.bot.send_message(uid, "Tabriklaymiz! ✅ Obuna tasdiqlandi.", reply_markup=get_main_kb(uid))
         else:
             await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
         return
@@ -286,7 +288,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "cancel_search":
         await query.message.delete()
-        await context.bot.send_message(uid, "❌ Qidiruv bekor qilindi.", reply_markup=await get_main_kb(uid))
+        await context.bot.send_message(uid, "❌ Jarayon bekor qilindi.", reply_markup=get_main_kb(uid))
         return ConversationHandler.END
 
     # Admin bo'lmaganlar uchun pastki qismlarni yopish
@@ -295,8 +297,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # --- KANALLARNI BOSHQARISH ---
     if data == "adm_ch":
-        kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"), 
-               InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")]]
+        kb = [
+            [InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"), 
+             InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]
+        ]
         await query.edit_message_text("📢 Majburiy obuna kanallarini boshqarish:", reply_markup=InlineKeyboardMarkup(kb))
 
     elif data == "add_channel_start":
@@ -308,9 +313,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.execute("SELECT id, username FROM channels")
         chs = cur.fetchall(); cur.close(); conn.close()
         if not chs:
-            await query.message.reply_text("❌ Hozircha kanallar yo'q.")
+            await query.answer("❌ Hozircha kanallar yo'q.", show_alert=True)
             return
         kb = [[InlineKeyboardButton(f"🗑 {c[1]}", callback_data=f"final_rem_ch_{c[0]}")] for c in chs]
+        kb.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_ch")])
         await query.edit_message_text("O'chirmoqchi bo'lgan kanalni tanlang:", reply_markup=InlineKeyboardMarkup(kb))
 
     elif data.startswith("final_rem_ch_"):
@@ -318,7 +324,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn = get_db(); cur = conn.cursor()
         cur.execute("DELETE FROM channels WHERE id=%s", (cid,))
         conn.commit(); cur.close(); conn.close()
-        await query.edit_message_text("✅ Kanal ro'yxatdan o'chirildi!")
+        await query.edit_message_text("✅ Kanal ro'yxatdan o'chirildi!", reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_ch")]]))
 
     # --- ADMINLARNI BOSHQARISH (FAQAT MAIN ADMIN) ---
     elif data == "manage_admins":
@@ -328,7 +334,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = [
             [InlineKeyboardButton("➕ Admin Qo'shish", callback_data="add_admin_start")],
             [InlineKeyboardButton("📜 Adminlar ro'yxati", callback_data="list_admins")],
-            [InlineKeyboardButton("🗑 Admin O'chirish", callback_data="rem_admin_start")]
+            [InlineKeyboardButton("🗑 Admin O'chirish", callback_data="rem_admin_start")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]
         ]
         await query.edit_message_text("👮 Adminlarni boshqarish paneli:", reply_markup=InlineKeyboardMarkup(kb))
 
@@ -344,29 +351,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += "\n".join([f"• `{a[0]}`" for a in admins]) if admins else "Hozircha qo'shimcha adminlar yo'q."
         await query.message.reply_text(text, parse_mode="Markdown")
 
-    elif data == "rem_admin_start":
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("SELECT user_id FROM admins")
-        admins = cur.fetchall(); cur.close(); conn.close()
-        if not admins:
-            await query.message.reply_text("O'chirish uchun adminlar yo'q.")
-            return
-        kb = [[InlineKeyboardButton(f"🗑 {a[0]}", callback_data=f"pre_rem_adm_{a[0]}")] for a in admins]
-        await query.edit_message_text("🗑 O'chirmoqchi bo'lgan adminni tanlang:", reply_markup=InlineKeyboardMarkup(kb))
-
-    elif data.startswith("pre_rem_adm_"):
-        aid = data.replace("pre_rem_adm_", "")
-        kb = [[InlineKeyboardButton("✅ Ha, o'chirilsin", callback_data=f"final_rem_adm_{aid}"),
-               InlineKeyboardButton("❌ Yo'q", callback_data="manage_admins")]]
-        await query.edit_message_text(f"❓ {aid} ni admindan bo'shatmoqchimisiz?", reply_markup=InlineKeyboardMarkup(kb))
-
-    elif data.startswith("final_rem_adm_"):
-        aid = data.replace("final_rem_adm_", "")
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("DELETE FROM admins WHERE user_id=%s", (aid,))
-        conn.commit(); cur.close(); conn.close()
-        await query.edit_message_text("✅ Admin o'chirildi!")
-
     # --- BOSHQA ADMIN TUGMALARI ---
     elif data == "adm_ani_add":
         await query.message.reply_text("1️⃣ Anime uchun POSTER (rasm) yuboring:")
@@ -376,7 +360,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT COUNT(*) FROM users")
         u_count = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM users WHERE status='vip'")
+        cur.execute("SELECT (SELECT COUNT(*) FROM users WHERE status='vip')")
         v_count = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM admins")
         a_count = cur.fetchone()[0]
@@ -389,11 +373,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_ADD_VIP
 
     elif data == "adm_export":
-        return await export_all_anime(update, context)
+        # export_all_anime endi to'g'ri chaqiriladi
+        await export_all_anime(update, context)
+        return
 
     elif data == "adm_ads_start":
         await query.message.reply_text("🔐 Reklama paneliga kirish uchun parolni kiriting:")
         return A_SEND_ADS_PASS
+    
+    elif data == "adm_back":
+        # Admin panel boshiga qaytish
+        await query.edit_message_text("🛠 Boshqaruv paneli:", reply_markup=get_admin_kb(status == "main_admin"))
+
+    return None
+    
+
         
     
 # ====================== ANIME QIDIRISH VA PAGINATION (TUZATILDI) ======================
@@ -855,6 +849,7 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
         
+
 
 
 
