@@ -686,18 +686,16 @@ async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ {aid} muvaffaqiyatli admin qilib tayinlandi!")
     return ConversationHandler.END
 
-async def exec_add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Kanal qo'shish ijrosi"""
+async def exec_rem_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kanalni o'chirish ijrosi"""
     ch = update.message.text.strip()
-    if not (ch.startswith('@') or ch.startswith('-100')):
-        await update.message.reply_text("❌ Xato! Kanal username @ bilan boshlanishi kerak.")
-        return A_ADD_CH
     
     conn = get_db(); cur = conn.cursor()
-    cur.execute("INSERT INTO channels (username) VALUES (%s)", (ch,))
+    # Bazadan ushbu nomli kanalni o'chirish
+    cur.execute("DELETE FROM channels WHERE username = %s", (ch,))
     conn.commit(); cur.close(); conn.close()
     
-    await update.message.reply_text(f"✅ {ch} kanali ro'yxatga qo'shildi!")
+    await update.message.reply_text(f"✅ {ch} kanali muvaffaqiyatli o'chirildi!")
     return ConversationHandler.END
 
 async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -842,5 +840,6 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
