@@ -824,7 +824,7 @@ async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.split()
     if not text:
-        await update.message.reply_text("❌ Iltimos, User ID kiriting.")
+        await update.messag        e.reply_text("❌ Iltimos, User ID kiriting.")
         return A_ADD_VIP
 
     try:
@@ -838,8 +838,7 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     return ConversationHandler.END
     
-
-# ====================== MAIN FUNKSIYA ======================
+# ====================== MAIN FUNKSIYA (PRO QIDIRUV UCHUN YANGILANGAN) ======================
 def main():
     # Bazani tayyorlash
     init_db()
@@ -850,14 +849,30 @@ def main():
     # 1. Conversation Handler - Bosqichli jarayonlarni boshqarish
     conv_handler = ConversationHandler(
         entry_points=[
-            # Inline tugmalar orqali kirish
-            CallbackQueryHandler(handle_callback, pattern="^(adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|add_admin_start|manage_admins)$"),
-            # "🔍 Anime qidirish 🎬" tugmasi bosilganda qidiruv holatiga o'tish
+            # Pro Qidiruv va Admin callbacklari uchun yagona kirish nuqtasi
+            CallbackQueryHandler(handle_callback, pattern="^(adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|add_admin_start|manage_admins|search_type_id|search_type_name|cancel_search)$"),
+            
+            # "🔍 Anime qidirish 🎬" tugmasi bosilganda birinchi bo'lib tanlov inline tugmasini chiqarish
             MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), 
-                lambda u, c: (u.message.reply_text("🔍 Anime nomi yoki ID-sini yozing:"), A_SEARCH_NAME)[1])
+                lambda u, c: (
+                    u.message.reply_text(
+                        "🔍 **Qidirish turini tanlang** 👇",
+                        reply_markup=InlineKeyboardMarkup([
+                            [InlineKeyboardButton("🆔 ID bo'yicha", callback_data="search_type_id"),
+                             InlineKeyboardButton("🔎 Nomi bo'yicha", callback_data="search_type_name")]
+                        ]),
+                        parse_mode="Markdown"
+                    ), 
+                    None # Bu yerda callback kutamiz, hali state'ga o'tmaymiz
+                )[1]
+            )
         ],
         states={
-            A_SEARCH_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
+            # Yangi Pro Qidiruv holatlari
+            A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
+            A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
+            
+            # Admin holatlari
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
             A_ADD_ANI_POSTER: [MessageHandler(filters.PHOTO, add_ani_poster)],
             A_ADD_ANI_DATA: [MessageHandler(filters.TEXT | filters.VIDEO, add_ani_data)],
@@ -869,6 +884,8 @@ def main():
         fallbacks=[
             CommandHandler("cancel", start), 
             CommandHandler("start", start),
+            # Inline bekor qilish tugmasi bosilganda ham start'ga qaytish
+            CallbackQueryHandler(handle_callback, pattern="^cancel_search$"),
             MessageHandler(filters.Regex("^⬅️ Orqaga$"), start)
         ],
         allow_reentry=True
@@ -884,23 +901,23 @@ def main():
         reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID))
     ))
 
-    # JSON fayl tashlash tugmasi (Asosiy menyuda bo'lsa)
+    # JSON fayl tashlash (Foydalanuvchi menyusi uchun)
     app_bot.add_handler(MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime))
     
     app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
     
     app_bot.add_handler(MessageHandler(filters.Regex("^💎 VIP bo'lish ⭐$"), 
-        lambda u, c: u.message.reply_text(f"💎 VIP status olish uchun admin bilan bog'laning: @Admin_Username")))
+        lambda u, c: u.message.reply_text("💎 VIP status olish uchun admin bilan bog'laning: @Admin_Username")))
     
     app_bot.add_handler(MessageHandler(filters.Regex("^📖 Qo'llanma ❓$"), 
-        lambda u, c: u.message.reply_text("📖 *Botdan foydalanish:*\n1. Anime nomini yoki ID raqamini yozing.\n2. Chiqqan qismlardan birini tanlang.", parse_mode="Markdown")))
+        lambda u, c: u.message.reply_text("📖 *Botdan foydalanish:*\n1. Anime qidirish tugmasini bosing.\n2. ID yoki Nom bo'yicha qidirishni tanlang.\n3. Kerakli ma'lumotni yuboring.", parse_mode="Markdown")))
 
-    # 4. Callback va Handlerlarni tartib bilan ulash
-    app_bot.add_handler(conv_handler) # Conversation har doim yuqorida bo'lsin
+    # 4. Handlerlarni tartiblash
+    app_bot.add_handler(conv_handler)
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
     
-    # Hech bir holatga tushmasa ham qidiruv ishlashi uchun
+    # Global qidiruv (Conversation'dan tashqarida yozganlar uchun)
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic))
 
     # Render web server
@@ -916,6 +933,9 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
         
+
+        
+
 
 
 
