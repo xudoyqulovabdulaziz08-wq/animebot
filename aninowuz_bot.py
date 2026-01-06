@@ -235,13 +235,15 @@ def get_admin_kb(is_main=False):
     return InlineKeyboardMarkup(buttons)
     
     
-
 # ====================== ASOSIY ISHLOVCHILAR ======================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("INSERT IGNORE INTO users (user_id, joined_at, status) VALUES (%s, %s, 'user')", (uid, datetime.datetime.now()))
-    conn.commit(); cur.close(); conn.close()
+    conn = get_db()
+    if conn:
+        cur = conn.cursor()
+        cur.execute("INSERT IGNORE INTO users (user_id, joined_at, status) VALUES (%s, %s, 'user')", 
+                    (uid, datetime.datetime.now()))
+        conn.commit(); cur.close(); conn.close()
     
     not_joined = await check_sub(uid, context.bot)
     if not_joined:
@@ -265,13 +267,85 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
 
-    # Admin funksiyalari
-    if status not in ["main_admin", "admin"]: return
+    # Admin funksiyalari (Admin yoki Main Admin bo'lishi shart)
+    if status not in ["main_admin", "admin"]: 
+        return
 
+    # --- KANALLARNI BOSHQARISH ---
     if data == "adm_ch":
-        kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel"), InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel")]]
+        kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"), 
+               InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")]]
         await query.edit_message_text("📢 Majburiy obuna kanallarini boshqarish:", reply_markup=InlineKeyboardMarkup(kb))
 
+    elif data == "add_channel_start":
+        await query.message.reply_text("➕ Yangi kanal username-ini yuboring (masalan: @kanal_nomi):")
+        return A_ADD_CH
+
+    elif data == "rem_channel_start":
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("SELECT id, username FROM channels")
+        chs = cur.fetchall(); cur.close(); conn.close()
+        if not chs:
+            await query.message.reply_text("❌ Hozircha kanallar yo'q.")
+            return
+        kb = [[InlineKeyboardButton(f"🗑 {c[1]}", callback_data=f"final_rem_ch_{c[0]}")] for c in chs]
+        await query.edit_message_text("O'chirmoqchi bo'lgan kanalni tanlang:", reply_markup=InlineKeyboardMarkup(kb))
+
+    elif data.startswith("final_rem_ch_"):
+        cid = data.replace("final_rem_ch_", "")
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("DELETE FROM channels WHERE id=%s", (cid,))
+        conn.commit(); cur.close(); conn.close()
+        await query.edit_message_text("✅ Kanal ro'yxatdan o'chirildi!")
+
+    # --- ADMINLARNI BOSHQARISH (FAQAT MAIN ADMIN) ---
+    elif data == "manage_admins":
+        if status != "main_admin":
+            await query.answer("❌ Bu bo'lim faqat asosiy admin uchun!", show_alert=True)
+            return
+        kb = [
+            [InlineKeyboardButton("➕ Admin Qo'shish", callback_data="add_admin_start")],
+            [InlineKeyboardButton("📜 Adminlar ro'yxati", callback_data="list_admins")],
+            [InlineKeyboardButton("🗑 Admin O'chirish", callback_data="rem_admin_start")]
+        ]
+        await query.edit_message_text("👮 Adminlarni boshqarish paneli:", reply_markup=InlineKeyboardMarkup(kb))
+
+    elif data == "add_admin_start":
+        await query.message.reply_text("🆔 Yangi admin bo'ladigan foydalanuvchi ID raqamini yuboring:")
+        return A_ADD_ADM
+
+    elif data == "list_admins":
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("SELECT user_id FROM admins")
+        admins = cur.fetchall(); cur.close(); conn.close()
+        text = "👮 **Adminlar ro'yxati:**\n\n"
+        text += "\n".join([f"• `{a[0]}`" for a in admins]) if admins else "Hozircha qo'shimcha adminlar yo'q."
+        await query.message.reply_text(text, parse_mode="Markdown")
+
+    elif data == "rem_admin_start":
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("SELECT user_id FROM admins")
+        admins = cur.fetchall(); cur.close(); conn.close()
+        if not admins:
+            await query.message.reply_text("O'chirish uchun adminlar yo'q.")
+            return
+        kb = [[InlineKeyboardButton(f"🗑 {a[0]}", callback_data=f"pre_rem_adm_{a[0]}")] for a in admins]
+        await query.edit_message_text("🗑 O'chirmoqchi bo'lgan adminni tanlang:", reply_markup=InlineKeyboardMarkup(kb))
+
+    elif data.startswith("pre_rem_adm_"):
+        aid = data.replace("pre_rem_adm_", "")
+        kb = [[InlineKeyboardButton("✅ Ha, o'chirilsin", callback_data=f"final_rem_adm_{aid}"),
+               InlineKeyboardButton("❌ Yo'q", callback_data="manage_admins")]]
+        await query.edit_message_text(f"❓ {aid} ni admindan bo'shatmoqchimisiz?", reply_markup=InlineKeyboardMarkup(kb))
+
+    elif data.startswith("final_rem_adm_"):
+        aid = data.replace("final_rem_adm_", "")
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("DELETE FROM admins WHERE user_id=%s", (aid,))
+        conn.commit(); cur.close(); conn.close()
+        await query.edit_message_text("✅ Admin o'chirildi!")
+
+    # --- BOSHQA ADMIN FUNKSIYALARI ---
     elif data == "adm_ani_add":
         await query.message.reply_text("1️⃣ Anime uchun POSTER (rasm) yuboring:")
         return A_ADD_ANI_POSTER
@@ -293,17 +367,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_ADD_VIP
 
     elif data == "adm_export":
-        conn = get_db(); cur = conn.cursor(dictionary=True)
-        cur.execute("SELECT * FROM users"); u_data = cur.fetchall()
-        cur.execute("SELECT * FROM anime_list"); a_data = cur.fetchall()
-        full_data = {"backup_date": str(datetime.datetime.now()), "users": u_data, "anime": a_data}
-        with open("full_db_export.json", "w") as f: json.dump(full_data, f, default=str, indent=4)
-        await query.message.reply_document(open("full_db_export.json", "rb"), caption="📦 Barcha ma'lumotlar JSON shaklida.")
-        cur.close(); conn.close()
+        await query.message.reply_text("⏳ Ma'lumotlar tayyorlanmoqda...")
+        # Bu funksiyani MessageHandler orqali export_all_anime ga bog'laymiz
+        return await export_all_anime(update, context)
 
     elif data == "adm_ads_start":
         await query.message.reply_text("🔐 Reklama paneliga kirish uchun parolni kiriting:")
         return A_SEND_ADS_PASS
+        
+
+
 
 # ====================== ANIME QIDIRISH VA PAGINATION ======================
 async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -610,6 +683,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
