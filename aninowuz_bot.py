@@ -728,9 +728,9 @@ async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.split()
     if not text:
+        # Uzilib qolgan joyi mana shu yer: .message deb to'g'rilandi
         await update.message.reply_text("❌ Iltimos, User ID kiriting.")
         return A_ADD_VIP
-    
 
     try:
         target_id = int(text[0])
@@ -842,4 +842,5 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
