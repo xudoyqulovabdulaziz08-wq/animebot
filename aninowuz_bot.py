@@ -394,14 +394,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_ads_start":
         await query.message.reply_text("🔐 Reklama paneliga kirish uchun parolni kiriting:")
         return A_SEND_ADS_PASS
+        
     
-
-
 # ====================== ANIME QIDIRISH VA PAGINATION ======================
 async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Anime nomi yoki ID bo'yicha qidirish mantiqi"""
-    text = update.message.text
+    text = update.message.text.strip()
     uid = update.effective_user.id
+    # Conversation state qaysi holatda ekanini aniqlash
+    current_state = context.user_data.get(ConversationHandler.PAGE) 
     
     conn = get_db()
     if not conn:
@@ -409,13 +410,24 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
     cur = conn.cursor(dictionary=True)
-    # Nomi yoki ID bo'yicha qidirish (Katta-kichik harfga e'tibor bermaslik uchun)
-    cur.execute("SELECT * FROM anime_list WHERE anime_id=%s OR name LIKE %s", (text, f"%{text}%"))
+    
+    # Holatga qarab SQL so'rovni tanlash
+    # Eslatma: main funksiyangizda A_SEARCH_BY_ID va A_SEARCH_BY_NAME alohida bog'langan
+    # Agar ID bo'lsa aniq qidiradi, nomi bo'lsa 'LIKE' operatori bilan
+    if text.isdigit():
+        cur.execute("SELECT * FROM anime_list WHERE anime_id=%s", (text,))
+    else:
+        cur.execute("SELECT * FROM anime_list WHERE name LIKE %s", (f"%{text}%",))
+    
     anime = cur.fetchone()
     
     if not anime:
-        await update.message.reply_text("😔 Kechirasiz, bunday anime topilmadi. Qaytadan urinib ko'ring yoki /cancel bosing.")
-        return # Bu yerda END qaytarmaymiz, foydalanuvchi yana yozib ko'rishi uchun
+        await update.message.reply_text(
+            "😔 Kechirasiz, bunday anime topilmadi.\n\n"
+            "Iltimos, nomini to'g'ri yozganingizni yoki ID raqam xato emasligini tekshiring.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ Qidirishni to'xtatish", callback_data="cancel_search")]])
+        )
+        return # User yana urinib ko'rishi uchun state saqlanib qoladi
 
     # Qismlarni olish
     cur.execute("SELECT episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
@@ -423,13 +435,13 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     cur.close(); conn.close()
 
     if not episodes:
-        await update.message.reply_text("Bu animega hali qismlar joylanmagan.")
+        await update.message.reply_text("Bu animega hali qismlar joylanmagan.", reply_markup=await get_main_kb(uid))
         return ConversationHandler.END
 
-    # Pagination Keyboard (1-10 qismlar)
+    # Pagination Keyboard (Dastlabki 10 qism)
     keyboard = []
     row = []
-    for i, ep in enumerate(episodes[:10]):
+    for ep in episodes[:10]:
         row.append(InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{anime['anime_id']}_{ep['episode']}"))
         if len(row) == 5:
             keyboard.append(row)
@@ -441,56 +453,70 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     await update.message.reply_photo(
         photo=anime['poster_id'],
-        caption=f"🎬 **{anime['name']}**\n🆔 ID: {anime['anime_id']}\n\nQismni tanlang 👇",
+        caption=f"🎬 **{anime['name']}**\n🆔 ID: `{anime['anime_id']}`\n\nQismni tanlang 👇",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown"
     )
-    return ConversationHandler.END # Qidiruv muvaffaqiyatli tugadi
+    return ConversationHandler.END
 
 async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Qism tugmasi bosilganda videoni yuborish"""
     query = update.callback_query
     uid = query.from_user.id
     
-    # Callback data parsing
     try:
+        # get_ep_AID_EP formatini ajratish
         parts = query.data.split("_")
         aid = parts[2]
         ep_num = parts[3]
     except:
-        await query.answer("Ma'lumotda xatolik.")
+        await query.answer("Ma'lumotda xatolik yuz berdi.")
         return
 
     status = await get_user_status(uid)
-    conn = get_db(); cur = conn.cursor(dictionary=True)
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+    
     cur.execute("SELECT * FROM anime_episodes WHERE anime_id=%s AND episode=%s", (aid, ep_num))
     ep_data = cur.fetchone()
     
     if not ep_data:
-        await query.answer("Qism topilmadi.")
+        await query.answer("Kechirasiz, bu qism topilmadi.")
         cur.close(); conn.close()
         return
 
-    # Bonus ball berish
+    # Bonus ball berish tizimi
     bonus_add = 2 if status == 'vip' else 1
     cur.execute("UPDATE users SET bonus = bonus + %s WHERE user_id=%s", (bonus_add, uid))
-    conn.commit() # Bonusni saqlash uchun commit shart
+    conn.commit()
     
-    # Yuklab olish tugmasi faqat VIP/Admin uchun
-    kb = None
-    if status in ['vip', 'admin', 'main_admin']:
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("📥 Qurilmaga yuklab olish", callback_data=f"download_{ep_data['id']}")]])
-
-    # Oddiy user uchun protect_content=True (Saqlash taqiqlangan)
+    # Video himoyasi: Oddiy userlar videoni boshqaga yubora olmaydi va saqlay olmaydi
     is_protected = False if status in ['vip', 'admin', 'main_admin'] else True
 
+    # Yuklab olish tugmasi (Faqat VIP va Adminlar uchun)
+    kb_list = []
+    if status in ['vip', 'admin', 'main_admin']:
+        kb_list.append([InlineKeyboardButton("📥 Qurilmaga yuklab olish", callback_data=f"download_{ep_data['id']}")])
+    
+    # Har doim asosiy menyuga qaytish tugmasini qo'shish (UX uchun yaxshi)
+    kb_list.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="cancel_search")])
+
+    await query.message.delete() # Tanlov panelini o'chirish (tozalik uchun)
+    
     await context.bot.send_video(
         chat_id=uid,
         video=ep_data['file_id'],
-        caption=f"🎬 {aid} | {ep_num}-qism\n🌐 Til: {ep_data['lang']}\n\n🎁 Bonus: +{bonus_add}",
+        caption=f"🎬 **{aid}** | **{ep_num}-qism**\n🌐 Til: {ep_data['lang']}\n\n🎁 Bonus ball: +{bonus_add}",
         protect_content=is_protected,
-        reply_markup=kb
+        reply_markup=InlineKeyboardMarkup(kb_list),
+        parse_mode="Markdown"
     )
+    
     cur.close(); conn.close()
+    await query.answer(f"+{bonus_add} bonus berildi!")
+    
+
+
     
 # ====================== CONVERSATION STEPS ======================
 async def add_ani_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -835,6 +861,7 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
         
+
 
 
 
