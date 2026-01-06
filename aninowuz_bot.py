@@ -380,17 +380,23 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ====================== ANIME QIDIRISH VA PAGINATION ======================
 async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Anime nomi yoki ID bo'yicha qidirish mantiqi"""
     text = update.message.text
     uid = update.effective_user.id
     
-    conn = get_db(); cur = conn.cursor(dictionary=True)
-    # Nomi yoki ID bo'yicha qidirish
+    conn = get_db()
+    if not conn:
+        await update.message.reply_text("❌ Bazaga ulanishda xato.")
+        return ConversationHandler.END
+
+    cur = conn.cursor(dictionary=True)
+    # Nomi yoki ID bo'yicha qidirish (Katta-kichik harfga e'tibor bermaslik uchun)
     cur.execute("SELECT * FROM anime_list WHERE anime_id=%s OR name LIKE %s", (text, f"%{text}%"))
     anime = cur.fetchone()
     
     if not anime:
-        await update.message.reply_text("😔 Kechirasiz, bunday anime topilmadi.")
-        return
+        await update.message.reply_text("😔 Kechirasiz, bunday anime topilmadi. Qaytadan urinib ko'ring yoki /cancel bosing.")
+        return # Bu yerda END qaytarmaymiz, foydalanuvchi yana yozib ko'rishi uchun
 
     # Qismlarni olish
     cur.execute("SELECT episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
@@ -399,7 +405,7 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if not episodes:
         await update.message.reply_text("Bu animega hali qismlar joylanmagan.")
-        return
+        return ConversationHandler.END
 
     # Pagination Keyboard (1-10 qismlar)
     keyboard = []
@@ -420,13 +426,21 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="Markdown"
     )
+    return ConversationHandler.END # Qidiruv muvaffaqiyatli tugadi
 
 async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     uid = query.from_user.id
-    # Format: get_ep_{anime_id}_{episode}
-    _, _, aid, ep_num = query.data.split("_")
     
+    # Callback data parsing
+    try:
+        parts = query.data.split("_")
+        aid = parts[2]
+        ep_num = parts[3]
+    except:
+        await query.answer("Ma'lumotda xatolik.")
+        return
+
     status = await get_user_status(uid)
     conn = get_db(); cur = conn.cursor(dictionary=True)
     cur.execute("SELECT * FROM anime_episodes WHERE anime_id=%s AND episode=%s", (aid, ep_num))
@@ -434,11 +448,13 @@ async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if not ep_data:
         await query.answer("Qism topilmadi.")
+        cur.close(); conn.close()
         return
 
     # Bonus ball berish
     bonus_add = 2 if status == 'vip' else 1
     cur.execute("UPDATE users SET bonus = bonus + %s WHERE user_id=%s", (bonus_add, uid))
+    conn.commit() # Bonusni saqlash uchun commit shart
     
     # Yuklab olish tugmasi faqat VIP/Admin uchun
     kb = None
@@ -456,6 +472,8 @@ async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         reply_markup=kb
     )
     cur.close(); conn.close()
+    
+
 
 # ====================== CONVERSATION STEPS ======================
 async def add_ani_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -683,6 +701,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
