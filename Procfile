@@ -1,1 +1,1 @@
-worker: python aninowuz_bot.py
+web: python aninowuz_bot.py
