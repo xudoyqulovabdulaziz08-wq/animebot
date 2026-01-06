@@ -211,15 +211,11 @@ async def main():
     app.add_handler(CallbackQueryHandler(handle_callbacks))
     app.add_handler(MessageHandler(filters.ALL & ~filters.COMMAND, handle_messages))
 
-    await app.initialize()
-    await app.start()
-    await app.updater.start_polling()
+    # Fayl yangilashni background task sifatida ishga tushirish
+    asyncio.create_task(update_anime_list_file())
 
-    while True:
-        await asyncio.sleep(3600)
+    # V20+ uchun yagona to‘g‘ri ishga tushirish
+    await app.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main)
-
-# ======= [ KOD TUGADI ] =======
-
+    asyncio.run(main())  # ✅ () kerak
