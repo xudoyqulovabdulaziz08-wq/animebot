@@ -550,8 +550,7 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_ADD_ANI_DATA
         
 
-
-# ====================== MAIN FUNKSIYA (RENDER.COM WEB SERVICE UCHUN) ======================
+# ====================== MAIN FUNKSIYA (TO'LIQ VA TUZATILGAN) ======================
 def main():
     # Ma'lumotlar bazasini yaratish/tekshirish
     init_db()
@@ -559,57 +558,71 @@ def main():
     # ApplicationBuilder orqali botni qurish
     app_bot = ApplicationBuilder().token(TOKEN).build()
 
-    # 1. Conversation Handler - Murakkab bosqichli jarayonlar uchun
+    # 1. Conversation Handler - Barcha bosqichli jarayonlar shu yerda
     conv_handler = ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(handle_callback, pattern="^(adm_ani_add|adm_ads_start|adm_vip_add)$")
+            # Inline tugmalar orqali kirish
+            CallbackQueryHandler(handle_callback, pattern="^(adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins)$"),
+            # Menu tugmasi orqali qidiruvga kirish
+            MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), 
+                lambda u, c: (u.message.reply_text("🔍 Anime nomi yoki ID-sini yozing:"), A_SEARCH_NAME)[1])
         ],
         states={
+            A_SEARCH_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
+            A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
+            A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
             A_ADD_ANI_POSTER: [MessageHandler(filters.PHOTO, add_ani_poster)],
             A_ADD_ANI_DATA: [MessageHandler(filters.TEXT | filters.VIDEO, add_ani_data)],
-            A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, 
-                lambda u, c: A_SEND_ADS_MSG if u.message.text == ADVERTISING_PASSWORD else ConversationHandler.END)],
+            A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
             A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
             A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_vip_add)],
+            A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_admin)],
         },
-        fallbacks=[CommandHandler("cancel", start), CommandHandler("start", start)],
+        fallbacks=[
+            CommandHandler("cancel", start), 
+            CommandHandler("start", start),
+            MessageHandler(filters.Regex("^⬅️ Orqaga$"), start)
+        ],
+        allow_reentry=True
     )
 
-    # 2. Asosiy buyruqlar va xabarlar
+    # 2. Buyruqlar
     app_bot.add_handler(CommandHandler("start", start))
     
-    # Admin Panel tugmasi
+    # 3. Asosiy Menu tugmalari ishlovchilari
     app_bot.add_handler(MessageHandler(
         filters.Regex("^🛠 ADMIN PANEL$"), 
-        lambda u, c: u.message.reply_text("Boshqaruv paneli:", 
+        lambda u, c: u.message.reply_text("🛠 Boshqaruv paneli:", 
         reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID))
     ))
 
-    # Bonus ballar tugmasi
     app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
     
-    # VIP bo'lish va Qo'llanma tugmalari
+    # JSON Export mantiqi (Siz so'ragan funksiya)
+    app_bot.add_handler(MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime))
+    
     app_bot.add_handler(MessageHandler(filters.Regex("^💎 VIP bo'lish ⭐$"), 
-        lambda u, c: u.message.reply_text(f"💎 VIP status olish uchun admin bilan bog'laning: @Admin_Username")))
+        lambda u, c: u.message.reply_text("💎 VIP status olish uchun admin bilan bog'laning: @Admin_User")))
     
     app_bot.add_handler(MessageHandler(filters.Regex("^📖 Qo'llanma ❓$"), 
-        lambda u, c: u.message.reply_text("📖 *Botdan foydalanish:*\n1. Anime nomini yozing.\n2. Chiqqan qismlardan birini tanlang.", parse_mode="Markdown")))
+        lambda u, c: u.message.reply_text("📖 *Botdan foydalanish:*\n1. Anime nomini yoki ID-sini yozing.\n2. Chiqqan ro'yxatdan qismni tanlang.", parse_mode="Markdown")))
 
-    # 3. Callback Query Handlers (Tugmalar uchun)
-    app_bot.add_handler(conv_handler) # Conversation birinchi bo'lishi kerak
+    # 4. Callback Query Handlers
+    app_bot.add_handler(conv_handler) # Birinchi conv_handler bo'lishi shart
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
-    app_bot.add_handler(CallbackQueryHandler(handle_callback)) # Qolgan barcha tugmalar uchun
+    app_bot.add_handler(CallbackQueryHandler(handle_callback)) # Barcha boshqa callbacklar
 
-    # 4. Global matnli qidiruv (Anime qidirish mantiqi)
+    # 5. Global matnli qidiruv (Agar hech qaysi holatga tushmasa)
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic))
 
-    # Render uchun Web Serverni alohida oqimda ishga tushirish
-    print("🌐 Web Server 8080-portda ishga tushmoqda...")
+    # Render uchun Web Server
     keep_alive()
 
     # Botni ishga tushirish
-    print("🤖 Bot polling rejimida ishlamoqda...")
+    print("🤖 Bot polling rejimida muvaffaqiyatli ishga tushdi...")
     app_bot.run_polling()
+    
+
 
 # ====================== QO'SHIMCHA FUNKSIYALAR ======================
 
@@ -748,6 +761,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
