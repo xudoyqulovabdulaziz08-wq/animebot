@@ -226,9 +226,9 @@ async def main():
     await app.run_polling()
 
 if __name__ == "__main__":
-    # async funksiya to'g'ri chaqirilmoqda
     try:
-        asyncio.run(main())
+        asyncio.run(main())  # <-- BU YERDA () BO’LMASA XATO
     except (KeyboardInterrupt, SystemExit):
         print("Bot to‘xtatildi.")
+
 
