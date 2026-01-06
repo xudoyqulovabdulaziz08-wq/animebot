@@ -882,7 +882,8 @@ def main():
     app_bot.add_handler(MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), search_menu_cmd))
     app_bot.add_handler(MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime))
     app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
-    app_bot.add_handler(MessageHandler(filters.Regex("^🛠 ADMIN PANEL$"), 
+    app_bot.add_handler(MessageHandler(filters.Regex("^🛠 ADMIN PANEL$")
+    app_bot.add_handler(MessageHandler(filters.Regex("^📖 Qo'llanma ❓$"), show_guide)),
         lambda u, c: u.message.reply_text("🛠 Admin paneli:", 
         reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID))))
 
@@ -899,6 +900,7 @@ if __name__ == '__main__':
     main()
     
     
+
 
 
 
