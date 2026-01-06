@@ -596,7 +596,8 @@ async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✅ Parol tasdiqlandi! \n\nEndi barcha foydalanuvchilarga yubormoqchi bo'lgan **reklama xabaringizni** yuboring (Rasm, Video, Matn yoki Post):")
         return A_SEND_ADS_MSG
     else:
-        await update.message.reply_text("❌ Parol noto'g'ri! Reklama paneli yopildi.")
+        status = await get_user_status(update.effective_user.id)
+        await update.message.reply_text("❌ Parol noto'g'ri!", reply_markup=get_main_kb(status))
         return ConversationHandler.END
 
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -613,76 +614,85 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cur.close(); conn.close()
 
     count = 0
+    status = await get_user_status(update.effective_user.id)
     status_msg = await update.message.reply_text(f"🚀 Reklama yuborish boshlandi (0/{len(users)})...")
 
     for user in users:
         try:
-            # copy_message - bu eng xavfsiz usul (caption va tugmalar bilan ko'chiradi)
+            # copy_message - caption va tugmalar bilan ko'chiradi
             await context.bot.copy_message(
                 chat_id=user[0],
                 from_chat_id=update.effective_chat.id,
                 message_id=msg.message_id
             )
             count += 1
-            await asyncio.sleep(0.05) # Telegram limitlaridan oshib ketmaslik uchun
+            await asyncio.sleep(0.05) # Limitlardan oshmaslik uchun
 
             if count % 50 == 0:
                 await status_msg.edit_text(f"🚀 Reklama yuborilmoqda ({count}/{len(users)})...")
         except Exception:
             continue
 
-    await update.message.reply_text(f"✅ Reklama yakunlandi. {count} ta foydalanuvchiga yuborildi.")
+    await update.message.reply_text(f"✅ Reklama yakunlandi. {count} ta foydalanuvchiga yuborildi.", reply_markup=get_main_kb(status))
     return ConversationHandler.END
 
 async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Barcha animelar ro'yxatini JSON fayl qilib yuborish (TUZATILDI)"""
-    # CallbackQuery yoki Message ekanini aniqlash
+    # CallbackQuery orqali kelsa answer berish
+    if update.callback_query:
+        await update.callback_query.answer("Fayl tayyorlanmoqda...")
+        
     msg = update.effective_message
-    
     conn = get_db()
     if not conn:
         await msg.reply_text("❌ Bazaga ulanishda xato.")
         return
 
-    cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM anime_list")
-    animes = cur.fetchall()
-    cur.close(); conn.close()
-    
-    file_name = "anime_list.json"
-    with open(file_name, "w", encoding="utf-8") as f:
-        json.dump(animes, f, indent=4, default=str, ensure_ascii=False)
-    
-    # reply_document ishlatishda faylni 'rb' rejimida ochish
-    with open(file_name, "rb") as doc:
-        await msg.reply_document(document=doc, caption="🎬 Barcha animelar bazasi (JSON).")
+    try:
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT * FROM anime_list")
+        animes = cur.fetchall()
+        cur.close(); conn.close()
+        
+        if not animes:
+            await msg.reply_text("📭 Bazada anime yo'q.")
+            return
+
+        file_name = "anime_list.json"
+        with open(file_name, "w", encoding="utf-8") as f:
+            json.dump(animes, f, indent=4, default=str, ensure_ascii=False)
+        
+        with open(file_name, "rb") as doc:
+            await msg.reply_document(
+                document=doc, 
+                caption=f"🎬 **Barcha animelar bazasi**\n📊 Jami: {len(animes)} ta.",
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        await msg.reply_text(f"❌ Eksportda xatolik: {e}")
 
 async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Foydalanuvchini VIP qilish ijrosi"""
+    status = await get_user_status(update.effective_user.id)
     if not update.message.text:
         return A_ADD_VIP
         
     text = update.message.text.strip()
     if not text.isdigit():
-        await update.message.reply_text("❌ Xato! Iltimos, faqat foydalanuvchi ID raqamini yuboring.")
+        await update.message.reply_text("❌ Xato! Faqat ID yuboring.")
         return A_ADD_VIP
 
     try:
         target_id = int(text)
         conn = get_db(); cur = conn.cursor()
-        # Avval foydalanuvchi bazada borligini tekshirish foydali bo'lardi, 
-        # lekin UPDATE ham yetarli
         cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
         conn.commit(); cur.close(); conn.close()
         
-        await update.message.reply_text(f"✅ Foydalanuvchi {target_id} muvaffaqiyatli VIP qilindi.")
+        await update.message.reply_text(f"✅ Foydalanuvchi {target_id} VIP qilindi.", reply_markup=get_main_kb(status))
     except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
+        await update.message.reply_text(f"❌ Xatolik: {e}")
     
     return ConversationHandler.END
-
-# Qolgan funksiyalar (exec_add_admin, exec_add_channel, exec_rem_channel, show_bonus) 
-# o'z holicha qolsa bo'ladi, ular to'g'ri yozilgan.
 
 
 
@@ -778,6 +788,7 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
         
+
 
 
 
