@@ -404,7 +404,6 @@ def main():
 # ====================== QO'SHIMCHA FUNKSIYALAR ======================
 
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Reklamani barcha foydalanuvchilarga yuborish funksiyasi"""
     msg = update.message
     conn = get_db()
     if not conn:
@@ -422,13 +421,17 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     for user in users:
         try:
-            # Reklamani hamma foydalanuvchilarga nusxalash
             await context.bot.copy_message(
                 chat_id=user[0],
                 from_chat_id=update.effective_chat.id,
                 message_id=msg.message_id
             )
             count += 1
+            
+            # --- MANA SHU YERGA QO'SHILADI ---
+            await asyncio.sleep(0.05) # Har bir xabardan keyin 0.05 soniya kutish
+            # ---------------------------------
+
             if count % 50 == 0:
                 await status_msg.edit_text(f"🚀 Reklama yuborilmoqda ({count}/{len(users)})...")
         except Exception:
@@ -436,6 +439,7 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"✅ Reklama yakunlandi. {count} ta foydalanuvchiga yuborildi.")
     return ConversationHandler.END
+    
 
 async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
@@ -534,4 +538,5 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
