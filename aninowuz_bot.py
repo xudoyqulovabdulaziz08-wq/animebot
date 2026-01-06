@@ -741,46 +741,72 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ====================== MAIN FUNKSIYA ======================
 def main():
+    # Bazani tayyorlash
     init_db()
 
+    # Botni qurish
     app_bot = ApplicationBuilder().token(TOKEN).build()
 
+    # 1. Conversation Handler - Bosqichli jarayonlarni boshqarish
     conv_handler = ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(handle_callback, pattern="^(adm_ani_add|adm_ads_start|adm_vip_add)$")
+            # Inline tugmalar orqali kirish
+            CallbackQueryHandler(handle_callback, pattern="^(adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|add_admin_start|manage_admins)$"),
+            # "🔍 Anime qidirish 🎬" tugmasi bosilganda qidiruv holatiga o'tish
+            MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), 
+                lambda u, c: (u.message.reply_text("🔍 Anime nomi yoki ID-sini yozing:"), A_SEARCH_NAME)[1])
         ],
         states={
+            A_SEARCH_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
+            A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
             A_ADD_ANI_POSTER: [MessageHandler(filters.PHOTO, add_ani_poster)],
             A_ADD_ANI_DATA: [MessageHandler(filters.TEXT | filters.VIDEO, add_ani_data)],
-            A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, 
-                lambda u, c: A_SEND_ADS_MSG if u.message.text == ADVERTISING_PASSWORD else ConversationHandler.END)],
+            A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
             A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
             A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_vip_add)],
+            A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_admin)],
         },
-        fallbacks=[CommandHandler("cancel", start), CommandHandler("start", start)],
+        fallbacks=[
+            CommandHandler("cancel", start), 
+            CommandHandler("start", start),
+            MessageHandler(filters.Regex("^⬅️ Orqaga$"), start)
+        ],
+        allow_reentry=True
     )
 
+    # 2. Buyruqlar
     app_bot.add_handler(CommandHandler("start", start))
     
+    # 3. Asosiy Menyudagi matnli tugmalar
     app_bot.add_handler(MessageHandler(
         filters.Regex("^🛠 ADMIN PANEL$"), 
-        lambda u, c: u.message.reply_text("Boshqaruv paneli:", 
+        lambda u, c: u.message.reply_text("🛠 Boshqaruv paneli:", 
         reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID))
     ))
 
+    # JSON fayl tashlash tugmasi (Asosiy menyuda bo'lsa)
+    app_bot.add_handler(MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime))
+    
     app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
+    
     app_bot.add_handler(MessageHandler(filters.Regex("^💎 VIP bo'lish ⭐$"), 
         lambda u, c: u.message.reply_text(f"💎 VIP status olish uchun admin bilan bog'laning: @Admin_Username")))
     
     app_bot.add_handler(MessageHandler(filters.Regex("^📖 Qo'llanma ❓$"), 
-        lambda u, c: u.message.reply_text("📖 *Botdan foydalanish:*\n1. Anime nomini yozing.\n2. Chiqqan qismlardan birini tanlang.", parse_mode="Markdown")))
+        lambda u, c: u.message.reply_text("📖 *Botdan foydalanish:*\n1. Anime nomini yoki ID raqamini yozing.\n2. Chiqqan qismlardan birini tanlang.", parse_mode="Markdown")))
 
-    app_bot.add_handler(conv_handler)
+    # 4. Callback va Handlerlarni tartib bilan ulash
+    app_bot.add_handler(conv_handler) # Conversation har doim yuqorida bo'lsin
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
+    
+    # Hech bir holatga tushmasa ham qidiruv ishlashi uchun
     app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic))
 
+    # Render web server
     keep_alive()
+
+    # Botni ishga tushirish
     print("🤖 Bot polling rejimida ishlamoqda...")
     app_bot.run_polling()
 
@@ -789,15 +815,4 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
-
-
-
-
-
-
-
-
-
-
-
-
+        
