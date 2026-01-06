@@ -194,7 +194,6 @@ async def check_sub(uid, bot):
     for (ch,) in channels:
         try:
             # Username formatini to'g'irlash
-            # Agar ch raqam bo'lsa (ID), stringga o'tkazamiz, agar username bo'lsa @ qo'shamiz
             target = str(ch)
             if not target.startswith('@') and not target.startswith('-'):
                 target = f"@{target}"
@@ -208,6 +207,7 @@ async def check_sub(uid, bot):
             not_joined.append(ch)
             
     return not_joined
+    
     
 
 # ====================== KLAVIATURALAR (TUZATILDI) ======================
@@ -775,6 +775,7 @@ def main():
     keep_alive()
     app_bot.run_polling()
     
+
 
 
 
