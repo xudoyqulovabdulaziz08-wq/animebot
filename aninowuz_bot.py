@@ -42,14 +42,14 @@ ADVERTISING_PASSWORD = os.getenv("ADS_PASS", "2009")
 
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
-    "port": int(os.getenv("DB_PORT")),
+    "port": int(os.getenv("DB_PORT", 27624)), # Port bo'sh bo'lsa standart 27624 ni oladi
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASS"),
     "database": os.getenv("DB_NAME"),
     "autocommit": True,
-    "ssl_disabled": False
+    "ssl_disabled": False,
+    "ssl_mode": "REQUIRED" # SSL ulanishni majburiy qilish
 }
-
 
 # Conversation States
 (
@@ -424,6 +424,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
