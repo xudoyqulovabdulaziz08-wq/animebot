@@ -198,18 +198,23 @@ async def check_sub(uid, bot):
             not_joined.append(ch)
     return not_joined
 
-# ====================== KLAVIATURALAR ======================
-async def get_main_kb(uid):
-    """Asosiy menyu klaviaturasi"""
-    status = await get_user_status(uid)
+# ====================== KLAVIATURALAR (TUZATILDI) ======================
+
+def get_main_kb(status):
+    """
+    Asosiy menyu klaviaturasi. 
+    Xatolikni oldini olish uchun status funksiya tashqarisida aniqlanib uzatiladi.
+    """
     kb = [
         [KeyboardButton("🔍 Anime qidirish 🎬")],
         [KeyboardButton("🎁 Bonus ballarim 💰"), KeyboardButton("💎 VIP bo'lish ⭐")],
         [KeyboardButton("📜 Barcha anime ro'yxati 📂"), KeyboardButton("📖 Qo'llanma ❓")]
     ]
+    
     # Agar foydalanuvchi admin bo'lsa, admin panel tugmasi qo'shiladi
     if status in ["main_admin", "admin"]:
         kb.append([KeyboardButton("🛠 ADMIN PANEL")])
+    
     return ReplyKeyboardMarkup(kb, resize_keyboard=True)
 
 def get_admin_kb(is_main=False):
@@ -234,6 +239,11 @@ def get_admin_kb(is_main=False):
         buttons.append([InlineKeyboardButton("👮 Adminlarni boshqarish", callback_data="manage_admins")])
         
     return InlineKeyboardMarkup(buttons)
+
+def get_cancel_kb():
+    """Jarayonlarni bekor qilish uchun qisqa klaviatura"""
+    return ReplyKeyboardMarkup([[KeyboardButton("⬅️ Orqaga")]], resize_keyboard=True)
+    
     
 
 # ====================== ASOSIY ISHLOVCHILAR (TUZATILGAN) ======================
@@ -839,6 +849,7 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
         
+
 
 
 
