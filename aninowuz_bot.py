@@ -266,26 +266,35 @@ def get_cancel_kb():
 # ====================== ASOSIY ISHLOVCHILAR (TUZATILGAN VA TO'LIQ) ======================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Botni ishga tushirish va foydalanuvchini ro'yxatga olish"""
     uid = update.effective_user.id
     status = await get_user_status(uid)
     
     conn = get_db()
     if conn:
         cur = conn.cursor()
+        # Foydalanuvchini bazaga qo'shish (agar yo'q bo'lsa)
         cur.execute("INSERT IGNORE INTO users (user_id, joined_at, status) VALUES (%s, %s, 'user')", 
                     (uid, datetime.datetime.now()))
         conn.commit(); cur.close(); conn.close()
     
+    # Majburiy obunani tekshirish
     not_joined = await check_sub(uid, context.bot)
     if not_joined:
         btn = [[InlineKeyboardButton(f"Obuna bo'lish ➕", url=f"https://t.me/{c.replace('@','')}") ] for c in not_joined]
         btn.append([InlineKeyboardButton("Tekshirish ✅", callback_data="recheck")])
-        return await update.message.reply_text("👋 Botdan foydalanish uchun kanallarga a'zo bo'ling:", reply_markup=InlineKeyboardMarkup(btn))
+        return await update.message.reply_text(
+            "👋 Botdan foydalanish uchun kanallarga a'zo bo'ling:", 
+            reply_markup=InlineKeyboardMarkup(btn)
+        )
     
-    # get_main_kb funksiyasiga status yuboramiz
-    await update.message.reply_text("✨ Xush kelibsiz! Anime olamiga marhamat.", reply_markup=get_main_kb(status))
+    await update.message.reply_text(
+        "✨ Xush kelibsiz! Anime olamiga marhamat.", 
+        reply_markup=get_main_kb(status)
+    )
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Barcha inline tugmalar bosilishini boshqarish"""
     query = update.callback_query
     uid = query.from_user.id
     data = query.data
@@ -304,44 +313,42 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # --- ANIME QIDIRUVNI BOSHLASH ---
     if data == "search_type_id":
         await query.edit_message_text("🆔 **Anime kodini (ID) yuboring:**", parse_mode="Markdown")
-        return A_SEARCH_BY_ID
+        return A_SEARCH_BY_ID # Qidiruv mantiqiga o'tish
 
     elif data == "search_type_name":
         await query.edit_message_text("🔎 **Anime nomini kiriting:**", parse_mode="Markdown")
         return A_SEARCH_BY_NAME
 
     elif data == "cancel_search":
-        # Barcha vaqtinchalik ma'lumotlarni tozalash
+        # Vaqtinchalik ma'lumotlarni tozalash
         context.user_data.pop('poster', None)
         context.user_data.pop('tmp_ani', None)
         if query.message: await query.message.delete()
         await context.bot.send_message(uid, "✅ Jarayon yakunlandi.", reply_markup=get_main_kb(status))
         return ConversationHandler.END
 
-    # Admin bo'lmaganlar uchun pastki qismlar yopiq
+    # Admin bo'lmaganlar uchun quyidagi amallar yopiq
     if status not in ["main_admin", "admin"]: 
         return
 
-    # --- ANIME QO'SHISH (TEZKOR USUL) ---
+    # --- ADMIN: ANIME QO'SHISH ---
     if data == "adm_ani_add":
         await query.message.reply_text("1️⃣ Anime uchun POSTER (rasm) yuboring:")
         return A_ADD_ANI_POSTER
 
     elif data == "add_more_ep":
-        # Poster saqlangan holda keyingi qismni so'rash
-        await query.message.reply_text("🎞 Keyingi qism VIDEOSINI yuboring.\n\n⚠️ Captionda ma'lumotni yozishni unutmang:\n`ID | Nomi | Tili | Qismi`", parse_mode="Markdown")
+        await query.message.reply_text(
+            "🎞 Keyingi qism VIDEOSINI yuboring.\n\n⚠️ Captionda: `ID | Nomi | Tili | Qismi`", 
+            parse_mode="Markdown"
+        )
         return A_ADD_ANI_DATA
 
-    # --- ADMIN BOSHQARUV ---
+    # --- ADMIN: BOSHQARUV PANELI ---
     elif data == "adm_ch":
         kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"), 
                InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
               [InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]]
         await query.edit_message_text("📢 Kanallarni boshqarish:", reply_markup=InlineKeyboardMarkup(kb))
-
-    elif data == "adm_export":
-        await export_all_anime(update, context)
-        return
 
     elif data == "adm_stats":
         conn = get_db(); cur = conn.cursor()
@@ -349,10 +356,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         u_count = cur.fetchone()[0]
         cur.execute("SELECT COUNT(*) FROM users WHERE status='vip'")
         v_count = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM admins")
-        a_count = cur.fetchone()[0]
         cur.close(); conn.close()
-        text = f"📊 **Statistika:**\n\n👤 Jami: {u_count}\n💎 VIP: {v_count}\n👮 Adminlar: {a_count + 1}"
+        text = f"📊 **Statistika:**\n\n👤 Jami: {u_count}\n💎 VIP: {v_count}"
         await query.message.reply_text(text, parse_mode="Markdown")
         return
 
@@ -360,14 +365,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🛠 Boshqaruv paneli:", reply_markup=get_admin_kb(status == "main_admin"))
         return
 
-    # Adminlarni boshqarish (Faqat Main Admin)
-    elif data == "manage_admins" and status == "main_admin":
-        kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_admin_start")],
-              [InlineKeyboardButton("📜 Ro'yxat", callback_data="list_admins")],
-              [InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]]
-        await query.edit_message_text("👮 Adminlar nazorati:", reply_markup=InlineKeyboardMarkup(kb))
-
     return None
+    
 
     
    
@@ -775,6 +774,7 @@ def main():
     keep_alive()
     app_bot.run_polling()
     
+
 
 
 
