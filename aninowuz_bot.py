@@ -237,91 +237,8 @@ def get_admin_kb(is_main=False):
     
     
 # ====================== ASOSIY ISHLOVCHILAR ======================
-InlineKeyboardButton("❌ Yo'q", callback_data="manage_admins")]]
-        await query.edit_message_text(f"❓ {aid} ni admindan bo'shatmoqchimisiz?", reply_markup=InlineKeyboardMarkup(kb))
 
-    elif data.startswith("final_rem_adm_"):
-        aid = data.replace("final_rem_adm_", "")
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("DELETE FROM admins WHERE user_id=%s", (aid,))
-        conn.commit(); cur.close(); conn.close()
-        await query.edit_message_text("✅ Admin o'chirildi!")
-
-    # --- BOSHQA ADMIN FUNKSIYALARI ---
-
-        
-# ====================== ASOSIY ISHLOVCHILAR ======================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    conn = get_db()
-    if conn:
-        cur = conn.cursor()
-        cur.execute("INSERT IGNORE INTO users (user_id, joined_at, status) VALUES (%s, %s, 'user')", 
-                    (uid, datetime.datetime.now()))
-        conn.commit(); cur.close(); conn.close()
-    
-    not_joined = await check_sub(uid, context.bot)
-    if not_joined:
-        btn = [[InlineKeyboardButton(f"Obuna bo'lish ➕", url=f"https://t.me/{c.replace('@','')}") ] for c in not_joined]
-        btn.append([InlineKeyboardButton("Tekshirish ✅", callback_data="recheck")])
-        return await update.message.reply_text("👋 Botdan foydalanish uchun kanallarga a'zo bo'ling:", reply_markup=InlineKeyboardMarkup(btn))
-    
-    await update.message.reply_text("✨ Xush kelibsiz! Anime olamiga marhamat.", reply_markup=await get_main_kb(uid))
-
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    uid = query.from_user.id
-    data = query.data
-    status = await get_user_status(uid)
-    await query.answer()
-
-    # --- OBUNANI TEKSHIRISH ---
-    if data == "recheck":
-        if not await check_sub(uid, context.bot):
-            await query.message.delete()
-            await context.bot.send_message(uid, "Tabriklaymiz! ✅ Obuna tasdiqlandi.", reply_markup=await get_main_kb(uid))
-        else:
-            await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
-        return
-
-    # --- PRO QIDIRUV TIZIMI ---
-    if data == "search_type_id":
-        kb = [[InlineKeyboardButton("❌ Qidirishni bekor qilish", callback_data="cancel_search")]]
-        await query.edit_message_text("🆔 **Anime kodini (ID) yuboring:**", reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-        return A_SEARCH_BY_ID
-
-    elif data == "search_type_name":
-        kb = [[InlineKeyboardButton("❌ Qidirishni bekor qilish", callback_data="cancel_search")]]
-        await query.edit_message_text("🔎 **Anime nomini kiriting (masalan: Naruto):**", reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
-        return A_SEARCH_BY_NAME
-
-    elif data == "cancel_search":
-        await query.message.delete()
-        await context.bot.send_message(uid, "❌ Qidiruv bekor qilindi.", reply_markup=await get_main_kb(uid))
-        return ConversationHandler.END
-
-    # Admin funksiyalari (Admin yoki Main Admin bo'lishi shart)
-    if status not in ["main_admin", "admin"]: 
-        return
-
-    # --- KANALLARNI BOSHQARISH ---
-    if data == "adm_ch":
-        kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"), 
-               InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")]]
-        await query.edit_message_text("📢 Majburiy obuna kanallarini boshqarish:", reply_markup=InlineKeyboardMarkup(kb))
-
-    elif data == "add_channel_start":
-        await query.message.reply_text("➕ Yangi kanal username-ini yuboring (masalan: @kanal_nomi):")
-        return A_ADD_CH
-
-    elif data == "rem_channel_start":
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("SELECT id, username FROM channels")
-        chs = cur.fetchall(); cur.close(); conn.close()
-        if not chs:
-            await query.message.reply_text("❌ Hozircha kanallar yo'q.")
-            return
-        kb = [[InlineKeyboardButton(f"🗑 {c[1]}", callback_data=f"finasync def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     conn = get_db()
     if conn:
@@ -477,30 +394,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "adm_ads_start":
         await query.message.reply_text("🔐 Reklama paneliga kirish uchun parolni kiriting:")
         return A_SEND_ADS_PASS
-        al_rem_ch_{c[0]}")] for c in chs]
-        await query.edit_message_text("O'chirmoqchi bo'lgan kanalni tanlang:", reply_markup=InlineKeyboardMarkup(kb))
-
-    elif data.startswith("final_rem_ch_"):
-        cid = data.replace("final_rem_ch_", "")
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("DELETE FROM channels WHERE id=%s", (cid,))
-        conn.commit(); cur.close(); conn.close()
-        await query.edit_message_text("✅ Kanal ro'yxatdan o'chirildi!")
-
-    # --- ADMINLARNI BOSHQARISH (FAQAT MAIN ADMIN) ---
-    elif data == "manage_admins":
-        if status != "main_admin":
-            await query.answer("❌ Bu bo'lim faqat asosiy admin uchun!", show_alert=True)
-            return
-        kb = [
-            [InlineKeyboardButton("➕ Admin Qo'shish", callback_data="add_admin_start")],
-            [InlineKeyboardButton("📜 Adminlar ro'yxati", callback_data="list_admins")],
-            [InlineKeyboardButton("🗑 Admin O'chirish", callback_data="rem_admin_start")]
-        ]
-        await query.edit_message_text("👮 Adminlarni boshqarish paneli:", reply_markup=InlineKeyboardMarkup(kb))
-
-    elif data == "add_admin_start":
-
+    
 
 
 # ====================== ANIME QIDIRISH VA PAGINATION ======================
@@ -941,6 +835,7 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
         
+
 
 
 
