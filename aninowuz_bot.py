@@ -321,4 +321,7 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    try:
+        asyncio.run(main())  # <-- () bo'lishi shart
+    except (KeyboardInterrupt, SystemExit):
+        print("Bot to‘xtatildi.")
