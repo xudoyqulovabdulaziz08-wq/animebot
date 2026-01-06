@@ -284,12 +284,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = get_db()
     if conn:
         cur = conn.cursor()
-        # Foydalanuvchini bazaga qo'shish (agar yo'q bo'lsa)
         cur.execute("INSERT IGNORE INTO users (user_id, joined_at, status) VALUES (%s, %s, 'user')", 
                     (uid, datetime.datetime.now()))
         conn.commit(); cur.close(); conn.close()
     
-    # Majburiy obunani tekshirish
     not_joined = await check_sub(uid, context.bot)
     if not_joined:
         btn = [[InlineKeyboardButton(f"Obuna bo'lish ➕", url=f"https://t.me/{c.replace('@','')}") ] for c in not_joined]
@@ -324,25 +322,31 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # --- ANIME QIDIRUVNI BOSHLASH ---
     if data == "search_type_id":
         await query.edit_message_text("🆔 **Anime kodini (ID) yuboring:**", parse_mode="Markdown")
-        return A_SEARCH_BY_ID # Qidiruv mantiqiga o'tish
+        return A_SEARCH_BY_ID
 
     elif data == "search_type_name":
         await query.edit_message_text("🔎 **Anime nomini kiriting:**", parse_mode="Markdown")
         return A_SEARCH_BY_NAME
 
     elif data == "cancel_search":
-        # Vaqtinchalik ma'lumotlarni tozalash
         context.user_data.pop('poster', None)
         context.user_data.pop('tmp_ani', None)
         if query.message: await query.message.delete()
         await context.bot.send_message(uid, "✅ Jarayon yakunlandi.", reply_markup=get_main_kb(status))
         return ConversationHandler.END
 
+    # --- QIDIRUV NATIJALARI BILAN ISHLASH (YANGI QO'SHILDI) ---
+    # Agar foydalanuvchi qism tugmasini bossa (get_ep_ID_EP)
+    if data.startswith("get_ep_"):
+        # Bu callback get_episode_handler funksiyasiga o'tishi kerak 
+        # (Lekin biz uni main funksiyada alohida ulaymiz)
+        pass
+
     # Admin bo'lmaganlar uchun quyidagi amallar yopiq
     if status not in ["main_admin", "admin"]: 
         return
 
-    # --- ADMIN: ANIME QO'SHISH ---
+    # --- ADMIN: ANIME QO'SHISH VA BOSHQARUV ---
     if data == "adm_ani_add":
         await query.message.reply_text("1️⃣ Anime uchun POSTER (rasm) yuboring:")
         return A_ADD_ANI_POSTER
@@ -354,7 +358,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return A_ADD_ANI_DATA
 
-    # --- ADMIN: BOSHQARUV PANELI ---
     elif data == "adm_ch":
         kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"), 
                InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
@@ -376,7 +379,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🛠 Boshqaruv paneli:", reply_markup=get_admin_kb(status == "main_admin"))
         return
 
+    # Adminlarni boshqarish callbacklari
+    elif data == "add_channel_start": return A_ADD_CH
+    elif data == "rem_channel_start": return A_REM_CH
+    elif data == "add_admin_start": return A_ADD_ADM
+    elif data == "adm_vip_add": return A_ADD_VIP
+    elif data == "adm_ads_start": 
+        await query.message.reply_text("🔑 Reklama parolini kiriting:")
+        return A_SEND_ADS_PASS
+
     return None
+        
     
 
     
@@ -817,6 +830,7 @@ if __name__ == '__main__':
     main()
     
     
+
 
 
 
