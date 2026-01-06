@@ -4,6 +4,8 @@ import mysql.connector
 import asyncio
 import datetime
 import json
+from flask import Flask        # <-- Yangi qo'shildi
+from threading import Thread   # <-- Yangi qo'shildi
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
@@ -13,11 +15,27 @@ from telegram.ext import (
     CallbackQueryHandler, filters, ContextTypes, ConversationHandler
 )
 
+# ====================== WEB SERVICE (RENDER UCHUN) ======================
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "Bot is running..."
+
+def run():
+    # Render avtomatik beradigan PORT-ni oladi, bo'lmasa 8080 ishlatadi
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host='0.0.0.0', port=port)
+
+def keep_alive():
+    t = Thread(target=run)
+    t.start()
 # ====================== KONFIGURATSIYA ======================
 TOKEN = "8258233749:AAHdFklNhjGlE7pK0026vJrMYJaK8iiddXo"
 MAIN_ADMIN_ID = 8244870375
 ADVERTISING_PASSWORD = "2009"
 
+# MySQL Railway/Render ulanishi
 # MySQL Railway/Render ulanishi
 DB_CONFIG = {
     "host": "mysql.railway.internal",
@@ -25,8 +43,7 @@ DB_CONFIG = {
     "password": "CIbKpeQrFVJosmzyKZwJiQoTkJxoeBjP",
     "database": "railway",
     "port": 3306,
-    "autocommit": True,
-    "connection_timeout": 30
+    "autocommit": True
 }
 
 # Conversation States
@@ -295,44 +312,88 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Xatolik! Formatni tekshiring.")
         return A_ADD_ANI_DATA
 
-# ====================== MAIN FUNKSIYA (RENDER.COM UCHUN) ======================
+# ====================== MAIN FUNKSIYA (RENDER.COM WEB SERVICE UCHUN) ======================
 def main():
+    # Ma'lumotlar bazasini yaratish/tekshirish
     init_db()
-    app = ApplicationBuilder().token(TOKEN).build()
 
-    # Conversation Handlers
+    # ApplicationBuilder orqali botni qurish
+    app_bot = ApplicationBuilder().token(TOKEN).build()
+
+    # 1. Conversation Handler - Murakkab bosqichli jarayonlar uchun
     conv_handler = ConversationHandler(
-        entry_points=[CallbackQueryHandler(handle_callback)],
+        entry_points=[
+            CallbackQueryHandler(handle_callback, pattern="^(adm_ani_add|adm_ads_start|adm_vip_add)$")
+        ],
         states={
             A_ADD_ANI_POSTER: [MessageHandler(filters.PHOTO, add_ani_poster)],
             A_ADD_ANI_DATA: [MessageHandler(filters.TEXT | filters.VIDEO, add_ani_data)],
-            A_SEND_ADS_PASS: [MessageHandler(filters.TEXT, lambda u, c: A_SEND_ADS_MSG if u.message.text == ADVERTISING_PASSWORD else ConversationHandler.END)],
-            A_ADD_VIP: [MessageHandler(filters.TEXT, lambda u, c: exec_vip_add(u, c))], # VIP qo'shish logikasi
+            A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, 
+                lambda u, c: A_SEND_ADS_MSG if u.message.text == ADVERTISING_PASSWORD else ConversationHandler.END)],
+            A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
+            A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_vip_add)],
         },
-        fallbacks=[CommandHandler("start", start)]
+        fallbacks=[CommandHandler("cancel", start), CommandHandler("start", start)],
     )
 
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(MessageHandler(filters.Regex("^🛠 ADMIN PANEL$"), lambda u, c: u.message.reply_text("Panel:", reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID))))
-    app.add_handler(MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), lambda u, c: u.message.reply_text("Anime nomi yoki ID sini yuboring:")))
-    app.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), lambda u, c: show_bonus(u, c)))
-    app.add_handler(conv_handler)
-    app.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic))
+    # 2. Asosiy buyruqlar va xabarlar
+    app_bot.add_handler(CommandHandler("start", start))
+    
+    # Admin Panel tugmasi
+    app_bot.add_handler(MessageHandler(
+        filters.Regex("^🛠 ADMIN PANEL$"), 
+        lambda u, c: u.message.reply_text("Boshqaruv paneli:", 
+        reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID))
+    ))
 
-    # Render.com Porti (Web qo'shish kerak bo'lsa)
-    print("Bot 24/7 rejimida ishga tushdi...")
-    app.run_polling()
+    # Bonus ballar tugmasi
+    app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
+    
+    # VIP bo'lish va Qo'llanma tugmalari
+    app_bot.add_handler(MessageHandler(filters.Regex("^💎 VIP bo'lish ⭐$"), 
+        lambda u, c: u.message.reply_text(f"💎 VIP status olish uchun admin bilan bog'laning: @Admin_Username")))
+    
+    app_bot.add_handler(MessageHandler(filters.Regex("^📖 Qo'llanma ❓$"), 
+        lambda u, c: u.message.reply_text("📖 *Botdan foydalanish:*\n1. Anime nomini yozing.\n2. Chiqqan qismlardan birini tanlang.", parse_mode="Markdown")))
 
-# Bonus ko'rsatish funksiyasi
+    # 3. Callback Query Handlers (Tugmalar uchun)
+    app_bot.add_handler(conv_handler) # Conversation birinchi bo'lishi kerak
+    app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
+    app_bot.add_handler(CallbackQueryHandler(handle_callback)) # Qolgan barcha tugmalar uchun
+
+    # 4. Global matnli qidiruv (Anime qidirish mantiqi)
+    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic))
+
+    # Render uchun Web Serverni alohida oqimda ishga tushirish
+    print("🌐 Web Server 8080-portda ishga tushmoqda...")
+    keep_alive()
+
+    # Botni ishga tushirish
+    print("🤖 Bot polling rejimida ishlamoqda...")
+    app_bot.run_polling()
+
+# ====================== QO'SHIMCHA FUNKSIYALAR ======================
+
 async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("SELECT bonus, status FROM users WHERE user_id=%s", (uid,))
     res = cur.fetchone()
-    cur.close(); conn.close()
-    await update.message.reply_text(f"👤 Status: {res[1].upper()}\n💰 Bonus ballaringiz: {res[0]} ball")
+    cur.close()
+    conn.close()
+    
+    if res:
+        bonus, status = res
+        text = f"👤 **Sizning ma'lumotlaringiz:**\n\n💰 Bonus ballar: `{bonus}` ball\n🌟 Status: `{status.upper()}`"
+        await update.message.reply_text(text, parse_mode="Markdown")
+    else:
+        await update.message.reply_text("Ma'lumot topilmadi. /start bosing.")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (KeyboardInterrupt, SystemExit):
+        print("🛑 Bot to'xtatildi!")
+
 
