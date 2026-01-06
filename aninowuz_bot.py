@@ -51,18 +51,28 @@ DB_CONFIG = {
     "ssl_mode": "REQUIRED" # SSL ulanishni majburiy qilish
 }
 
-# Conversation States
+# ====================== CONVERSATION STATES ======================
+# Bu yerda barcha yangi funksiyalar (admin boshqarish, qidiruv) uchun holatlar qo'shildi
 (
-    A_ADD_CH, A_REM_CH, 
-    A_ADD_ADM, A_CONFIRM_REM_ADM, # Admin qo'shish va o'chirishni tasdiqlash uchun
-    A_ADD_VIP, A_REM_VIP, 
-    A_ADD_ANI_POSTER, A_ADD_ANI_DATA,
-    A_SEND_ADS_PASS, A_SEND_ADS_MSG, 
-    A_SEARCH_NAME # Qidiruv holati
+    A_ADD_CH,            # 0: Kanal qo'shish
+    A_REM_CH,            # 1: Kanal o'chirish
+    A_ADD_ADM,           # 2: Yangi admin ID sini qabul qilish
+    A_CONFIRM_REM_ADM,   # 3: Adminni o'chirishni tasdiqlash
+    A_ADD_VIP,           # 4: VIP foydalanuvchi qo'shish
+    A_REM_VIP,           # 5: VIP-ni bekor qilish
+    A_ADD_ANI_POSTER,    # 6: Anime posterini qabul qilish
+    A_ADD_ANI_DATA,      # 7: Anime ma'lumotlarini qabul qilish
+    A_SEND_ADS_PASS,     # 8: Reklama parolini tekshirish
+    A_SEND_ADS_MSG,      # 9: Reklama xabarini tarqatish
+    A_SEARCH_NAME        # 10: Anime qidirish (Nomi yoki ID)
 ) = range(11)
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', 
+    level=logging.INFO
+)
 logger = logging.getLogger(__name__)
+
 
 # ====================== MA'LUMOTLAR BAZASI ======================
 def get_db():
@@ -562,6 +572,7 @@ if __name__ == "__main__":
         main()
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Bot to'xtatildi!")
+
 
 
 
