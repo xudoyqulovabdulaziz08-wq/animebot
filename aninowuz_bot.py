@@ -921,14 +921,14 @@ def main():
 
     app_bot = ApplicationBuilder().token(TOKEN).build()
 
-    # 1. Conversation Handler
+        # 1. Conversation Handler
     conv_handler = ConversationHandler(
         entry_points=[
             CallbackQueryHandler(
                 handle_callback,
-                # adm_ch QO'SHILDI - bu kanallar menyusini ochish uchun shart
-                pattern="^(search_type_id|search_type_name|adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins|adm_ch)$"
+                pattern="^(search_type_id|search_type_name|adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins|adm_ch|cancel_search)$"
             ),
+            
             CallbackQueryHandler(lambda u, c: A_ADD_ANI_DATA, pattern="^add_more_ep$")
         ],
         states={
@@ -986,6 +986,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
