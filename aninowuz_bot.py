@@ -999,15 +999,63 @@ def main():
 
     app_bot = ApplicationBuilder().token(TOKEN).build()
 
-        # 1. Conversation Handler
     conv_handler = ConversationHandler(
         entry_points=[
-            CallbackQueryHandler(
-                handle_callback,
-                pattern="^(search_type_id|search_type_name|adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins|adm_ch|cancel_search)$"
-            ),
+            # Bu yerda handle_callback hamma asosiy admin va qidiruv statelarini boshqaradi
+            CallbackQueryHandler(handle_callback),
+        ],
+        states={
+            # Har bir holatda (state) foydalanuvchi ham matn/video yuborishi, 
+            # ham bekor qilish yoki orqaga qaytish tugmalarini bosishi mumkin.
             
-            CallbackQueryHandler(lambda u, c: A_ADD_ANI_DATA, pattern="^add_more_ep$")
+            A_SEARCH_BY_ID: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, search_by_id),
+                CallbackQueryHandler(handle_callback)
+            ],
+            A_SEARCH_BY_NAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, search_by_name),
+                CallbackQueryHandler(handle_callback)
+            ],
+            A_ADD_ANI_POSTER: [
+                MessageHandler(filters.PHOTO, add_ani_poster),
+                CallbackQueryHandler(handle_callback)
+            ],
+            A_ADD_ANI_DATA: [
+                MessageHandler(filters.VIDEO, add_ani_data),
+                CallbackQueryHandler(handle_callback)
+            ],
+            A_ADD_CH: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_channel_db),
+                CallbackQueryHandler(handle_callback)
+            ],
+            A_REM_CH: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, rem_channel_db),
+                CallbackQueryHandler(handle_callback)
+            ],
+            A_ADD_ADM: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_admin_db),
+                CallbackQueryHandler(handle_callback)
+            ],
+            A_ADD_VIP: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, add_vip_db),
+                CallbackQueryHandler(handle_callback)
+            ],
+            A_SEND_ADS_PASS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass),
+                CallbackQueryHandler(handle_callback)
+            ],
+            A_SEND_ADS_MSG: [
+                MessageHandler(filters.ALL, send_broadcast_ads), # Rasm, video yoki matn bo'lishi mumkin
+                CallbackQueryHandler(handle_callback)
+            ],
+        },
+        fallbacks=[
+            CommandHandler("start", start),
+            CallbackQueryHandler(handle_callback)
+        ],
+        allow_reentry=True # Foydalanuvchi jarayonni tugatmay turib boshqasini boshlay olishi uchun
+    )
+    
         ],
         states={
             A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎"), search_anime_logic)],
@@ -1074,6 +1122,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
