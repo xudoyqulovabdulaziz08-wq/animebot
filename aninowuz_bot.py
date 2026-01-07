@@ -316,7 +316,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     status = await get_user_status(uid)
     await query.answer()
 
-    # --- OBUNANI QAYTA TEKSHIRISH ---
+    # --- 1. HAMMA UCHUN OCHIQ CALLBACKLAR ---
     if data == "recheck":
         if not await check_sub(uid, context.bot):
             await query.message.delete()
@@ -325,8 +325,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
         return
 
-    # --- ANIME QIDIRUVNI BOSHLASH ---
-    if data == "search_type_id":
+    elif data == "search_type_id":
         await query.edit_message_text("🆔 **Anime kodini (ID) yuboring:**", parse_mode="Markdown")
         return A_SEARCH_BY_ID
 
@@ -335,44 +334,37 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_SEARCH_BY_NAME
 
     elif data == "cancel_search":
-        context.user_data.pop('poster', None)
-        context.user_data.pop('tmp_ani', None)
+        context.user_data.clear() # Barcha vaqtinchalik ma'lumotlarni o'chirish
         if query.message: await query.message.delete()
         await context.bot.send_message(uid, "✅ Jarayon yakunlandi.", reply_markup=get_main_kb(status))
         return ConversationHandler.END
 
-    # --- QIDIRUV NATIJALARI BILAN ISHLASH (YANGI QO'SHILDI) ---
-    # Agar foydalanuvchi qism tugmasini bossa (get_ep_ID_EP)
-    if data.startswith("get_ep_"):
-        # Bu callback get_episode_handler funksiyasiga o'tishi kerak 
-        # (Lekin biz uni main funksiyada alohida ulaymiz)
-        pass
-
-    # Admin bo'lmaganlar uchun quyidagi amallar yopiq
+    # --- 2. ADMINLAR UCHUN CALLBACKLAR ---
     if status not in ["main_admin", "admin"]: 
         return
 
-        # --- ADMIN: ANIME QO'SHISH VA BOSHQARUV ---
+    # Anime qo'shish boshlanishi
     if data == "adm_ani_add":
         await query.message.reply_text("1️⃣ Anime uchun POSTER (rasm) yuboring:")
         return A_ADD_ANI_POSTER
 
+    # Keyingi qismni qo'shish (Siz so'ragan asosiy joy)
     elif data == "add_more_ep":
-        # BU YERDA BOTNI QAYTA STATEGA KIRITAMIZ
         await query.message.reply_text(
             "🎞 Keyingi qism VIDEOSINI yuboring.\n\n⚠️ Captionda: `ID | Nomi | Tili | Qismi`", 
             parse_mode="Markdown"
         )
-        return A_ADD_ANI_DATA  # Video kutish holatiga qaytarish
-        
-    
+        return A_ADD_ANI_DATA
 
+    # Kanallarni boshqarish menyusi
     elif data == "adm_ch":
         kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"), 
                InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
               [InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]]
         await query.edit_message_text("📢 Kanallarni boshqarish:", reply_markup=InlineKeyboardMarkup(kb))
+        return # State o'zgarmaydi, faqat menyu almashadi
 
+    # Statistika
     elif data == "adm_stats":
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT COUNT(*) FROM users")
@@ -384,11 +376,12 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(text, parse_mode="Markdown")
         return
 
-    elif data == "adm_back":
+    # Admin panelga qaytish
+    elif data == "adm_back" or data == "admin_main":
         await query.edit_message_text("🛠 Boshqaruv paneli:", reply_markup=get_admin_kb(status == "main_admin"))
-        return
+        return ConversationHandler.END
 
-    # Adminlarni boshqarish callbacklari
+    # Qolgan state qaytaruvchi admin callbacklari
     elif data == "add_channel_start": return A_ADD_CH
     elif data == "rem_channel_start": return A_REM_CH
     elif data == "add_admin_start": return A_ADD_ADM
@@ -398,6 +391,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_SEND_ADS_PASS
 
     return None
+    
 
 # ====================== ADMIN VA QO'SHIMCHA ISHLOVCHILAR (TO'G'RILANDI) ======================
 
@@ -1058,6 +1052,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
