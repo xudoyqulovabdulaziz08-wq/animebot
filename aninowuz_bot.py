@@ -492,13 +492,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🛠 Admin paneli:", reply_markup=get_admin_kb(is_main))
         return ConversationHandler.END
 
-    # Qidiruv turlari uchun
+    # 6. Qidiruv turlari uchun
     elif data == "search_type_id":
         await query.edit_message_text("🔢 Anime ID raqamini kiriting:")
         return A_SEARCH_BY_ID
     elif data == "search_type_name":
         await query.edit_message_text("📝 Anime nomini kiriting:")
         return A_SEARCH_BY_NAME
+
+    return None
+
+    # 7. BEKOR QILISH 
+    elif data == "cancel_search":
+        await query.edit_message_text("🏠 Qidiruv bekor qilindi. Menyudan foydalanishingiz mumkin.")
+        return ConversationHandler.END
 
     return None
 
@@ -978,6 +985,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
