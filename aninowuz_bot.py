@@ -727,13 +727,20 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     anime = cur.fetchone()
     
-    if not anime:
+   if not anime:
+        # Orqaga (menyuga) va To'xtatish (yopish) tugmalarini qo'shamiz
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_search_menu")],
+            [InlineKeyboardButton("❌ To'xtatish", callback_data="cancel_search")]
+        ])
+        
         await update.message.reply_text(
             f"😔 `{text}` bo'yicha hech narsa topilmadi.\n\n"
-            "Iltimos, ID raqamni yoki nomini qayta tekshirib ko'ring:",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("❌ To'xtatish", callback_data="cancel_search")]])
+            "Iltimos, ID raqamni yoki nomini qayta tekshirib ko'ring yoki quyidagi tugmalar orqali navigatsiya qiling:",
+            reply_markup=kb,
+            parse_mode="Markdown"
         )
-        return # Foydalanuvchi qayta kiritishi uchun state'da qoladi
+        return # Foydalanuvchi yana kiritib ko'rishi uchun state'da (A_SEARCH_BY_ID yoki A_SEARCH_BY_NAME) qoladi
 
     # Anime qismlarini olish
     cur.execute("SELECT episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
@@ -1159,6 +1166,7 @@ def main():
 if __name__ == '__main__':
     main()
     
+
 
 
 
