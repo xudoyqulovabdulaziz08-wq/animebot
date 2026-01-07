@@ -916,13 +916,14 @@ app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
 app_bot.add_handler(CallbackQueryHandler(handle_callback))  # Qolgan callbacklar
 
     # Botni ishga tushirish
-    print("Bot muvaffaqiyatli ishga tushdi...")
+print("Bot muvaffaqiyatli ishga tushdi...")
     app_bot.run_polling()
 
 if __name__ == '__main__':
     main()
     
     
+
 
 
 
