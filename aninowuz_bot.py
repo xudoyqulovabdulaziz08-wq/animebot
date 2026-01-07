@@ -490,6 +490,21 @@ async def vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # update.effective_message har qanday holatda (oddiy xabar yoki callback) xabarni yuborishni kafolatlaydi
     if update.effective_message:
         await update.effective_message.reply_text(text, parse_mode="Markdown")
+
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    await query.answer()
+
+    # Majburiy kanal menyusi (Bu qism ishlayotgan bo'lishi kerak)
+    if data == "adm_ch":
+        keyboard = [
+            [InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start")],
+            [InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
+        ]
+        await query.edit_message_text("📢 Kanallarni boshqarish:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return None # ConversationHandler boshlanishi uchun
         
 
 
@@ -942,6 +957,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
