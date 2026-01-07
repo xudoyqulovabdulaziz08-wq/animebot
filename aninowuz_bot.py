@@ -781,77 +781,95 @@ async def add_ani_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return A_ADD_ANI_DATA
 
 async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Anime ma'lumotlarini va videoni birga yoki ketma-ket qabul qilish"""
+    """Anime ma'lumotlarini va videoni saqlash"""
     uid = update.effective_user.id
     
-    if update.message.video:
-        v_id = update.message.video.file_id
-        caption = update.message.caption
-        
-        if not caption or "|" not in caption:
-            await update.message.reply_text(
-                "❌ Xato! Video captioniga ma'lumotni yozmadingiz.\n"
-                "Format: `ID | Nomi | Tili | Qismi`", 
-                parse_mode="Markdown"
-            )
-            return A_ADD_ANI_DATA
-
-        try:
-            parts = [i.strip() for i in caption.split("|")]
-            if len(parts) < 4:
-                raise ValueError("Ma'lumotlar yetarli emas")
-                
-            aid, name, lang, ep = parts
-            p_id = context.user_data.get('poster')
-
-            if not p_id:
-                await update.message.reply_text("❌ Poster topilmadi. Avval rasm yuboring.")
-                return A_ADD_ANI_POSTER
-
-            conn = get_db()
-            cur = conn.cursor()
-            
-            cur.execute("""
-                INSERT INTO anime_list (anime_id, name, poster_id) 
-                VALUES (%s, %s, %s)
-                ON DUPLICATE KEY UPDATE name=%s, poster_id=%s
-            """, (aid, name, p_id, name, p_id))
-            
-            cur.execute("""
-                INSERT INTO anime_episodes (anime_id, episode, lang, file_id) 
-                VALUES (%s, %s, %s, %s)
-                ON DUPLICATE KEY UPDATE file_id=%s, lang=%s
-            """, (aid, ep, lang, v_id, v_id, lang))
-            
-            conn.commit()
-            cur.close(); conn.close()
-
-            # TUGMALAR: Keyingi qism uchun state-ni Handle_callback orqali boshqaramiz
-            kb = [
-                [InlineKeyboardButton("➕ Keyingi qismni qo'shish", callback_data="add_more_ep")],
-                [InlineKeyboardButton("✅ Jarayonni yakunlash", callback_data="admin_main")]
-            ]
-            
-            await update.message.reply_text(
-                f"✅ **Qism saqlandi!**\n\n"
-                f"📺 Anime: {name}\n"
-                f"🔢 Qism: {ep}\n\n"
-                f"Yana qism qo'shasizmi?",
-                reply_markup=InlineKeyboardMarkup(kb),
-                parse_mode="Markdown"
-            )
-            # MUHIM: Bu yerda suhbatni tugatamiz, lekin tugma bosilganda callback orqali qayta ochamiz
-            return ConversationHandler.END 
-
-        except Exception as e:
-            await update.message.reply_text(f"❌ Xatolik: {e}\nFormat: `ID | Nomi | Tili | Qismi`")
-            return A_ADD_ANI_DATA
-    else:
-        await update.message.reply_text("Iltimos, videoni caption (matn) bilan yuboring.")
+    # 1. Video kelganini tekshirish
+    if not update.message.video:
+        await update.message.reply_text(
+            "⚠️ Iltimos, anime qismini **VIDEO** shaklida yuboring.\n"
+            "Caption (izoh) qismida ma'lumotlarni unutmang!",
+            parse_mode="Markdown"
+        )
         return A_ADD_ANI_DATA
-        
-        
+
+    v_id = update.message.video.file_id
+    caption = update.message.caption
     
+    # 2. Caption (izoh) borligini tekshirish
+    if not caption or "|" not in caption:
+        await update.message.reply_text(
+            "❌ **Xato!** Video izohida ma'lumotlar topilmadi.\n\n"
+            "Format: `ID | Nomi | Tili | Qismi`", 
+            parse_mode="Markdown"
+        )
+        return A_ADD_ANI_DATA
+
+    try:
+        # 3. Ma'lumotlarni ajratish
+        parts = [i.strip() for i in caption.split("|")]
+        if len(parts) < 4:
+            raise ValueError("Ma'lumotlar yetarli emas (4 ta qism bo'lishi shart)")
+            
+        aid, name, lang, ep = parts
+        p_id = context.user_data.get('poster')
+
+        if not p_id:
+            await update.message.reply_text("❌ **Poster topilmadi!** Jarayonni qayta boshlang: /start")
+            return ConversationHandler.END
+
+        # 4. Ma'lumotlar bazasiga yozish
+        conn = get_db()
+        if not conn:
+            await update.message.reply_text("❌ Bazaga ulanishda xato!")
+            return A_ADD_ANI_DATA
+            
+        cur = conn.cursor()
+        
+        # Anime ro'yxatini yangilash
+        cur.execute("""
+            INSERT INTO anime_list (anime_id, name, poster_id) 
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE name=%s, poster_id=%s
+        """, (aid, name, p_id, name, p_id))
+        
+        # Qismni yuklash
+        cur.execute("""
+            INSERT INTO anime_episodes (anime_id, episode, lang, file_id) 
+            VALUES (%s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE file_id=%s, lang=%s
+        """, (aid, ep, lang, v_id, v_id, lang))
+        
+        conn.commit()
+        cur.close(); conn.close()
+
+        # 5. Muvaffaqiyatli tugmalar
+        kb = [
+            [InlineKeyboardButton("➕ Keyingi qismni qo'shish", callback_data="add_more_ep")],
+            [InlineKeyboardButton("✅ Jarayonni yakunlash", callback_data="admin_main")]
+        ]
+        
+        await update.message.reply_text(
+            f"✅ **Qism muvaffaqiyatli saqlandi!**\n\n"
+            f"📺 **Anime:** {name}\n"
+            f"🔢 **Qism:** {ep}\n"
+            f"🌐 **Til:** {lang}\n\n"
+            f"Yana qism qo'shasizmi yoki panelga qaytasizmi?",
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="Markdown"
+        )
+        
+        # Suhbatni yopamiz, chunki keyingi qadam callback orqali boshlanadi
+        return ConversationHandler.END 
+
+    except Exception as e:
+        await update.message.reply_text(
+            f"❌ **Xatolik yuz berdi:**\n`{str(e)}`\n\n"
+            f"Formatni tekshiring: `ID | Nomi | Tili | Qismi`",
+            parse_mode="Markdown"
+        )
+        return A_ADD_ANI_DATA
+            
             
 
 # ====================== QO'SHIMCHA FUNKSIYALAR (TUZATILGAN) ======================
@@ -1052,6 +1070,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
