@@ -184,8 +184,12 @@ async def get_user_status(uid):
         cur.close()
         conn.close()
 
+
 async def check_sub(uid, bot):
-    """Majburiy obunani tekshirish mantiqi"""
+    """Majburiy obunani tekshirish (Tuzatilgan variant)"""
+    # Main admin va adminlar uchun obunani tekshirmaslik (ixtiyoriy, qulaylik uchun)
+    # if uid == MAIN_ADMIN_ID: return []
+
     conn = get_db()
     if not conn: 
         return []
@@ -204,18 +208,20 @@ async def check_sub(uid, bot):
     not_joined = []
     for (ch,) in channels:
         try:
-            # Username formatini to'g'irlash
-            target = str(ch)
+            target = str(ch).strip()
+            # ID yoki Username ekanligini tekshirish
             if not target.startswith('@') and not target.startswith('-'):
                 target = f"@{target}"
                 
             member = await bot.get_chat_member(target, uid)
-            if member.status not in ['member', 'administrator', 'creator']: 
+            # Agar foydalanuvchi guruh/kanaldan haydalgan bo'lsa (left yoki kicked)
+            if member.status in ['left', 'kicked']:
                 not_joined.append(ch)
         except Exception as e:
-            # Agar bot kanalga admin bo'lmasa yoki kanal topilmasa xato beradi
-            logger.warning(f"Obunani tekshirishda xato ({ch}): {e}")
-            not_joined.append(ch)
+            # MUHIM: Agar bot kanalga admin bo'lmasa yoki kanal o'chib ketgan bo'lsa, 
+            # foydalanuvchini ayblamaslik kerak. Shuning uchun bu kanalni tashlab o'tamiz.
+            logger.warning(f"Kanalga bot admin emas yoki xato: {ch} -> {e}")
+            continue # not_joined ga qo'shmaymiz!
             
     return not_joined
     
@@ -936,6 +942,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
