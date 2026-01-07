@@ -334,7 +334,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_SEARCH_BY_NAME
 
     elif data == "cancel_search":
-        context.user_data.clear() # Barcha vaqtinchalik ma'lumotlarni o'chirish
+        context.user_data.clear() 
         if query.message: await query.message.delete()
         await context.bot.send_message(uid, "✅ Jarayon yakunlandi.", reply_markup=get_main_kb(status))
         return ConversationHandler.END
@@ -343,26 +343,28 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if status not in ["main_admin", "admin"]: 
         return
 
-    # Anime qo'shish boshlanishi
+    # Anime qo'shishni boshlash (Poster so'rash)
     if data == "adm_ani_add":
         await query.message.reply_text("1️⃣ Anime uchun POSTER (rasm) yuboring:")
         return A_ADD_ANI_POSTER
 
-    # Keyingi qismni qo'shish (Siz so'ragan asosiy joy)
+    # KEYINGI QISMNI QO'SHISH (Siz so'ragan asosiy o'zgarish)
     elif data == "add_more_ep":
         await query.message.reply_text(
-            "🎞 Keyingi qism VIDEOSINI yuboring.\n\n⚠️ Captionda: `ID | Nomi | Tili | Qismi`", 
+            "Endi **VIDEONI** yuboring.\n\n"
+            "⚠️ **DIQQAT:** Video ostiga (caption) quyidagi ma'lumotni yozing:\n"
+            "`ID | Nomi | Tili | Qismi`",
             parse_mode="Markdown"
         )
-        return A_ADD_ANI_DATA
+        return A_ADD_ANI_DATA  # Botni yana video kutish holatiga qaytaradi
 
-    # Kanallarni boshqarish menyusi
+    # Kanallar boshqaruvi
     elif data == "adm_ch":
         kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"), 
                InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
               [InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]]
         await query.edit_message_text("📢 Kanallarni boshqarish:", reply_markup=InlineKeyboardMarkup(kb))
-        return # State o'zgarmaydi, faqat menyu almashadi
+        return
 
     # Statistika
     elif data == "adm_stats":
@@ -376,12 +378,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text(text, parse_mode="Markdown")
         return
 
-    # Admin panelga qaytish
+    # Orqaga qaytish
     elif data == "adm_back" or data == "admin_main":
-        await query.edit_message_text("🛠 Boshqaruv paneli:", reply_markup=get_admin_kb(status == "main_admin"))
+        is_main = (status == "main_admin")
+        await query.edit_message_text("🛠 Admin paneli:", reply_markup=get_admin_kb(is_main))
         return ConversationHandler.END
 
-    # Qolgan state qaytaruvchi admin callbacklari
+    # Qolgan state qaytaruvchi callbacklar
     elif data == "add_channel_start": return A_ADD_CH
     elif data == "rem_channel_start": return A_REM_CH
     elif data == "add_admin_start": return A_ADD_ADM
@@ -391,6 +394,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_SEND_ADS_PASS
 
     return None
+    
     
 
 # ====================== ADMIN VA QO'SHIMCHA ISHLOVCHILAR (TO'G'RILANDI) ======================
@@ -1070,6 +1074,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
