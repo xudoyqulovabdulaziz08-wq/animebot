@@ -1256,10 +1256,24 @@ async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.reply_text(f"❌ Eksportda xatolik: {e}")
 
 async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Foydalanuvchini VIP qilish ijrosi"""
-    status = await get_user_status(update.effective_user.id)
-    if not update.message.text:
+    """VIP qo'shishdan oldin tasdiqlash so'rash"""
+    text = update.message.text.strip()
+    if not text.isdigit():
+        await update.message.reply_text("❌ Xato! Foydalanuvchi ID-sini raqamlarda yuboring.")
         return A_ADD_VIP
+
+    keyboard = [
+        [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"conf_vip_{text}")],
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data="manage_vip")]
+    ]
+    
+    await update.message.reply_text(
+        f"💎 **Foydalanuvchini VIP qilishni tasdiqlaysizmi?**\n\nID: `{text}`",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="Markdown"
+    )
+    return None
+    
         
 
     
@@ -1370,4 +1384,5 @@ CallbackQueryHandler(
 if __name__ == '__main__':
     main()
     
+
 
