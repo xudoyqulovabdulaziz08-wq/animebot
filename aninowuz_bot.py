@@ -624,15 +624,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Ro'yxatni yangilash uchun menyuni qayta chaqiramiz
         return await handle_callback(update, context) # yoki qaytadan kanallar ro'yxatini chiqarish
 
-    # ANIME QO'SHISH BOSHLANISHI
+        # ANIME QO'SHISH BOSHLANISHI
     elif data == "adm_ani_add":
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Bekor qilish", callback_data="adm_ch")]]) # adm_ch yoki admin_main
+        # callback_data="admin_main" ga o'zgartirildi
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("❌ Bekor qilish", callback_data="admin_main")]]) 
         await query.edit_message_text(
             "1️⃣ **Anime uchun POSTER (rasm) yuboring:**", 
             reply_markup=kb,
             parse_mode="Markdown"
         )
         return A_ADD_ANI_POSTER
+        
     
     # STATISTIKA
     elif data == "adm_stats":
@@ -1209,6 +1211,7 @@ if __name__ == '__main__':
 
 
     
+
 
 
 
