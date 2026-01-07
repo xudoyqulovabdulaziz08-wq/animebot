@@ -492,22 +492,23 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🛠 Admin paneli:", reply_markup=get_admin_kb(is_main))
         return ConversationHandler.END
 
-    # 6. Qidiruv turlari uchun
+    # 6. Qidiruv turlari
     elif data == "search_type_id":
         await query.edit_message_text("🔢 Anime ID raqamini kiriting:")
         return A_SEARCH_BY_ID
+        
     elif data == "search_type_name":
         await query.edit_message_text("📝 Anime nomini kiriting:")
         return A_SEARCH_BY_NAME
 
-    return None
-
-    # 7. BEKOR QILISH 
+    # 7. BEKOR QILISH (Endi bu ishlaydi, chunki return None dan tepaga chiqdi)
     elif data == "cancel_search":
         await query.edit_message_text("🏠 Qidiruv bekor qilindi. Menyudan foydalanishingiz mumkin.")
         return ConversationHandler.END
 
+    # Agar hech qaysi shartga tushmasa, shunda None qaytaradi
     return None
+
 
 # ----------------- BOSHQA FUNKSIYALAR -----------------
 
@@ -985,6 +986,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
