@@ -786,9 +786,7 @@ async def add_ani_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Anime ma'lumotlarini va videoni birga yoki ketma-ket qabul qilish"""
     uid = update.effective_user.id
-    status = await get_user_status(uid)
     
-    # Videoni va uning captionidagi ma'lumotni olish
     if update.message.video:
         v_id = update.message.video.file_id
         caption = update.message.caption
@@ -802,7 +800,6 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return A_ADD_ANI_DATA
 
         try:
-            # Ma'lumotlarni ajratib olish
             parts = [i.strip() for i in caption.split("|")]
             if len(parts) < 4:
                 raise ValueError("Ma'lumotlar yetarli emas")
@@ -817,14 +814,12 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn = get_db()
             cur = conn.cursor()
             
-            # 1. Anime listini yangilash
             cur.execute("""
                 INSERT INTO anime_list (anime_id, name, poster_id) 
                 VALUES (%s, %s, %s)
                 ON DUPLICATE KEY UPDATE name=%s, poster_id=%s
             """, (aid, name, p_id, name, p_id))
             
-            # 2. Qismni qo'shish
             cur.execute("""
                 INSERT INTO anime_episodes (anime_id, episode, lang, file_id) 
                 VALUES (%s, %s, %s, %s)
@@ -834,29 +829,30 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.commit()
             cur.close(); conn.close()
 
-            # Tezkor yuklash tugmalari
+            # TUGMALAR: Keyingi qism uchun state-ni Handle_callback orqali boshqaramiz
             kb = [
                 [InlineKeyboardButton("➕ Keyingi qismni qo'shish", callback_data="add_more_ep")],
-                [InlineKeyboardButton("✅ Jarayonni yakunlash", callback_data="cancel_search")]
+                [InlineKeyboardButton("✅ Jarayonni yakunlash", callback_data="admin_main")]
             ]
             
             await update.message.reply_text(
-                f"✅ **Muvaffaqiyatli saqlandi!**\n\n"
+                f"✅ **Qism saqlandi!**\n\n"
                 f"📺 Anime: {name}\n"
                 f"🔢 Qism: {ep}\n\n"
-                f"Keyingi qismni qo'shasizmi yoki tugatasizmi?",
+                f"Yana qism qo'shasizmi?",
                 reply_markup=InlineKeyboardMarkup(kb),
                 parse_mode="Markdown"
             )
-            return ConversationHandler.END # Tugma bosilganda handle_callback orqali qayta kiradi
+            # MUHIM: Bu yerda suhbatni tugatamiz, lekin tugma bosilganda callback orqali qayta ochamiz
+            return ConversationHandler.END 
 
         except Exception as e:
-            await update.message.reply_text(f"❌ Xatolik: {e}\nFormatni tekshiring: `ID | Nomi | Tili | Qismi`")
+            await update.message.reply_text(f"❌ Xatolik: {e}\nFormat: `ID | Nomi | Tili | Qismi`")
             return A_ADD_ANI_DATA
-
     else:
-        await update.message.reply_text("Iltimos, videoni caption (matn) bilan birga yuboring.")
+        await update.message.reply_text("Iltimos, videoni caption (matn) bilan yuboring.")
         return A_ADD_ANI_DATA
+        
         
     
             
@@ -1059,6 +1055,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
