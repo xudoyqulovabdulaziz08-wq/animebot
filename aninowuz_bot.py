@@ -895,24 +895,22 @@ def main():
         allow_reentry=True
     )
 
-    # ================= HANDLERLARNI QO‘SHISH TARTIBI MUHIM =================
+    # ================= HANDLERLARNI QO‘SHISH TARTIBI (OPTIMAL) =================
 
-    # 1. Conversation (Bu birinchi turishi kerak, chunki u holatlarni nazorat qiladi)
-    app_bot.add_handler(conv_handler)
-
-    # 2. Start buyrug'i
+    # 1. Start buyrug'i (Har doim birinchi bo'lishi yaxshi)
     app_bot.add_handler(CommandHandler("start", start))
 
-    # 3. Asosiy menyu (Reply Keyboard) - conv_handler ichidan tashqaridagi holatlar uchun
-    app_bot.add_handler(MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), search_menu_cmd))
-    app_bot.add_handler(MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime))
-    app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
-    app_bot.add_handler(MessageHandler(filters.Regex("^📖 Qo'llanma ❓$"), show_guide)) # BU YERDA YETISHMAYOTGAN EDI
-    app_bot.add_handler(MessageHandler(filters.Regex("^💎 VIP bo'lish ⭐$"), vip_info)) 
+    # 2. Asosiy menyu tugmalari (Conversationdan tepaga qo'yamiz)
+    # Shunda foydalanuvchi adashib admin bo'limiga kirib qolsa ham, menyu tugmasi ishlaydi
+    app_bot.add_handler(MessageHandler(filters.Regex(r"🔍 Anime qidirish"), search_menu_cmd))
+    app_bot.add_handler(MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime))
+    app_bot.add_handler(MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus))
+    app_bot.add_handler(MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide))
+    app_bot.add_handler(MessageHandler(filters.Regex(r"💎 VIP bo'lish"), vip_info)) 
     
     app_bot.add_handler(
         MessageHandler(
-            filters.Regex("^🛠 ADMIN PANEL$"),
+            filters.Regex(r"🛠 ADMIN PANEL"),
             lambda u, c: u.message.reply_text(
                 "🛠 Admin paneli:",
                 reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
@@ -920,10 +918,14 @@ def main():
         )
     )
 
+    # 3. Conversation Handler (Admin va kiritish jarayonlari uchun)
+    app_bot.add_handler(conv_handler)
+
     # 4. Callbacklar (Inline tugmalar uchun)
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
+    
 
     # ================= BOTNI ISHGA TUSHIRISH =================
     print("Bot muvaffaqiyatli ishga tushdi...")
@@ -934,6 +936,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
