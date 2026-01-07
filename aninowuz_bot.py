@@ -396,7 +396,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return None
 
-# ====================== ADMIN VA QO'SHIMCHA ISHLOVCHILAR (YETISHMAYOTGAN) ======================
+# ====================== ADMIN VA QO'SHIMCHA ISHLOVCHILAR (TO'G'RILANDI) ======================
 
 async def exec_add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Kanal qo'shish ijrosi"""
@@ -409,9 +409,9 @@ async def exec_add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         cur.execute("INSERT INTO channels (username) VALUES (%s)", (username,))
         conn.commit()
-        await update.message.reply_text(f"✅ Kanal qo'shildi: {username}")
+        await update.message.reply_text(f"✅ Kanal qo'shildi: {username}\n\n/start bosib menyuga qayting.")
     except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik: {e}")
+        await update.message.reply_text(f"❌ Xatolik (Ehtimol bu kanal allaqachon bor): {e}")
     finally:
         cur.close(); conn.close()
     return ConversationHandler.END
@@ -424,18 +424,21 @@ async def exec_rem_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = get_db()
     if not conn: return ConversationHandler.END
     cur = conn.cursor()
-    cur.execute("DELETE FROM channels WHERE username=%s", (username,))
-    conn.commit()
-    cur.close(); conn.close()
-    
-    await update.message.reply_text(f"🗑 Kanal o'chirildi: {username}")
+    try:
+        cur.execute("DELETE FROM channels WHERE username=%s", (username,))
+        conn.commit()
+        await update.message.reply_text(f"🗑 Kanal o'chirildi: {username}\n\n/start bosib menyuga qayting.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xatolik: {e}")
+    finally:
+        cur.close(); conn.close()
     return ConversationHandler.END
 
 async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin qo'shish ijrosi"""
     text = update.message.text.strip()
     if not text.isdigit():
-        await update.message.reply_text("❌ Xato! Foydalanuvchi ID raqamini yuboring.")
+        await update.message.reply_text("❌ Xato! Foydalanuvchi ID raqamini yuboring (faqat raqamlar).")
         return A_ADD_ADM
 
     conn = get_db()
@@ -451,8 +454,57 @@ async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.close(); conn.close()
     return ConversationHandler.END
 
+# ----------------- CALLBACK HANDLER (MUHIM QISM) -----------------
+
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    await query.answer()
+
+    # 1. Kanallar boshqarish menyusi
+    if data == "adm_ch":
+        keyboard = [
+            [InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start")],
+            [InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
+        ]
+        await query.edit_message_text("📢 Kanallarni boshqarish bo'limi:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return None
+
+    # 2. Kanal qo'shishni boshlash
+    elif data == "add_channel_start":
+        await query.edit_message_text("🔗 Qo'shmoqchi bo'lgan kanalingiz usernamesini yuboring:\n(Masalan: @kanal_nomi)")
+        return A_ADD_CH  # BU YERDA STATE QAYTARILDI
+
+    # 3. Kanalni o'chirishni boshlash
+    elif data == "rem_channel_start":
+        await query.edit_message_text("🗑 O'chirmoqchi bo'lgan kanalingiz usernamesini yuboring:\n(Masalan: @kanal_nomi)")
+        return A_REM_CH  # BU YERDA STATE QAYTARILDI
+
+    # 4. Admin qo'shishni boshlash
+    elif data == "add_admin_start":
+        await query.edit_message_text("👮 Yangi admin bo'ladigan foydalanuvchi ID-sini yuboring:")
+        return A_ADD_ADM
+
+    # 5. Admin asosiy menyusiga qaytish
+    elif data == "admin_main":
+        is_main = (update.effective_user.id == MAIN_ADMIN_ID)
+        await query.edit_message_text("🛠 Admin paneli:", reply_markup=get_admin_kb(is_main))
+        return ConversationHandler.END
+
+    # Qidiruv turlari uchun
+    elif data == "search_type_id":
+        await query.edit_message_text("🔢 Anime ID raqamini kiriting:")
+        return A_SEARCH_BY_ID
+    elif data == "search_type_name":
+        await query.edit_message_text("📝 Anime nomini kiriting:")
+        return A_SEARCH_BY_NAME
+
+    return None
+
+# ----------------- BOSHQA FUNKSIYALAR -----------------
+
 async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Foydalanuvchi bonusini ko'rsatish"""
     uid = update.effective_user.id
     conn = get_db()
     if not conn: return
@@ -464,7 +516,7 @@ async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     val = res['bonus'] if res else 0
     st = res['status'] if res else "user"
     await update.message.reply_text(f"💰 Ballaringiz: {val}\n⭐ Status: {st.upper()}")
-    
+
 async def show_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "📖 **Qo‘llanma**\n\n"
@@ -474,37 +526,8 @@ async def show_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📜 *Anime ro‘yxati* — mavjud animelar\n\n"
         "❓ Savollar bo‘lsa admin bilan bog‘laning"
     )
-    await update.message.reply_text(text, parse_mode="Markdown")    
-
+    await update.message.reply_text(text, parse_mode="Markdown")
     
-async def vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Foydalanuvchiga VIP haqida ma'lumot va admin linkini yuborish"""
-    text = (
-        "💎 **VIP STATUS IMKONIYATLARI:**\n\n"
-        "✅ Reklamasiz ko'rish\n"
-        "✅ Yangi qismlarni birinchilardan bo'lib ko'rish\n"
-        "✅ Maxsus guruhga a'zolik\n\n"
-        "💳 VIP status sotib olish uchun adminga murojaat qiling:\n"
-        "👉 @Khudoyqulov_pg"
-    )
-    # update.effective_message har qanday holatda (oddiy xabar yoki callback) xabarni yuborishni kafolatlaydi
-    if update.effective_message:
-        await update.effective_message.reply_text(text, parse_mode="Markdown")
-
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    data = query.data
-    await query.answer()
-
-    # Majburiy kanal menyusi (Bu qism ishlayotgan bo'lishi kerak)
-    if data == "adm_ch":
-        keyboard = [
-            [InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start")],
-            [InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
-            [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
-        ]
-        await query.edit_message_text("📢 Kanallarni boshqarish:", reply_markup=InlineKeyboardMarkup(keyboard))
-        return None # ConversationHandler boshlanishi uchun
         
 
 
@@ -957,6 +980,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
