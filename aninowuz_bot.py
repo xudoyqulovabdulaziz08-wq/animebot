@@ -1101,7 +1101,9 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.text:
         return A_ADD_VIP
         
-    text = upd# ====================== MAIN FUNKSIYA (YAKUNIY VARIANT) ======================
+
+    
+# ====================== MAIN FUNKSIYA (YAKUNIY VARIANT) ======================
 
 def main():
     # 1. Serverni uyg'oq saqlash va Bazani ishga tushirish
@@ -1111,16 +1113,16 @@ def main():
     # 2. Botni yaratish
     app_bot = ApplicationBuilder().token(TOKEN).build()
 
-    # Menyudagi tugmalar uchun filtr (Bular Conversation-ni buzib qo'ymasligi uchun)
+    # Menyudagi tugmalar uchun filtr (Bular muloqotni buzib qo'ymasligi uchun)
     menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖")
 
-    # 3. GLOBAL CALLBACKLAR (Conversationdan tashqarida ham ishlashi kerak)
-    # Patternlar orqali qaysi funksiya qaysi tugmaga javob berishi aniqlashtirildi
+    # 3. GLOBAL CALLBACKLAR (Bular hamma vaqt ishlashi kerak)
+    # Sahifalash va qismlarni ko'rish conversation ichida ham, tashqarisida ham ishlaydi
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(handle_callback, pattern="^del_ch_")) # Kanallarni o'chirish uchun
 
-    # 4. Conversation Handler (Botning asosiy mantiqi)
+    # 4. Conversation Handler (Botning asosiy mantiqiy zanjiri)
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
@@ -1130,7 +1132,7 @@ def main():
                 "🛠 Admin paneli:", 
                 reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
             )),
-            # Inline tugmalar orqali kirish
+            # Inline tugmalar orqali muloqotni boshlash
             CallbackQueryHandler(handle_callback, pattern="^(recheck|search_type|adm_|cancel_search|manage_admins|add_channel|rem_channel)")
         ],
         states={
@@ -1159,7 +1161,7 @@ def main():
                 CallbackQueryHandler(handle_callback)
             ],
             A_ADD_ANI_DATA: [
-                # Video yoki "Yana qo'shish" tugmasini bosganda matnni tutish
+                # Video yoki matn (Caption) kutish
                 MessageHandler(filters.VIDEO | (filters.TEXT & ~menu_filter), add_ani_data),
                 CallbackQueryHandler(handle_callback)
             ],
@@ -1185,17 +1187,16 @@ def main():
         per_message=False 
     )
 
-    # 5. Handlerlarni qo'shish (TARTIB MUHIM!)
+    # 5. Handlerlarni qo'shish tartibi
     app_bot.add_handler(conv_handler)
     
-    # Asosiy menyuning qolgan tugmalari (Conversationdan tashqarida)
+    # Menyu tugmalari (Statik javoblar uchun)
     app_bot.add_handler(MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime))
     app_bot.add_handler(MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus))
     app_bot.add_handler(MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide))
-    # Regexdagi nuqta (.) har qanday belgini tutishi uchun qoldirildi
     app_bot.add_handler(MessageHandler(filters.Regex(r"💎 VIP bo.lish"), vip_info))
 
-    # Xavfsizlik uchun oxirgi universal callback handler
+    # Oxirgi zaxira handler (Hech biriga tushmasa ishlaydi)
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
 
     # 6. Botni ishga tushirish
@@ -1204,30 +1205,11 @@ def main():
 
 if __name__ == '__main__':
     main()
-    ate.message.text.strip()
-    if not text.isdigit():
-        await update.message.reply_text("❌ Xato! Faqat ID (raqam) yuboring.")
-        return A_ADD_VIP
-
-    try:
-        target_id = int(text)
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
-        conn.commit(); cur.close(); conn.close()
-        
-        await update.message.reply_text(
-            f"✅ Foydalanuvchi {target_id} muvaffaqiyatli VIP qilindi.", 
-            reply_markup=get_main_kb(status)
-        )
-    except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik: {e}")
-    
-    return ConversationHandler.END
     
 
 
-
     
+
 
 
 
