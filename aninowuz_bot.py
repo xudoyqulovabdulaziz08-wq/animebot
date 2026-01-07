@@ -352,17 +352,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if status not in ["main_admin", "admin"]: 
         return
 
-    # --- ADMIN: ANIME QO'SHISH VA BOSHQARUV ---
+        # --- ADMIN: ANIME QO'SHISH VA BOSHQARUV ---
     if data == "adm_ani_add":
         await query.message.reply_text("1️⃣ Anime uchun POSTER (rasm) yuboring:")
         return A_ADD_ANI_POSTER
 
     elif data == "add_more_ep":
+        # BU YERDA BOTNI QAYTA STATEGA KIRITAMIZ
         await query.message.reply_text(
             "🎞 Keyingi qism VIDEOSINI yuboring.\n\n⚠️ Captionda: `ID | Nomi | Tili | Qismi`", 
             parse_mode="Markdown"
         )
-        return A_ADD_ANI_DATA
+        return A_ADD_ANI_DATA  # Video kutish holatiga qaytarish
+        
+    
 
     elif data == "adm_ch":
         kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"), 
@@ -1055,6 +1058,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
