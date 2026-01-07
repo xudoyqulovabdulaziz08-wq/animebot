@@ -479,7 +479,7 @@ async def vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "✅ Yangi qismlarni birinchilardan bo'lib ko'rish\n"
         "✅ Maxsus guruhga a'zolik\n\n"
         "💳 VIP status sotib olish uchun adminga murojaat qiling:\n"
-        "👉 @SizningUsername" # <--- BU YERGA O'Z USERNAME-INGIZNI YOZING
+        "👉 @Khudoyqulov_pg" # <--- BU YERGA O'Z USERNAME-INGIZNI YOZING
     )
     await update.message.reply_text(text, parse_mode="Markdown")
 
@@ -931,6 +931,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
