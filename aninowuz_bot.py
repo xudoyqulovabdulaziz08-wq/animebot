@@ -510,21 +510,53 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
         return None
 
-    # Qidiruv turlari
-    elif data == "search_type_id":
-        await query.edit_message_text("🔢 Anime ID raqamini kiriting:")
+    # 1. Qidiruv turlari tanlanganda
+    if data == "search_type_id":
+        await query.edit_message_text(
+            text="🔢 **Anime ID raqamini kiriting:**", 
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_search_menu")
+            ]]), 
+            parse_mode="Markdown"
+        )
         return A_SEARCH_BY_ID
         
     elif data == "search_type_name":
-        await query.edit_message_text("📝 Anime nomini kiriting:")
+        await query.edit_message_text(
+            text="📝 **Anime nomini kiriting:**", 
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_search_menu")
+            ]]), 
+            parse_mode="Markdown"
+        )
         return A_SEARCH_BY_NAME
 
-    # Bekor qilish
+    # 2. Qidiruv menyusiga qaytish (Tanlov bosqichiga)
+    elif data == "back_to_search_menu":
+        search_btns = [
+            [InlineKeyboardButton("🆔 ID orqali qidirish", callback_data="search_type_id")],
+            [InlineKeyboardButton("🔎 Nomi orqali qidirish", callback_data="search_type_name")],
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")]
+        ]
+        await query.edit_message_text(
+            text="🎬 **Anime qidirish bo'limi**\n\nQidiruv usulini tanlang:👇", 
+            reply_markup=InlineKeyboardMarkup(search_btns),
+            parse_mode="Markdown"
+        )
+        # BU YERDA END QAYTARMANG, CHUNKI FOYDALANUVCHI HALI QIDIRUV BO'LIMIDA
+        return None 
+
+    # 3. Haqiqiy bekor qilish (Butunlay qidiruvdan chiqish)
     elif data == "cancel_search":
-        await query.edit_message_text("🏠 Jarayon bekor qilindi. Menyudan foydalanishingiz mumkin.")
+        await query.edit_message_text("🏠 Jarayon yakunlandi. Menyudan foydalanishingiz mumkin.")
+        await context.bot.send_message(
+            chat_id=uid,
+            text="Asosiy menyu:",
+            reply_markup=get_main_kb(status)
+        )
         return ConversationHandler.END
 
-    # Anime qismini ko'rish (Pagination va qismlar)
+    # Boshqa callbacklar (get_ep_ va h.k.)
     elif data.startswith("get_ep_"):
         await get_episode_handler(update, context)
         return None
@@ -1127,6 +1159,7 @@ def main():
 if __name__ == '__main__':
     main()
     
+
 
 
 
