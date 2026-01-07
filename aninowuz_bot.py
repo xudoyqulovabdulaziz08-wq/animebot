@@ -890,62 +890,49 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
 
 
-# ====================== MAIN FUNKSIYA (TO'G'RILANGAN VARIANT) ======================
+# ====================== MAIN FUNKSIYA (YAKUNIY VA TO'LIQ) ======================
 
 def main():
-    # Hostingda o'chib qolmasligi uchun web-server
     keep_alive()
-    
-    # Bazani tayyorlash
     init_db()
 
-    # Botni qurish
     app_bot = ApplicationBuilder().token(TOKEN).build()
 
-    # 1. Conversation Handler (Admin va Qidiruv uchun)
+    # 1. Conversation Handler
     conv_handler = ConversationHandler(
         entry_points=[
-            # Faqat callback tugmalar suhbatni boshlaydi
             CallbackQueryHandler(
                 handle_callback,
-                pattern="^(search_type_id|search_type_name|adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins)$"
+                # adm_ch QO'SHILDI - bu kanallar menyusini ochish uchun shart
+                pattern="^(search_type_id|search_type_name|adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins|adm_ch)$"
             ),
-            # Rasm qo'shib bo'lgach videoga o'tish uchun callback
             CallbackQueryHandler(lambda u, c: A_ADD_ANI_DATA, pattern="^add_more_ep$")
         ],
         states={
-            # Har bir holatda FAQAT kutilgan ma'lumotni qabul qilamiz
-            A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️"), search_anime_logic)],
-            A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️"), search_anime_logic)],
-
-            A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️"), exec_add_channel)],
-            A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️"), exec_rem_channel)],
-            A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️"), exec_add_admin)],
-
+            A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎"), search_anime_logic)],
+            A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎"), search_anime_logic)],
+            A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎"), exec_add_channel)],
+            A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎"), exec_rem_channel)],
+            A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎"), exec_add_admin)],
             A_ADD_ANI_POSTER: [MessageHandler(filters.PHOTO, add_ani_poster)],
-            A_ADD_ANI_DATA: [MessageHandler(filters.VIDEO | (filters.TEXT & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️")), add_ani_data)],
-
+            A_ADD_ANI_DATA: [MessageHandler(filters.VIDEO | (filters.TEXT & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎")), add_ani_data)],
             A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
-            A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️"), ads_send_finish)],
-            A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️"), exec_vip_add)],
+            A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎"), ads_send_finish)],
+            A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎"), exec_vip_add)],
         },
         fallbacks=[
-            # Agar foydalanuvchi /start bossa yoki menyu tugmasini bossa, suhbatni darhol tugatamiz
             CommandHandler("start", start),
-            MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), search_menu_cmd),
-            MessageHandler(filters.Regex("^⬅️ Orqaga$"), start),
+            MessageHandler(filters.Regex(r"🔍 Anime qidirish"), search_menu_cmd),
+            MessageHandler(filters.Regex(r"⬅️ Orqaga"), start),
             CallbackQueryHandler(handle_callback, pattern="^cancel_search$")
         ],
         allow_reentry=True
     )
 
-    # ================= HANDLERLARNI QO‘SHISH TARTIBI (OPTIMAL) =================
+    # ================= HANDLERLARNI QO‘SHISH =================
 
-    # 1. Start buyrug'i (Har doim birinchi bo'lishi yaxshi)
+    # 1. Start va Asosiy menyu (Conversation-dan tepada turgani ma'qul)
     app_bot.add_handler(CommandHandler("start", start))
-
-    # 2. Asosiy menyu tugmalari (Conversationdan tepaga qo'yamiz)
-    # Shunda foydalanuvchi adashib admin bo'limiga kirib qolsa ham, menyu tugmasi ishlaydi
     app_bot.add_handler(MessageHandler(filters.Regex(r"🔍 Anime qidirish"), search_menu_cmd))
     app_bot.add_handler(MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime))
     app_bot.add_handler(MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus))
@@ -962,24 +949,20 @@ def main():
         )
     )
 
-    # 3. Conversation Handler (Admin va kiritish jarayonlari uchun)
+    # 2. Conversation (Asosiy muloqot mantiqi)
     app_bot.add_handler(conv_handler)
 
-    # 4. Callbacklar (Inline tugmalar uchun)
+    # 3. Qolgan Callbacklar
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
-    app_bot.add_handler(CallbackQueryHandler(handle_callback))
-    
+    app_bot.add_handler(CallbackQueryHandler(handle_callback)) # Zaxira callback handler
 
-    # ================= BOTNI ISHGA TUSHIRISH =================
     print("Bot muvaffaqiyatli ishga tushdi...")
     app_bot.run_polling()
-    
-
-
 
 if __name__ == "__main__":
     main()
+    
 
 
 
