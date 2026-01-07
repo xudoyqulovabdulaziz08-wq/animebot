@@ -1220,8 +1220,12 @@ def main():
                 "🛠 Admin paneli:", 
                 reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
             )),
-            # Inline tugmalar orqali muloqotni boshlash
-            CallbackQueryHandler(handle_callback, pattern="^(recheck|search_type|adm_|cancel_search|manage_admins|add_channel|rem_channel)")
+            # Inline tugmalar orqali muloqotni boshlash (YANGILANGAN PATTERN)
+CallbackQueryHandler(
+    handle_callback, 
+    pattern="^(recheck|search_type|adm_|cancel_search|manage_admins|add_admin_start|rem_admin_list|conf_adm_|del_adm_|add_channel|rem_channel)"
+)
+            
         ],
         states={
             A_SEARCH_BY_ID: [
@@ -1294,47 +1298,3 @@ def main():
 if __name__ == '__main__':
     main()
     
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
