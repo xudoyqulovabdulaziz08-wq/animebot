@@ -462,24 +462,35 @@ async def exec_rem_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Admin qo'shish ijrosi"""
+    """Admin qo'shishdan oldin tasdiqlash so'rash"""
     text = update.message.text.strip()
+    
+    # Faqat raqamlardan iboratligini tekshirish
     if not text.isdigit():
-        await update.message.reply_text("❌ Xato! Foydalanuvchi ID raqamini yuboring (faqat raqamlar).")
+        await update.message.reply_text(
+            "❌ **Xato!** Foydalanuvchi ID raqamini yuboring (faqat raqamlar).\n\n"
+            "Qayta urinib ko'ring yoki bekor qiling:",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="manage_admins")]]),
+            parse_mode="Markdown"
+        )
         return A_ADD_ADM
 
-    conn = get_db()
-    if not conn: return ConversationHandler.END
-    cur = conn.cursor()
-    try:
-        cur.execute("INSERT INTO admins (user_id) VALUES (%s)", (int(text),))
-        conn.commit()
-        await update.message.reply_text(f"👮 Yangi admin qo'shildi: {text}")
-    except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik: {e}")
-    finally:
-        cur.close(); conn.close()
-    return ConversationHandler.END
+    # Tasdiqlash tugmasini yaratish
+    keyboard = [
+        [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"conf_adm_{text}")],
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data="manage_admins")]
+    ]
+    
+    await update.message.reply_text(
+        f"👮 **Yangi admin qo'shishni tasdiqlaysizmi?**\n\n"
+        f"👤 Foydalanuvchi ID: `{text}`\n\n"
+        f"Tasdiqlash tugmasini bossangiz, bu foydalanuvchi admin huquqiga ega bo'ladi.",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="Markdown"
+    )
+    # Eslatma: Bu yerda END qaytarmaymiz, callback_handler yakunlab qo'yadi
+    return None 
+    
 
 # ----------------- CALLBACK HANDLER (MUHIM QISM) -----------------
 
@@ -1211,6 +1222,7 @@ if __name__ == '__main__':
 
 
     
+
 
 
 
