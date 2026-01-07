@@ -85,7 +85,7 @@ def get_db():
         # DB_CONFIG o'rniga to'g'ridan-to'g'ri os.getenv ishlatish Render uchun ishonchliroq
         conn = mysql.connector.connect(
             host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT", 3306)),
+            port=int(os.getenv("DB_PORT", 27624)),
             user=os.getenv("DB_USER"),
             password=os.getenv("DB_PASS"),
             database=os.getenv("DB_NAME"),
@@ -1224,6 +1224,7 @@ def main():
 if __name__ == '__main__':
     main()
     
+
 
 
 
