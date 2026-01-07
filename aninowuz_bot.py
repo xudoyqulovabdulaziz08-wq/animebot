@@ -991,7 +991,7 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
 
 
-# ====================== MAIN FUNKSIYA (YAKUNIY VA TO'LIQ) ======================
+# ====================== MAIN FUNKSIYA (TO'LIQ VA TUZATILGAN) ======================
 
 def main():
     # 1. Serverni uyg'oq saqlash va Bazani ishga tushirish
@@ -1001,18 +1001,20 @@ def main():
     # 2. Botni yaratish
     app_bot = ApplicationBuilder().token(TOKEN).build()
 
-    # Menyudagi tugmalar qidiruv yoki admin jarayoniga xalaqit bermasligi uchun filtr
-    # Bu menyu tugmalari bosilganda statelar adashib ketishini oldini oladi
+    # Menyudagi tugmalar uchun filtr
     menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖")
 
-    # 3. Conversation Handler (Barcha muloqot mantiqi)
+    # 3. MUHIM: Sahifalash va qismlar handlerlarini Conversationdan TEPADA qo'shish
+    # Bu orqali "Keyingi" va video tugmalari adashmasdan ishlaydi
+    app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
+    app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
+
+    # 4. Conversation Handler (Muloqot mantiqi)
     conv_handler = ConversationHandler(
         entry_points=[
-            # Start komandasi
             CommandHandler("start", start),
-            # Inline tugmalarni tutish (Qidiruv, Anime qo'shish, Admin amallari)
-            CallbackQueryHandler(handle_callback),
-            # Matnli tugmalar
+            # Faqat admin va qidiruv callbacklarini tutish uchun pattern qo'shildi
+            CallbackQueryHandler(handle_callback, pattern="^(recheck|search_type|adm_|cancel_search|manage_admins|add_channel|rem_channel)"),
             MessageHandler(filters.Regex(r"🔍 Anime qidirish"), search_menu_cmd),
             MessageHandler(filters.Regex(r"🛠 ADMIN PANEL"), lambda u, c: u.message.reply_text(
                 "🛠 Admin paneli:", 
@@ -1020,17 +1022,14 @@ def main():
             ))
         ],
         states={
-            # ID orqali qidirish
             A_SEARCH_BY_ID: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
                 CallbackQueryHandler(handle_callback)
             ],
-            # Nomi orqali qidirish
             A_SEARCH_BY_NAME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
                 CallbackQueryHandler(handle_callback)
             ],
-            # Kanallar qo'shish va o'chirish
             A_ADD_CH: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_add_channel),
                 CallbackQueryHandler(handle_callback)
@@ -1039,32 +1038,26 @@ def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_rem_channel),
                 CallbackQueryHandler(handle_callback)
             ],
-            # Admin qo'shish
             A_ADD_ADM: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_add_admin),
                 CallbackQueryHandler(handle_callback)
             ],
-            # Anime qo'shish: Poster
             A_ADD_ANI_POSTER: [
                 MessageHandler(filters.PHOTO, add_ani_poster),
                 CallbackQueryHandler(handle_callback)
             ],
-            # Anime qo'shish: Video va Keyingi qismlar (MUHIM!)
             A_ADD_ANI_DATA: [
                 MessageHandler(filters.VIDEO | (filters.TEXT & ~menu_filter), add_ani_data),
-                CallbackQueryHandler(handle_callback) # Keyingi qism tugmasi uchun
+                CallbackQueryHandler(handle_callback)
             ],
-            # Reklama paroli
             A_SEND_ADS_PASS: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass),
                 CallbackQueryHandler(handle_callback)
             ],
-            # Reklama yuborish (Xabar kutish)
             A_SEND_ADS_MSG: [
                 MessageHandler(filters.ALL & ~filters.COMMAND & ~menu_filter, ads_send_finish),
                 CallbackQueryHandler(handle_callback)
             ],
-            # VIP qo'shish
             A_ADD_VIP: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_vip_add),
                 CallbackQueryHandler(handle_callback)
@@ -1073,33 +1066,33 @@ def main():
         fallbacks=[
             CommandHandler("start", start),
             MessageHandler(filters.Regex(r"⬅️ Orqaga"), start),
-            CallbackQueryHandler(handle_callback, pattern="^cancel_search$"),
-            CallbackQueryHandler(handle_callback, pattern="^admin_main$")
+            CallbackQueryHandler(handle_callback, pattern="^(cancel_search|admin_main)$")
         ],
-        allow_reentry=True
+        allow_reentry=True,
+        # Har bir xabarni tekshirishni ta'minlaydi
+        per_message=False 
     )
 
-    # 4. Handlerlarni qo'shish
+    # 5. Handlerlarni tartib bilan qo'shish
     app_bot.add_handler(conv_handler)
     
-    # Menyu tugmalari (Conversationdan tashqarida ham ishlashi uchun)
+    # Menyu tugmalari
     app_bot.add_handler(MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime))
     app_bot.add_handler(MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus))
     app_bot.add_handler(MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide))
     app_bot.add_handler(MessageHandler(filters.Regex(r"💎 VIP bo.lish"), vip_info))
 
-    # Pagination va Episode tugmalari
-    app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
-    app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
-    app_bot.add_handler(CallbackQueryHandler(handle_callback)) # Zaxira handler
+    # Oxirgi zaxira handler
+    app_bot.add_handler(CallbackQueryHandler(handle_callback))
 
-    # 5. Botni ishga tushirish
+    # 6. Botni ishga tushirish
     print("🚀 Bot muvaffaqiyatli ishga tushdi...")
     app_bot.run_polling()
 
 if __name__ == '__main__':
     main()
     
+
 
 
 
