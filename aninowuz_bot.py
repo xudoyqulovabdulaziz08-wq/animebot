@@ -589,7 +589,7 @@ async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         try:
             await query.message.reply_video(
                 video=episode_data['file_id'],
-                caption=f"🎬 **{anime_info['name']}**\n🔢 **{episode_num}-qism**\n\n✅ @SizningKanalingiz"
+                caption=f"🎬 **{anime_info['name']}**\n🔢 **{episode_num}-qism**\n\n✅ @Aninovuz"
             )
         except Exception as e:
             await query.message.reply_text(f"❌ Videoni yuborishda xatolik: {e}")
@@ -931,6 +931,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
