@@ -527,6 +527,21 @@ async def show_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "❓ Savollar bo‘lsa admin bilan bog‘laning"
     )
     await update.message.reply_text(text, parse_mode="Markdown")
+
+async def vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchiga VIP haqida ma'lumot va admin linkini yuborish"""
+    text = (
+        "💎 **VIP STATUS IMKONIYATLARI:**\n\n"
+        "✅ Reklamasiz ko'rish\n"
+        "✅ Yangi qismlarni birinchilardan bo'lib ko'rish\n"
+        "✅ Maxsus guruhga a'zolik\n\n"
+        "💳 VIP status sotib olish uchun adminga murojaat qiling:\n"
+        "👉 @Khudoyqulov_pg"
+    )
+    # update.effective_message orqali xavfsiz yuborish
+    if update.effective_message:
+        await update.effective_message.reply_text(text, parse_mode="Markdown")
+        
     
         
 
@@ -963,6 +978,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
