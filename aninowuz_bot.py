@@ -1365,24 +1365,24 @@ app_bot.add_handler(CallbackQueryHandler(
     )
 
     # 5. Handlerlarni qo'shish tartibi
+
+    # 1. Avval ConversationHandler (Chunki u holatlarni boshqaradi)
     app_bot.add_handler(conv_handler)
     
-    # Menyu tugmalari (Statik javoblar uchun)
+    # 2. Menyu tugmalari (Statik javoblar uchun)
     app_bot.add_handler(MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime))
     app_bot.add_handler(MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus))
     app_bot.add_handler(MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide))
-    app_bot.add_handler(MessageHandler(filters.Regex(r"💎 VIP bo.lish"), vip_info))
+    app_bot.add_handler(MessageHandler(filters.Regex(r"💎 VIP bo'lish"), vip_info))
 
-    # Oxirgi zaxira handler (Hech biriga tushmasa ishlaydi)
-    app_bot.add_handler(CallbackQueryHandler(handle_callback))
+    # ⚠️ MUHIM: Zaxira CallbackQueryHandler faqat conv_handler ichida 
+    # bo'lmagan tugmalar uchun xizmat qilishi kerak. 
+    # Agar conv_handler ichida pattern ishlatgan bo'lsangiz, 
+    # bu pastdagi handler ba'zan conv_handler'ni "o'chirib" qo'yadi.
+    # app_bot.add_handler(CallbackQueryHandler(handle_callback)) # <--- Buni o'chirib turing yoki faqat pattern bilan ishlating
 
-    # 6. Botni ishga tushirish
-    print("🚀 Bot muvaffaqiyatli ishga tushdi...")
-    app_bot.run_polling()
-
-if __name__ == '__main__':
-    main()
     
+
 
 
 
