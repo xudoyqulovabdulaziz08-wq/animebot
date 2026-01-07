@@ -1015,14 +1015,24 @@ def main():
 
     # ================= HANDLERLARNI QO‘SHISH =================
 
-    # 1. Start va Asosiy menyu (Conversation-dan tepada turgani ma'qul)
+    # 1. Start har doim birinchi tursin
     app_bot.add_handler(CommandHandler("start", start))
+
+    # 2. CONVERSATION HANDLER (Buni teparoqqa qo'yamiz)
+    # Bu qidiruv jarayonida bo'lgan foydalanuvchilarni ushlab turadi
+    app_bot.add_handler(conv_handler)
+
+    # 3. ASOSIY MENYU TUGMALARI (MessageHandler lar)
+    # Regex ichidagi matn get_main_kb funksiyasidagi matn bilan bir xil bo'lishi shart!
     app_bot.add_handler(MessageHandler(filters.Regex(r"🔍 Anime qidirish"), search_menu_cmd))
     app_bot.add_handler(MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime))
     app_bot.add_handler(MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus))
     app_bot.add_handler(MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide))
+    
+    # VIP BO'LISH TUGMASI
     app_bot.add_handler(MessageHandler(filters.Regex(r"💎 VIP bo'lish"), vip_info)) 
     
+    # ADMIN PANEL TUGMASI
     app_bot.add_handler(
         MessageHandler(
             filters.Regex(r"🛠 ADMIN PANEL"),
@@ -1033,20 +1043,21 @@ def main():
         )
     )
 
-    # 2. Conversation (Asosiy muloqot mantiqi)
-    app_bot.add_handler(conv_handler)
-
-    # 3. Qolgan Callbacklar
+    # 4. CALLBACK HANDLERLAR (Tugmalar uchun)
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
-    app_bot.add_handler(CallbackQueryHandler(handle_callback)) # Zaxira callback handler
+    app_bot.add_handler(CallbackQueryHandler(handle_callback)) # Umumiy callbacklar
 
     print("Bot muvaffaqiyatli ishga tushdi...")
     app_bot.run_polling()
+    
+
+
 
 if __name__ == "__main__":
     main()
     
+
 
 
 
