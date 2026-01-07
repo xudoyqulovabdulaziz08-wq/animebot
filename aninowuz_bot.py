@@ -847,26 +847,23 @@ def main():
     # 1. Conversation Handler: Foydalanuvchi va Admin bilan muloqot bosqichlari
     conv_handler = ConversationHandler(
         entry_points=[
-            # Inline tugmalar orqali turli rejimlarni faollashtirish
-            CallbackQueryHandler(handle_callback, pattern="^(search_type_id|search_type_name|adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins)$"),
-            # Poster so'ramasdan to'g'ridan-to'g'ri video yuklash rejimiga o'tish
+            CallbackQueryHandler(
+                handle_callback,
+                pattern="^(search_type_id|search_type_name|adm_ani_add|adm_ads_start|adm_vip_add|add_channel_start|rem_channel_start|add_admin_start|manage_admins)$"
+            ),
             CallbackQueryHandler(lambda u, c: A_ADD_ANI_DATA, pattern="^add_more_ep$")
         ],
         states={
-            # Qidiruv holatlari (ID yoki Nom kiritishni kutish)
             A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
             A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, search_anime_logic)],
-            
-            # Admin: Kanallar va Adminlar boshqaruvi
+
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
             A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
             A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_admin)],
-            
-            # Admin: Anime yuklash (Poster -> Video+Ma'lumot)
+
             A_ADD_ANI_POSTER: [MessageHandler(filters.PHOTO, add_ani_poster)],
             A_ADD_ANI_DATA: [MessageHandler(filters.VIDEO | filters.TEXT, add_ani_data)],
-            
-            # Admin: Reklama va VIP tizimi
+
             A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
             A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
             A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_vip_add)],
@@ -879,56 +876,46 @@ def main():
         allow_reentry=True
     )
 
-    # Handlerlarni qo'shish (Tartib juda muhim!)
-    
-    # 1. Start komandasi har doim birinchi
+    # ================= HANDLERLARNI QO‘SHISH =================
+
+    # 1. Start
     app_bot.add_handler(CommandHandler("start", start))
-    
-    # 2. ConversationHandler (Holatlarni boshqarish uchun)
+
+    # 2. Conversation
     app_bot.add_handler(conv_handler)
 
-# 3. Asosiy menyu (Reply Keyboard) tugmalari
-app_bot.add_handler(
-    MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), search_menu_cmd)
-)
-
-app_bot.add_handler(
-    MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime)
-)
-
-app_bot.add_handler(
-    MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus)
-)
-
-app_bot.add_handler(
-    MessageHandler(
-        filters.Regex("^🛠 ADMIN PANEL$"),
-        lambda u, c: u.message.reply_text(
-            "🛠 Admin paneli:",
-            reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
+    # 3. Asosiy menyu (Reply Keyboard)
+    app_bot.add_handler(
+        MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), search_menu_cmd)
+    )
+    app_bot.add_handler(
+        MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime)
+    )
+    app_bot.add_handler(
+        MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus)
+    )
+    app_bot.add_handler(
+        MessageHandler(
+            filters.Regex("^🛠 ADMIN PANEL$"),
+            lambda u, c: u.message.reply_text(
+                "🛠 Admin paneli:",
+                reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
+            )
         )
     )
-)
 
-# 4. Callbacklar (Tugmalar bosilganda bajariladigan funksiyalar)
-app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
-app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
-app_bot.add_handler(CallbackQueryHandler(handle_callback))  # Qolgan callbacklar
+    # 4. Callbacklar
+    app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
+    app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
+    app_bot.add_handler(CallbackQueryHandler(handle_callback))
 
-    # Botni ishga tushirish
-print("Bot muvaffaqiyatli ishga tushdi...")
+    # ================= BOTNI ISHGA TUSHIRISH =================
+    print("Bot muvaffaqiyatli ishga tushdi...")
     app_bot.run_polling()
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
-    
-    
-
-
-
-
-
-
 
 
 
