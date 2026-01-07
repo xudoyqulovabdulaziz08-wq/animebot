@@ -887,12 +887,20 @@ def main():
     # 2. ConversationHandler (Holatlarni boshqarish uchun)
     app_bot.add_handler(conv_handler)
 
-    # 3. Asosiy menyu (Reply Keyboard) tugmalari
-    app_bot.add_handler(MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), search_menu_cmd))
-    app_bot.add_handler(MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime))
-    app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
-    app_bot.add_handler(MessageHandler(filters.Regex("^🛠 ADMIN PANEL$")
-    app_bot.add_handler(
+# 3. Asosiy menyu (Reply Keyboard) tugmalari
+app_bot.add_handler(
+    MessageHandler(filters.Regex("^🔍 Anime qidirish 🎬$"), search_menu_cmd)
+)
+
+app_bot.add_handler(
+    MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime)
+)
+
+app_bot.add_handler(
+    MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus)
+)
+
+app_bot.add_handler(
     MessageHandler(
         filters.Regex("^🛠 ADMIN PANEL$"),
         lambda u, c: u.message.reply_text(
@@ -900,11 +908,12 @@ def main():
             reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
         )
     )
-    )
-    # 4. Callbacklar (Tugmalar bosilganda bajariladigan funksiyalar)
-    app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
-    app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
-    app_bot.add_handler(CallbackQueryHandler(handle_callback)) # Qolgan barcha callbacklar uchun
+)
+
+# 4. Callbacklar (Tugmalar bosilganda bajariladigan funksiyalar)
+app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
+app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
+app_bot.add_handler(CallbackQueryHandler(handle_callback))  # Qolgan callbacklar
 
     # Botni ishga tushirish
     print("Bot muvaffaqiyatli ishga tushdi...")
@@ -914,6 +923,7 @@ if __name__ == '__main__':
     main()
     
     
+
 
 
 
