@@ -830,7 +830,7 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         cur = conn.cursor()
         
-        # Anime ro'yxatini yangilash
+        # Anime ro'yxatini yangilash (Agar anime avval bo'lmasa qo'shadi, bo'lsa yangilaydi)
         cur.execute("""
             INSERT INTO anime_list (anime_id, name, poster_id) 
             VALUES (%s, %s, %s)
@@ -845,11 +845,12 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
         """, (aid, ep, lang, v_id, v_id, lang))
         
         conn.commit()
-        cur.close(); conn.close()
+        cur.close()
+        conn.close()
 
         # 5. Muvaffaqiyatli tugmalar
         kb = [
-            [InlineKeyboardButton("➕ Keyingi qismni qo'shish", callback_data="add_more_ep")],
+            [InlineKeyboardButton("➕ Yana qism qo'shish (Xuddi shu anime)", callback_data="add_more_ep")],
             [InlineKeyboardButton("✅ Jarayonni yakunlash", callback_data="admin_main")]
         ]
         
@@ -858,13 +859,14 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📺 **Anime:** {name}\n"
             f"🔢 **Qism:** {ep}\n"
             f"🌐 **Til:** {lang}\n\n"
-            f"Yana qism qo'shasizmi yoki panelga qaytasizmi?",
+            f"Yana qism qo'shish uchun video yuboring yoki quyidagilardan birini tanlang:",
             reply_markup=InlineKeyboardMarkup(kb),
             parse_mode="Markdown"
         )
         
-        # Suhbatni yopamiz, chunki keyingi qadam callback orqali boshlanadi
-        return ConversationHandler.END 
+        # MUHIM O'ZGARIŞ: ConversationHandler.END o'rniga holatni saqlab qolamiz
+        # Shunda foydalanuvchi tugmani bosmasdan ham ketma-ket video tashlayverishi mumkin
+        return A_ADD_ANI_DATA 
 
     except Exception as e:
         await update.message.reply_text(
@@ -1092,6 +1094,7 @@ def main():
 if __name__ == '__main__':
     main()
     
+
 
 
 
