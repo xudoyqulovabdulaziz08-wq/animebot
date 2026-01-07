@@ -607,9 +607,11 @@ async def vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "💳 VIP status sotib olish uchun adminga murojaat qiling:\n"
         "👉 @Khudoyqulov_pg"
     )
-    # update.effective_message orqali xavfsiz yuborish
-    if update.effective_message:
-        await update.effective_message.reply_text(text, parse_mode="Markdown")
+    # CallbackQuery yoki Message ekanligini tekshirish
+    if update.callback_query:
+        await update.callback_query.message.reply_text(text, parse_mode="Markdown")
+    elif update.message:
+        await update.message.reply_text(text, parse_mode="Markdown")
         
     
         
@@ -1057,6 +1059,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
