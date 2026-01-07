@@ -693,18 +693,93 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("💎 VIP qilmoqchi bo'lgan foydalanuvchi ID-sini yuboring:")
         return A_ADD_VIP
 
-    # ADMIN QO'SHISH (Faqat Main Admin uchun)
+
+
+    # ADMINLARNI BOSHQARISH (ASOSIY MENYU)
     elif data == "manage_admins":
         if status == "main_admin":
-            await query.edit_message_text("👮 Yangi admin ID-sini yuboring:", 
-                                         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]]))
-            return A_ADD_ADM
+            # Siz xohlagandek: Admin qo'shish, O'chirish va Orqaga tugmalari
+            keyboard = [
+                [InlineKeyboardButton("➕ Admin qo'shish", callback_data="add_admin_start")],
+                [InlineKeyboardButton("🗑 Admin o'chirish", callback_data="rem_admin_list")],
+                [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
+            ]
+            await query.edit_message_text(
+                "👮 **Adminlarni boshqarish uchun quyidagilarni tanlang:** 👇",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+            return None
         else:
             await query.answer("❌ Bu funksiya faqat asosiy admin uchun!", show_alert=True)
 
+    # Admin qo'shishni boshlash (ID so'rash)
+    elif data == "add_admin_start":
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="manage_admins")]])
+        await query.edit_message_text(
+            "👮 **Yangi admin ID-sini yuboring:**", 
+            reply_markup=kb,
+            parse_mode="Markdown"
+        )
+        return A_ADD_ADM
 
-    # Agar hech qaysi shartga tushmasa, shunda None qaytaradi
+    # Admin o'chirish uchun ro'yxatni chiqarish
+    elif data == "rem_admin_list":
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        cur.execute("SELECT user_id FROM admins")
+        admins = cur.fetchall()
+        cur.close(); conn.close()
+        
+        if not admins:
+            await query.answer("📭 Hozircha adminlar yo'q (Sizdan tashqari).", show_alert=True)
+            return None
+            
+        keyboard = []
+        for adm in admins:
+            # Har bir admin uchun o'chirish tugmasi
+            keyboard.append([InlineKeyboardButton(f"🗑 ID: {adm['user_id']}", callback_data=f"del_adm_{adm['user_id']}")])
+        
+        keyboard.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="manage_admins")])
+        
+        await query.edit_message_text(
+            "🗑 **O'chirmoqchi bo'lgan adminni tanlang:**", 
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        return None
+
+    # Adminni bazadan o'chirish ijrosi
+    elif data.startswith("del_adm_"):
+        adm_id = data.replace("del_adm_", "")
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("DELETE FROM admins WHERE user_id = %s", (adm_id,))
+        conn.commit()
+        cur.close(); conn.close()
+        
+        await query.answer(f"✅ Admin {adm_id} o'chirildi!", show_alert=True)
+        # O'chirilgandan keyin ro'yxatni yangilab ko'rsatamiz
+        return await handle_callback(update, context) # yoki qaytadan rem_admin_list chaqirish
+
+    # Admin qo'shishni yakuniy TASDIQLASH (ID yuborilgandan keyin)
+    elif data.startswith("conf_adm_"):
+        new_id = data.replace("conf_adm_", "")
+        conn = get_db()
+        cur = conn.cursor()
+        try:
+            cur.execute("INSERT INTO admins (user_id) VALUES (%s)", (new_id,))
+            conn.commit()
+            await query.edit_message_text(f"✅ ID: `{new_id}` muvaffaqiyatli admin qilib tayinlandi.", parse_mode="Markdown")
+        except Exception as e:
+            await query.edit_message_text(f"❌ Xatolik: {e}")
+        finally:
+            cur.close(); conn.close()
+        return ConversationHandler.END
+
+    # Agar hech qaysi shartga tushmasa...
     return None
+    
 
 
 # ----------------- BOSHQA FUNKSIYALAR -----------------
@@ -1222,6 +1297,7 @@ if __name__ == '__main__':
 
 
     
+
 
 
 
