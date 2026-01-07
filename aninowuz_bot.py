@@ -456,43 +456,27 @@ async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ----------------- CALLBACK HANDLER (MUHIM QISM) -----------------
 
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    uid = query.from_user.id
     data = query.data
+    # Foydalanuvchi statusini aniqlash (Adminlik huquqini tekshirish uchun)
+    status = await get_user_status(uid)
     await query.answer()
 
-    # 1. Kanallar boshqarish menyusi
-    if data == "adm_ch":
-        keyboard = [
-            [InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start")],
-            [InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
-            [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
-        ]
-        await query.edit_message_text("📢 Kanallarni boshqarish bo'limi:", reply_markup=InlineKeyboardMarkup(keyboard))
+    # ================= 1. HAMMA UCHUN OCHIQ CALLBACKLAR =================
+    
+    # Obunani qayta tekshirish
+    if data == "recheck":
+        if not await check_sub(uid, context.bot):
+            await query.message.delete()
+            await context.bot.send_message(uid, "Tabriklaymiz! ✅ Obuna tasdiqlandi.", reply_markup=get_main_kb(status))
+        else:
+            await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
         return None
 
-    # 2. Kanal qo'shishni boshlash
-    elif data == "add_channel_start":
-        await query.edit_message_text("🔗 Qo'shmoqchi bo'lgan kanalingiz usernamesini yuboring:\n(Masalan: @kanal_nomi)")
-        return A_ADD_CH  # BU YERDA STATE QAYTARILDI
-
-    # 3. Kanalni o'chirishni boshlash
-    elif data == "rem_channel_start":
-        await query.edit_message_text("🗑 O'chirmoqchi bo'lgan kanalingiz usernamesini yuboring:\n(Masalan: @kanal_nomi)")
-        return A_REM_CH  # BU YERDA STATE QAYTARILDI
-
-    # 4. Admin qo'shishni boshlash
-    elif data == "add_admin_start":
-        await query.edit_message_text("👮 Yangi admin bo'ladigan foydalanuvchi ID-sini yuboring:")
-        return A_ADD_ADM
-
-    # 5. Admin asosiy menyusiga qaytish
-    elif data == "admin_main":
-        is_main = (update.effective_user.id == MAIN_ADMIN_ID)
-        await query.edit_message_text("🛠 Admin paneli:", reply_markup=get_admin_kb(is_main))
-        return ConversationHandler.END
-
-    # 6. Qidiruv turlari
+    # Qidiruv turlari
     elif data == "search_type_id":
         await query.edit_message_text("🔢 Anime ID raqamini kiriting:")
         return A_SEARCH_BY_ID
@@ -501,10 +485,87 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("📝 Anime nomini kiriting:")
         return A_SEARCH_BY_NAME
 
-    # 7. BEKOR QILISH (Endi bu ishlaydi, chunki return None dan tepaga chiqdi)
+    # Bekor qilish
     elif data == "cancel_search":
-        await query.edit_message_text("🏠 Qidiruv bekor qilindi. Menyudan foydalanishingiz mumkin.")
+        await query.edit_message_text("🏠 Jarayon bekor qilindi. Menyudan foydalanishingiz mumkin.")
         return ConversationHandler.END
+
+    # Anime qismini ko'rish (Pagination va qismlar)
+    elif data.startswith("get_ep_"):
+        await get_episode_handler(update, context)
+        return None
+
+    # ================= 2. FAQAT ADMINLAR UCHUN CALLBACKLAR =================
+    
+    if status not in ["main_admin", "admin"]:
+        return None
+
+    # Admin asosiy menyusiga qaytish
+    if data == "admin_main" or data == "adm_back":
+        is_main = (status == "main_admin")
+        await query.edit_message_text("🛠 Admin paneli:", reply_markup=get_admin_kb(is_main))
+        return ConversationHandler.END
+
+    # KANALLAR BOSHQARUVI
+    elif data == "adm_ch":
+        keyboard = [
+            [InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"),
+             InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
+        ]
+        await query.edit_message_text("📢 Kanallarni boshqarish bo'limi:", reply_markup=InlineKeyboardMarkup(keyboard))
+        return None
+
+    # Kanal qo'shish/o'chirishni boshlash (State qaytaradi)
+    elif data == "add_channel_start":
+        await query.edit_message_text("🔗 Qo'shmoqchi bo'lgan kanalingiz usernamesini yuboring:\n(Masalan: @kanal_nomi)")
+        return A_ADD_CH
+
+    elif data == "rem_channel_start":
+        await query.edit_message_text("🗑 O'chirmoqchi bo'lgan kanalingiz usernamesini yuboring:\n(Masalan: @kanal_nomi)")
+        return A_REM_CH
+
+    # ANIME QO'SHISH
+    elif data == "adm_ani_add":
+        await query.message.reply_text("1️⃣ Anime uchun POSTER (rasm) yuboring:")
+        return A_ADD_ANI_POSTER
+
+    # STATISTIKA
+    elif data == "adm_stats":
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM users")
+        u_count = cur.fetchone()[0]
+        cur.execute("SELECT COUNT(*) FROM users WHERE status='vip'")
+        v_count = cur.fetchone()[0]
+        cur.close(); conn.close()
+        await query.message.reply_text(f"📊 **Statistika:**\n\n👤 Jami foydalanuvchilar: {u_count}\n💎 VIP foydalanuvchilar: {v_count}", parse_mode="Markdown")
+        return None
+
+    # REKLAMA YUBORISH
+    elif data == "adm_ads_start":
+        await query.message.reply_text("🔑 Reklama parolini kiriting:")
+        return A_SEND_ADS_PASS
+
+    # DB EXPORT (JSON)
+    elif data == "adm_export":
+        await export_all_anime(update, context)
+        return None
+
+    # VIP QO'SHISH
+    elif data == "adm_vip_add":
+        await query.message.reply_text("💎 VIP qilmoqchi bo'lgan foydalanuvchi ID-sini yuboring:")
+        return A_ADD_VIP
+
+    # ADMIN QO'SHISH (Faqat Main Admin uchun)
+    elif data == "manage_admins":
+        if status == "main_admin":
+            await query.edit_message_text("👮 Yangi admin ID-sini yuboring:", 
+                                         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]]))
+            return A_ADD_ADM
+        else:
+            await query.answer("❌ Bu funksiya faqat asosiy admin uchun!", show_alert=True)
+
 
     # Agar hech qaysi shartga tushmasa, shunda None qaytaradi
     return None
@@ -986,6 +1047,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
