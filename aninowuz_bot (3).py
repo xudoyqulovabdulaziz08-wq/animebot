@@ -1101,29 +1101,7 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.text:
         return A_ADD_VIP
         
-    text = update.message.text.strip()
-    if not text.isdigit():
-        await update.message.reply_text("❌ Xato! Faqat ID (raqam) yuboring.")
-        return A_ADD_VIP
-
-    try:
-        target_id = int(text)
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
-        conn.commit(); cur.close(); conn.close()
-        
-        await update.message.reply_text(
-            f"✅ Foydalanuvchi {target_id} muvaffaqiyatli VIP qilindi.", 
-            reply_markup=get_main_kb(status)
-        )
-    except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik: {e}")
-    
-    return ConversationHandler.END
-    
-
-
-# ====================== MAIN FUNKSIYA (TO'LIQ VA TUZATILGAN) ======================
+    text = upd# ====================== MAIN FUNKSIYA (YAKUNIY VARIANT) ======================
 
 def main():
     # 1. Serverni uyg'oq saqlash va Bazani ishga tushirish
@@ -1133,25 +1111,27 @@ def main():
     # 2. Botni yaratish
     app_bot = ApplicationBuilder().token(TOKEN).build()
 
-    # Menyudagi tugmalar uchun filtr
+    # Menyudagi tugmalar uchun filtr (Bular Conversation-ni buzib qo'ymasligi uchun)
     menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖")
 
-    # 3. MUHIM: Sahifalash va qismlar handlerlarini Conversationdan TEPADA qo'shish
-    # Bu orqali "Keyingi" va video tugmalari adashmasdan ishlaydi
+    # 3. GLOBAL CALLBACKLAR (Conversationdan tashqarida ham ishlashi kerak)
+    # Patternlar orqali qaysi funksiya qaysi tugmaga javob berishi aniqlashtirildi
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
+    app_bot.add_handler(CallbackQueryHandler(handle_callback, pattern="^del_ch_")) # Kanallarni o'chirish uchun
 
-    # 4. Conversation Handler (Muloqot mantiqi)
+    # 4. Conversation Handler (Botning asosiy mantiqi)
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
-            # Faqat admin va qidiruv callbacklarini tutish uchun pattern qo'shildi
-            CallbackQueryHandler(handle_callback, pattern="^(recheck|search_type|adm_|cancel_search|manage_admins|add_channel|rem_channel)"),
+            # Menu tugmalarini tutish
             MessageHandler(filters.Regex(r"🔍 Anime qidirish"), search_menu_cmd),
             MessageHandler(filters.Regex(r"🛠 ADMIN PANEL"), lambda u, c: u.message.reply_text(
                 "🛠 Admin paneli:", 
                 reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
-            ))
+            )),
+            # Inline tugmalar orqali kirish
+            CallbackQueryHandler(handle_callback, pattern="^(recheck|search_type|adm_|cancel_search|manage_admins|add_channel|rem_channel)")
         ],
         states={
             A_SEARCH_BY_ID: [
@@ -1179,6 +1159,7 @@ def main():
                 CallbackQueryHandler(handle_callback)
             ],
             A_ADD_ANI_DATA: [
+                # Video yoki "Yana qo'shish" tugmasini bosganda matnni tutish
                 MessageHandler(filters.VIDEO | (filters.TEXT & ~menu_filter), add_ani_data),
                 CallbackQueryHandler(handle_callback)
             ],
@@ -1198,23 +1179,23 @@ def main():
         fallbacks=[
             CommandHandler("start", start),
             MessageHandler(filters.Regex(r"⬅️ Orqaga"), start),
-            CallbackQueryHandler(handle_callback, pattern="^(cancel_search|admin_main)$")
+            CallbackQueryHandler(handle_callback, pattern="^(cancel_search|admin_main|adm_back)$")
         ],
         allow_reentry=True,
-        # Har bir xabarni tekshirishni ta'minlaydi
         per_message=False 
     )
 
-    # 5. Handlerlarni tartib bilan qo'shish
+    # 5. Handlerlarni qo'shish (TARTIB MUHIM!)
     app_bot.add_handler(conv_handler)
     
-    # Menyu tugmalari
+    # Asosiy menyuning qolgan tugmalari (Conversationdan tashqarida)
     app_bot.add_handler(MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime))
     app_bot.add_handler(MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus))
     app_bot.add_handler(MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide))
+    # Regexdagi nuqta (.) har qanday belgini tutishi uchun qoldirildi
     app_bot.add_handler(MessageHandler(filters.Regex(r"💎 VIP bo.lish"), vip_info))
 
-    # Oxirgi zaxira handler
+    # Xavfsizlik uchun oxirgi universal callback handler
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
 
     # 6. Botni ishga tushirish
@@ -1223,7 +1204,31 @@ def main():
 
 if __name__ == '__main__':
     main()
+    ate.message.text.strip()
+    if not text.isdigit():
+        await update.message.reply_text("❌ Xato! Faqat ID (raqam) yuboring.")
+        return A_ADD_VIP
+
+    try:
+        target_id = int(text)
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
+        conn.commit(); cur.close(); conn.close()
+        
+        await update.message.reply_text(
+            f"✅ Foydalanuvchi {target_id} muvaffaqiyatli VIP qilindi.", 
+            reply_markup=get_main_kb(status)
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xatolik: {e}")
     
+    return ConversationHandler.END
+    
+
+
+
+    
+
 
 
 
