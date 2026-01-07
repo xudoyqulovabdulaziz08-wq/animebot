@@ -1306,12 +1306,11 @@ def main():
                 "🛠 Admin paneli:", 
                 reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
             )),
-            # Inline tugmalar orqali muloqotni boshlash (YANGILANGAN PATTERN)
-CallbackQueryHandler(
+            # Inline tugmalar orqali muloqotni boshlash (ADMIN VA VIP UCHUN TO'LIQ PATTERN)
+app_bot.add_handler(CallbackQueryHandler(
     handle_callback, 
-    pattern="^(recheck|search_type|adm_|cancel_search|manage_admins|add_admin_start|rem_admin_list|conf_adm_|del_adm_|add_channel|rem_channel)"
-)
-            
+    pattern="^(recheck|search_type|adm_|cancel_search|manage_admins|add_admin_start|rem_admin_list|conf_adm_|del_adm_|manage_vip|add_vip_start|vip_list|rem_vip_list|del_vip_|conf_vip_|add_channel|rem_channel)"
+))       
         ],
         states={
             A_SEARCH_BY_ID: [
@@ -1384,5 +1383,6 @@ CallbackQueryHandler(
 if __name__ == '__main__':
     main()
     
+
 
 
