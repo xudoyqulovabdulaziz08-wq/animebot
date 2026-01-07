@@ -1032,7 +1032,7 @@ def main():
     app_bot.add_handler(MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide))
     
     # VIP BO'LISH TUGMASI
-    app_bot.add_handler(MessageHandler(filters.Regex(r"💎 VIP bo'lish"), vip_info)) 
+    app_bot.add_handler(MessageHandler(filters.Regex(r"💎 VIP bo.lish"), vip_info)) 
     
     # ADMIN PANEL TUGMASI
     app_bot.add_handler(
@@ -1059,6 +1059,7 @@ def main():
 if __name__ == "__main__":
     main()
     
+
 
 
 
