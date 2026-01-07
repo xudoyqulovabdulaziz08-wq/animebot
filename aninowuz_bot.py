@@ -325,19 +325,52 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
         return
 
+        # 1. Qidiruv turlari tanlanganda (ID yoki Nom)
     elif data == "search_type_id":
-        await query.edit_message_text("🆔 **Anime kodini (ID) yuboring:**", parse_mode="Markdown")
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_search_menu")]])
+        await query.edit_message_text(
+            "🔢 **Anime ID raqamini kiriting:**", 
+            reply_markup=kb, 
+            parse_mode="Markdown"
+        )
         return A_SEARCH_BY_ID
-
+        
     elif data == "search_type_name":
-        await query.edit_message_text("🔎 **Anime nomini kiriting:**", parse_mode="Markdown")
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_search_menu")]])
+        await query.edit_message_text(
+            "📝 **Anime nomini kiriting:**", 
+            reply_markup=kb, 
+            parse_mode="Markdown"
+        )
         return A_SEARCH_BY_NAME
 
+    # 2. Qidiruv menyusiga qaytish (ID/Nom tanlash bosqichiga)
+    elif data == "back_to_search_menu":
+        search_btns = [
+            [InlineKeyboardButton("🆔 ID orqali qidirish", callback_data="search_type_id")],
+            [InlineKeyboardButton("🔎 Nomi orqali qidirish", callback_data="search_type_name")],
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")]
+        ]
+        await query.edit_message_text(
+            "🎬 **Anime qidirish bo'limi**\n\nQidiruv usulini tanlang:", 
+            reply_markup=InlineKeyboardMarkup(search_btns),
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END # Kutish holatini yopib, yangitdan tanlash imkonini beradi
+
+        # 3. Haqiqiy bekor qilish (Butunlay qidiruvdan chiqish)
     elif data == "cancel_search":
-        context.user_data.clear() 
-        if query.message: await query.message.delete()
-        await context.bot.send_message(uid, "✅ Jarayon yakunlandi.", reply_markup=get_main_kb(status))
+        status = await get_user_status(uid) # uid bu yerda handle_callback ichida aniqlangan bo'lishi kerak
+        await query.edit_message_text("🏠 Jarayon yakunlandi. Menyudan foydalanishingiz mumkin.")
+        # Asosiy menyu tugmalarini chiqarib beramiz
+        await context.bot.send_message(
+            chat_id=uid,
+            text="Asosiy menyu:",
+            reply_markup=get_main_kb(status)
+        )
         return ConversationHandler.END
+        
+        
 
     # --- 2. ADMINLAR UCHUN CALLBACKLAR ---
     if status not in ["main_admin", "admin"]: 
@@ -1094,6 +1127,7 @@ def main():
 if __name__ == '__main__':
     main()
     
+
 
 
 
