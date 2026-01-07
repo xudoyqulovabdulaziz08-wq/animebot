@@ -471,7 +471,19 @@ async def show_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="Markdown")    
 
     
-   
+async def vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchiga VIP haqida ma'lumot va admin linkini yuborish"""
+    text = (
+        "💎 **VIP STATUS IMKONIYATLARI:**\n\n"
+        "✅ Reklamasiz ko'rish\n"
+        "✅ Yangi qismlarni birinchilardan bo'lib ko'rish\n"
+        "✅ Maxsus guruhga a'zolik\n\n"
+        "💳 VIP status sotib olish uchun adminga murojaat qiling:\n"
+        "👉 @SizningUsername" # <--- BU YERGA O'Z USERNAME-INGIZNI YOZING
+    )
+    await update.message.reply_text(text, parse_mode="Markdown")
+
+
     
 # ====================== ANIME QIDIRISH VA PAGINATION (TUZATILDI) ======================
 
@@ -893,6 +905,7 @@ def main():
     app_bot.add_handler(MessageHandler(filters.Regex("^📜 Barcha anime ro'yxati 📂$"), export_all_anime))
     app_bot.add_handler(MessageHandler(filters.Regex("^🎁 Bonus ballarim 💰$"), show_bonus))
     app_bot.add_handler(MessageHandler(filters.Regex("^📖 Qo'llanma ❓$"), show_guide)) # BU YERDA YETISHMAYOTGAN EDI
+    app_bot.add_handler(MessageHandler(filters.Regex("^💎 VIP bo'lish ⭐$"), vip_info)) 
     
     app_bot.add_handler(
         MessageHandler(
@@ -918,6 +931,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
