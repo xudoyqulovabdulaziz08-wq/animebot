@@ -66,6 +66,7 @@ DB_CONFIG = {
     A_SEND_ADS_MSG,      # 9: Reklama xabarini tarqatish
     A_SEARCH_BY_ID,      # 10: ID orqali qidirish
     A_SEARCH_BY_NAME     # 11: Nomi orqali qidirish
+    A_SELECT_ADS_TARGET  # 12: Reklama yuborishga otish
 ) = range(12)
 
 # Loglash sozlamalari
@@ -1519,6 +1520,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
