@@ -773,7 +773,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
   # ================= VIP CONTROL (ADMIN PANEL) =================
-    elif data == "manage_vip":
+    if data == "adm_vip_add" or data == "manage_vip":
         keyboard = [
             [InlineKeyboardButton("➕ Add VIP User", callback_data="start_vip_add")],
             [InlineKeyboardButton("📜 VIP List", callback_data="vip_list")],
@@ -1320,6 +1320,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
