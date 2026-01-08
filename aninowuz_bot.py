@@ -819,7 +819,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END # Reklama kutish holatidan chiqamiz
 
     elif data.startswith("send_to_"):
-        target_group = data.split("_")[2] # user, vip, admin yoki all
+        target_group = data.split("_")[2]
         context.user_data['ads_target'] = target_group
         
         group_names = {
@@ -829,12 +829,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "all": "🌍 Barcha foydalanuvchilar"
         }
         
+        # Xabarni yuborish so'ralganda "Orqaga" tugmasini ham qo'shamiz
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Guruhni o'zgartirish", callback_data="back_to_select_group")]
+        ])
+        
         await query.edit_message_text(
-            f"🎯 Tanlangan guruh: **{group_names[target_group]}**\n\n"
-            "Endi ushbu guruhga yubormoqchi bo'lgan xabaringizni (Rasm, Video, Post) yuboring:",
+            text=f"🎯 Tanlangan guruh: **{group_names[target_group]}**\n\n"
+                 "Endi ushbu guruhga yubormoqchi bo'lgan **reklama xabaringizni** yuboring:",
+            reply_markup=kb,
             parse_mode="Markdown"
         )
-        # Endi xabar kutish holatiga o'tamiz
         return A_SEND_ADS_MSG
 
     elif data == "cancel_ads":
@@ -1532,6 +1537,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
