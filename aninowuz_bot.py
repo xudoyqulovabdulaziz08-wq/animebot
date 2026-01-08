@@ -1276,67 +1276,29 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ====================== QO'SHIMCHA FUNKSIYALAR (TUZATILGAN) ======================
 
-# 1. FONDA ISHLAYDIGAN ASOSIY REKLAMA FUNKSIYASI
-# Bu funksiya orqa fonda sekin-asta xabarlarni tarqatadi
-async def background_ads_task(bot, admin_id, users, msg_id, from_chat_id):
-    count_success = 0
-    count_blocked = 0
-    total_users = len(users)
-    
-    # Adminga boshlanganligi haqida xabar berish
-    status_msg = await bot.send_message(
-        chat_id=admin_id, 
-        text=f"🚀 **Reklama yuborish fonda boshlandi...**\nJami: `{total_users}` ta foydalanuvchi.",
-        parse_mode="Markdown"
-    )
-
-    for index, user in enumerate(users):
-        user_id = user[0]
-        try:
-            # Xabarni barcha formatlarda (rasm, video, matn, tugma) ko'chirish
-            await bot.copy_message(
-                chat_id=user_id,
-                from_chat_id=from_chat_id,
-                message_id=msg_id
-            )
-            count_success += 1
-            
-            # Telegram Flood Control (Limitdan oshmaslik uchun)
-            if count_success % 30 == 0:
-                await asyncio.sleep(1) # Har 30 tadan keyin 1 soniya dam
-            else:
-                await asyncio.sleep(0.05) # Har bir xabar orasida juda kichik tanaffus
-
-            # Har 100 ta xabarda adminga hisobotni yangilab turish
-            if (index + 1) % 100 == 0:
-                try:
-                    await status_msg.edit_text(
-                        f"🚀 **Reklama fonda ketmoqda...**\n\n"
-                        f"📊 Progress: `{index + 1}/{total_users}`\n"
-                        f"✅ Yuborildi: `{count_success}`\n"
-                        f"🚫 Bloklangan: `{count_blocked}`",
-                        parse_mode="Markdown"
-                    )
-                except:
-                    pass # Telegram API limitiga tushsa o'tkazib yuboradi
-
-        except Exception:
-            # Botni bloklagan yoki o'chirilgan profillar
-            count_blocked += 1
-            continue
-
-    # YAKUNIY HISOBOT (Faqat Adminga)
-    await bot.send_message(
-        chat_id=admin_id,
-        text=(
-            "🏁 **Reklama jarayoni yakunlandi!**\n\n"
-            f"✅ Muvaffaqiyatli: `{count_success}` ta\n"
-            f"🚫 Bloklangan (Dead): `{count_blocked}` ta\n"
-            f"📊 Jami foydalanuvchilar: `{total_users}` ta"
-        ),
-        parse_mode="Markdown"
-    )
-
+async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == ADVERTISING_PASSWORD:
+        # Reklama turlari uchun tugmalar
+        keyboard = [
+            [InlineKeyboardButton("👥 Oddiy foydalanuvchilar (User)", callback_data="send_to_user")],
+            [InlineKeyboardButton("💎 Faqat VIP a'zolar", callback_data="send_to_vip")],
+            [InlineKeyboardButton("👮 Faqat Adminlar", callback_data="send_to_admin")],
+            [InlineKeyboardButton("🌍 Barchaga (Hammaga)", callback_data="send_to_all")],
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_ads")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            "✅ **Parol tasdiqlandi!**\n\nReklama yuborishdan oldin quyidagi bo'limlardan birini tanlang 👇",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+        # Diqqat: Bu yerda A_SEND_ADS_MSG ga o'tmaymiz, callback kutamiz
+        return None 
+    else:
+        status = await get_user_status(update.effective_user.id)
+        await update.message.reply_text("❌ Parol noto'g'ri!", reply_markup=get_main_kb(status))
+        return ConversationHandler.END
 # 2. CONVERSATION HANDLER QISMI (A_SEND_ADS_MSG holatiga ulanadi)
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
@@ -1520,6 +1482,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
