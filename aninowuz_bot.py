@@ -1234,14 +1234,13 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return None
     
         
-
-# ====================== MAIN FUNKSIYA (XATOSIZ VARIANT) ======================
+# ====================== MAIN FUNKSIYA (TO'LIQ VA XATOSIZ VARIANT) ======================
 
 def main():
-    # 1. Serverni uyg'oq saqlash
+    # 1. Serverni uyg'oq saqlash (Flask/Render uchun)
     keep_alive()
     
-    # 2. Bazani ishga tushirish
+    # 2. Ma'lumotlar bazasini ishga tushirish
     try:
         init_db()
     except Exception as e:
@@ -1250,20 +1249,26 @@ def main():
     # 3. Botni yaratish
     app_bot = ApplicationBuilder().token(TOKEN).build()
     
-    # Menyu filtri (Tugma nomlari bilan 100% moslangan)
-    menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖|🔙|💸|🔎|🆔|❌|VIP PASS|VIP CONTROL")
+    # Menyu filtri: Jarayonlar vaqtida (masalan anime qidirishda) 
+    # asosiy tugmalar bosilsa, eski jarayonni to'xtatish uchun xizmat qiladi.
+    menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖|🔙|VIP PASS|VIP CONTROL")
 
-    # 4. CONVERSATION HANDLER (Barcha jarayonlarni tartibga soladi)
+    # 4. CONVERSATION HANDLER (Botning asosiy mantiqiy markazi)
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
+            # Matnli tugmalar (Regex orqali ushlanadi)
             MessageHandler(filters.Regex(r"🔍 Anime qidirish"), search_menu_cmd),
-            # ADMIN PANEL tugmasini bosganda ishlaydi
             MessageHandler(filters.Regex(r"🛠 ADMIN PANEL"), lambda u, c: u.message.reply_text(
                 "🛠 Admin paneli:", 
                 reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
             )),
-            # CallbackQuery (Tugmalar) ham jarayonni boshlashi mumkin
+            # VIP PASS ni shu yerga qo'shdik - endi u har doim ishlaydi!
+            MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info),
+            MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus),
+            MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide),
+            MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime),
+            # Inline tugmalar (Callback) jarayonni boshlashi uchun
             CallbackQueryHandler(handle_callback)
         ],
         states={
@@ -1276,37 +1281,32 @@ def main():
             A_ADD_ANI_DATA: [MessageHandler(filters.VIDEO | (filters.TEXT & ~menu_filter), add_ani_data)],
             A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
             A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND & ~menu_filter, ads_send_finish)],
-            # VIP CONTROL orqali ID kutish
+            # VIP CONTROL: Admin foydalanuvchi ID sini yuborish holati
             A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_vip_add)],
         },
         fallbacks=[
             CommandHandler("start", start),
-            MessageHandler(filters.Regex(r"⬅️ Orqaga|🔙 Orqaga|Bekor qilish"), start),
+            MessageHandler(filters.Regex(r"⬅️ Orqaga|🔙 Orqaga|Bekor qilish|VIP PASS"), start),
             CallbackQueryHandler(handle_callback)
         ],
         allow_reentry=True,
-        name="aninow_final_v3"
+        name="aninow_final_v4" # Versiya nomi o'zgardi (keshni tozalash uchun)
     )
 
-    # 5. HANDLERLARNI QO'SHISH (TARTIB - ISHLASH GAROVI)
+    # 5. HANDLERLARNI QO'SHISH TARTIBI (JUDA MUHIM!)
     
-    # 1-darajali: Sahifalash (Har doim ochiq bo'lishi kerak)
+    # 1. Sahifalash va Qismlar (Conversation'dan mustaqil ishlaydi)
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
 
-    # 2-darajali: Conversation (Bot mantiqiy markazi)
+    # 2. Conversation Handler (Barcha matnli tugmalar va jarayonlar shu ichida)
     app_bot.add_handler(conv_handler)
     
-    # 3-darajali: Global Callback (Admin va boshqa tugmalar uchun)
+    # 3. Global Callback (Conversation ichiga tushmagan tugmalar uchun zaxira)
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
     
-    # 4-darajali: Statik tugmalar (MessageHandler)
-    app_bot.add_handler(MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime))
-    app_bot.add_handler(MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus))
-    app_bot.add_handler(MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide))
-    
-    # VIP PASS Tugmasi (Foydalanuvchilar uchun)
-    app_bot.add_handler(MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info))
+    # 4. Statik xabarlar (Zaxira sifatida)
+    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
 
     # 6. Botni ishga tushirish
     print("🚀 Bot muvaffaqiyatli ishga tushdi...")
@@ -1314,12 +1314,13 @@ def main():
 
 if __name__ == '__main__':
     main()
-    
-    
 
     
 
     
+
+    
+
 
 
 
