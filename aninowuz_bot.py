@@ -1301,7 +1301,6 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == ADVERTISING_PASSWORD:
-        # Reklama turlari uchun tugmalar
         keyboard = [
             [InlineKeyboardButton("👥 Oddiy foydalanuvchilar (User)", callback_data="send_to_user")],
             [InlineKeyboardButton("💎 Faqat VIP a'zolar", callback_data="send_to_vip")],
@@ -1311,38 +1310,47 @@ async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-       await update.message.reply_text(
+        await update.message.reply_text(
             "✅ **Parol tasdiqlandi!**\n\nReklama yuborishdan oldin quyidagi bo'limlardan birini tanlang 👇",
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
-        # return None o'rniga yangi holatni qaytaramiz
-        return A_SELECT_GROUP
+        # States ro'yxatidagi nom bilan bir xil bo'lishi kerak
+        return A_SELECT_ADS_TARGET 
     else:
         status = await get_user_status(update.effective_user.id)
         await update.message.reply_text("❌ Parol noto'g'ri!", reply_markup=get_main_kb(status))
         return ConversationHandler.END
-# 2. CONVERSATION HANDLER QISMI (A_SEND_ADS_MSG holatiga ulanadi)
+
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     admin_id = update.effective_user.id
     
-    # Bazadan barcha foydalanuvchi IDlarini olamiz
+    # MUHIM: handle_callback ichida saqlangan guruhni olamiz
+    target = context.user_data.get('ads_target', 'all')
+    
     conn = get_db()
     if not conn:
         await msg.reply_text("❌ Ma'lumotlar bazasiga ulanishda xato!")
         return ConversationHandler.END
         
     cur = conn.cursor()
-    cur.execute("SELECT user_id FROM users")
+    
+    # SQL so'rovni guruhga qarab filtrlaymiz
+    if target == "all":
+        cur.execute("SELECT user_id FROM users")
+    else:
+        # status ustuni bazangizda qanday nomlangan bo'lsa shuni yozing
+        cur.execute("SELECT user_id FROM users WHERE status = %s", (target,))
+        
     users = cur.fetchall()
     cur.close(); conn.close()
 
     if not users:
-        await msg.reply_text("📭 Bazada foydalanuvchilar mavjud emas.")
+        await msg.reply_text(f"📭 Tanlangan guruhda ({target}) foydalanuvchilar mavjud emas.")
         return ConversationHandler.END
 
-    # ASOSIY MO'JIZA: Funksiyani fonda ishga tushiramiz
+    # Reklamani fon rejimida yuborish
     asyncio.create_task(background_ads_task(
         bot=context.bot,
         admin_id=admin_id,
@@ -1351,12 +1359,10 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from_chat_id=update.effective_chat.id
     ))
 
-    # Adminga darhol javob beramiz va muloqotni yopamiz
     status = await get_user_status(admin_id)
     await msg.reply_text(
-        "✅ **Reklama yuborish fon rejimiga o'tkazildi!**\n\n"
-        "Bot hozir boshqa foydalanuvchilar uchun ham ochiq. "
-        "Jarayon tugagach, sizga to'liq hisobotni yuboraman.",
+        f"✅ **Reklama {target} guruhiga fon rejimida yuborilmoqda!**\n\n"
+        f"Jami urinish: `{len(users)}` ta.",
         reply_markup=get_main_kb(status),
         parse_mode="Markdown"
     )
@@ -1513,6 +1519,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
