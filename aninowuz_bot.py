@@ -1276,62 +1276,106 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ====================== QO'SHIMCHA FUNKSIYALAR (TUZATILGAN) ======================
 
-# 1. FONDA ISHLAYDIGAN YORDAMCHI FUNKSIYA
+# 1. FONDA ISHLAYDIGAN ASOSIY REKLAMA FUNKSIYASI
+# Bu funksiya orqa fonda sekin-asta xabarlarni tarqatadi
 async def background_ads_task(bot, admin_id, users, msg_id, from_chat_id):
-    count = 0
-    total = len(users)
-    status_msg = await bot.send_message(admin_id, f"🚀 Reklama boshlandi (0/{total})...")
+    count_success = 0
+    count_blocked = 0
+    total_users = len(users)
+    
+    # Adminga boshlanganligi haqida xabar berish
+    status_msg = await bot.send_message(
+        chat_id=admin_id, 
+        text=f"🚀 **Reklama yuborish fonda boshlandi...**\nJami: `{total_users}` ta foydalanuvchi.",
+        parse_mode="Markdown"
+    )
 
-    for user in users:
+    for index, user in enumerate(users):
+        user_id = user[0]
         try:
+            # Xabarni barcha formatlarda (rasm, video, matn, tugma) ko'chirish
             await bot.copy_message(
-                chat_id=user[0],
+                chat_id=user_id,
                 from_chat_id=from_chat_id,
                 message_id=msg_id
             )
-            count += 1
+            count_success += 1
             
-            # Telegram bloklamasligi uchun kichik kechikishlar
-            if count % 30 == 0:
-                await asyncio.sleep(1)
+            # Telegram Flood Control (Limitdan oshmaslik uchun)
+            if count_success % 30 == 0:
+                await asyncio.sleep(1) # Har 30 tadan keyin 1 soniya dam
             else:
-                await asyncio.sleep(0.05)
+                await asyncio.sleep(0.05) # Har bir xabar orasida juda kichik tanaffus
 
-            # Har 100 ta xabarda holatni yangilash
-            if count % 100 == 0:
+            # Har 100 ta xabarda adminga hisobotni yangilab turish
+            if (index + 1) % 100 == 0:
                 try:
-                    await status_msg.edit_text(f"🚀 Reklama yuborilmoqda: {count}/{total}")
-                except: pass
+                    await status_msg.edit_text(
+                        f"🚀 **Reklama fonda ketmoqda...**\n\n"
+                        f"📊 Progress: `{index + 1}/{total_users}`\n"
+                        f"✅ Yuborildi: `{count_success}`\n"
+                        f"🚫 Bloklangan: `{count_blocked}`",
+                        parse_mode="Markdown"
+                    )
+                except:
+                    pass # Telegram API limitiga tushsa o'tkazib yuboradi
+
         except Exception:
+            # Botni bloklagan yoki o'chirilgan profillar
+            count_blocked += 1
             continue
 
-    await bot.send_message(admin_id, f"✅ Reklama yakunlandi!\n🎯 Yetib bordi: {count} ta foydalanuvchiga.")
+    # YAKUNIY HISOBOT (Faqat Adminga)
+    await bot.send_message(
+        chat_id=admin_id,
+        text=(
+            "🏁 **Reklama jarayoni yakunlandi!**\n\n"
+            f"✅ Muvaffaqiyatli: `{count_success}` ta\n"
+            f"🚫 Bloklangan (Dead): `{count_blocked}` ta\n"
+            f"📊 Jami foydalanuvchilar: `{total_users}` ta"
+        ),
+        parse_mode="Markdown"
+    )
 
-# 2. CONVERSATION HANDLERDAN CHAQIRILADIGAN FUNKSIYA
+# 2. CONVERSATION HANDLER QISMI (A_SEND_ADS_MSG holatiga ulanadi)
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     admin_id = update.effective_user.id
     
+    # Bazadan barcha foydalanuvchi IDlarini olamiz
     conn = get_db()
+    if not conn:
+        await msg.reply_text("❌ Ma'lumotlar bazasiga ulanishda xato!")
+        return ConversationHandler.END
+        
     cur = conn.cursor()
     cur.execute("SELECT user_id FROM users")
     users = cur.fetchall()
     cur.close(); conn.close()
 
     if not users:
-        await msg.reply_text("❌ Bazada foydalanuvchi yo'q.")
+        await msg.reply_text("📭 Bazada foydalanuvchilar mavjud emas.")
         return ConversationHandler.END
 
-    # ASOSIY QISM: Reklamani fonda ishga tushirib, admin bilan muloqotni darhol yopamiz
+    # ASOSIY MO'JIZA: Funksiyani fonda ishga tushiramiz
     asyncio.create_task(background_ads_task(
-        context.bot, admin_id, users, msg.message_id, update.effective_chat.id
+        bot=context.bot,
+        admin_id=admin_id,
+        users=users,
+        msg_id=msg.message_id,
+        from_chat_id=update.effective_chat.id
     ))
 
+    # Adminga darhol javob beramiz va muloqotni yopamiz
     status = await get_user_status(admin_id)
     await msg.reply_text(
-        "🚀 Reklama yuborish fon rejimida boshlandi.\nBot ishlayveradi, jarayon yakunlanganda xabar beraman!",
-        reply_markup=get_main_kb(status)
+        "✅ **Reklama yuborish fon rejimiga o'tkazildi!**\n\n"
+        "Bot hozir boshqa foydalanuvchilar uchun ham ochiq. "
+        "Jarayon tugagach, sizga to'liq hisobotni yuboraman.",
+        reply_markup=get_main_kb(status),
+        parse_mode="Markdown"
     )
+    
     return ConversationHandler.END
 
 async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1476,6 +1520,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
