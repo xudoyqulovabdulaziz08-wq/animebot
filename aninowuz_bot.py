@@ -1388,6 +1388,9 @@ def main():
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
 
+    app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list"))
+    app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_page_"))
+
     # Keyin Conversation Handler
     app_bot.add_handler(conv_handler)
     
@@ -1408,6 +1411,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
