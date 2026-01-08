@@ -738,43 +738,48 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_ADD_ANI_POSTER
         
     
-   # Statistika (MUTLAQO YANGI VARIANT)
+   # Statistika (Yangilangan: Anime soni + Edit Message)
     elif data == "adm_stats":
         conn = get_db()
         cur = conn.cursor()
         
-        # Jami foydalanuvchilar
+        # 1. Jami foydalanuvchilar
         cur.execute("SELECT COUNT(*) FROM users")
         u_count = cur.fetchone()[0]
         
-        # VIP foydalanuvchilar
+        # 2. VIP foydalanuvchilar
         cur.execute("SELECT COUNT(*) FROM users WHERE status='vip'")
         v_count = cur.fetchone()[0]
         
+        # 3. Jami animelar (animes jadvali bor deb hisoblaymiz)
+        try:
+            cur.execute("SELECT COUNT(*) FROM animes")
+            a_count = cur.fetchone()[0]
+        except:
+            a_count = 0 # Agar jadval hali yaratilmagan bo'lsa xato bermasligi uchun
+            
         cur.close(); conn.close()
         
-        # DIQQAT: query.message.reply_text EMAS, query.edit_message_text BO'LISHI KERAK
+        # Chiroyli dizayndagi matn
         text = (
-            "📊 **BOT STATISTIKASI**\n\n"
-            f"👤 **Jami foydalanuvchilar:** `{u_count}` ta\n"
-            f"💎 **VIP a'zolar:** `{v_count}` ta\n\n"
-            "🕒 _Ma'lumotlar real vaqtda yangilandi._"
+            "📊 **BOTNING UMUMIY STATISTIKASI**\n\n"
+            f"👤 **Foydalanuvchilar:** `{u_count}` ta\n"
+            f"💎 **VIP a'zolar:** `{v_count}` ta\n"
+            f"🎬 **Jami animelar:** `{a_count}` ta\n\n"
+            "🕒 _Ma'lumotlar avtomatik yangilandi._"
         )
         
-        # Orqaga tugmasi albatta bo'lishi shart
+        # Orqaga tugmasi - callback_data sizning admin menyu kodingizga mos bo'lishi kerak
         kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Orqaga", callback_data="admin_main")]
+            [InlineKeyboardButton("🔙 Asosiy menyuga qaytish", callback_data="admin_main")]
         ])
         
-        try:
-            await query.edit_message_text(
-                text=text, 
-                reply_markup=kb, 
-                parse_mode="Markdown"
-            )
-        except Exception as e:
-            # Agar xabar bir xil bo'lsa edit qilishda xato berishi mumkin, shuni oldini olamiz
-            await query.answer("Statistika yangilangan.")
+        # MUHIM: reply_text emas, edit_message_text ishlatamiz!
+        await query.edit_message_text(
+            text=text, 
+            reply_markup=kb, 
+            parse_mode="Markdown"
+        )
         return None
 
     # REKLAMA YUBORISH BOSHLANISHI
@@ -1464,6 +1469,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
