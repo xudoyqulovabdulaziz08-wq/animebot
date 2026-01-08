@@ -704,7 +704,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return None
 
     # VIP qo'shishni boshlash (ID so'rash)
-    elif data == "add_vip_start":
+    elif data == "manage_vip":
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="manage_vip")]])
         await query.edit_message_text("💎 **VIP qilinadigan foydalanuvchi ID-sini yuboring:**", reply_markup=kb, parse_mode="Markdown")
         return A_ADD_VIP
@@ -1352,6 +1352,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
