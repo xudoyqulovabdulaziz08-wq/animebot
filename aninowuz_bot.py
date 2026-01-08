@@ -738,48 +738,48 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_ADD_ANI_POSTER
         
     
-   # Statistika (Yangilangan: Anime soni + Edit Message)
+# ================= STATISTIKA (FULL PRO) =================
     elif data == "adm_stats":
         conn = get_db()
         cur = conn.cursor()
-        
-        # 1. Jami foydalanuvchilar
-        cur.execute("SELECT COUNT(*) FROM users")
-        u_count = cur.fetchone()[0]
-        
-        # 2. VIP foydalanuvchilar
-        cur.execute("SELECT COUNT(*) FROM users WHERE status='vip'")
-        v_count = cur.fetchone()[0]
-        
-        # 3. Jami animelar (animes jadvali bor deb hisoblaymiz)
         try:
+            # 1. Foydalanuvchilar
+            cur.execute("SELECT COUNT(*) FROM users")
+            u_count = cur.fetchone()[0]
+            
+            # 2. VIPlar
+            cur.execute("SELECT COUNT(*) FROM users WHERE status='vip'")
+            v_count = cur.fetchone()[0]
+            
+            # 3. Animelar (Siz aytgan 'animes' jadvalidan)
             cur.execute("SELECT COUNT(*) FROM animes")
             a_count = cur.fetchone()[0]
-        except:
-            a_count = 0 # Agar jadval hali yaratilmagan bo'lsa xato bermasligi uchun
             
-        cur.close(); conn.close()
-        
-        # Chiroyli dizayndagi matn
-        text = (
-            "📊 **BOTNING UMUMIY STATISTIKASI**\n\n"
-            f"👤 **Foydalanuvchilar:** `{u_count}` ta\n"
-            f"💎 **VIP a'zolar:** `{v_count}` ta\n"
-            f"🎬 **Jami animelar:** `{a_count}` ta\n\n"
-            "🕒 _Ma'lumotlar avtomatik yangilandi._"
-        )
-        
-        # Orqaga tugmasi - callback_data sizning admin menyu kodingizga mos bo'lishi kerak
-        kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔙 Asosiy menyuga qaytish", callback_data="admin_main")]
-        ])
-        
-        # MUHIM: reply_text emas, edit_message_text ishlatamiz!
-        await query.edit_message_text(
-            text=text, 
-            reply_markup=kb, 
-            parse_mode="Markdown"
-        )
+            # 4. Kanallar
+            cur.execute("SELECT COUNT(*) FROM channels")
+            c_count = cur.fetchone()[0]
+
+            text = (
+                "📊 **BOTNING UMUMIY STATISTIKASI**\n\n"
+                f"👤 **Foydalanuvchilar:** `{u_count}` ta\n"
+                f"💎 **VIP a'zolar:** `{v_count}` ta\n"
+                f"🎬 **Jami animelar:** `{a_count}` ta\n"
+                f"📢 **Majburiy kanallar:** `{c_count}` ta\n\n"
+                "🕒 _Barcha ma'lumotlar bazadan real vaqtda olindi._"
+            )
+            
+            kb = InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔙 Asosiy menyuga qaytish", callback_data="admin_main")]
+            ])
+
+            # MUHIM: Bu yerda faqat edit ishlatamiz!
+            await query.edit_message_text(text=text, reply_markup=kb, parse_mode="Markdown")
+            
+        except Exception as e:
+            await query.answer(f"❌ Statistika xatosi: {e}", show_alert=True)
+        finally:
+            cur.close()
+            conn.close()
         return None
 
     # REKLAMA YUBORISH BOSHLANISHI
@@ -1469,6 +1469,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
