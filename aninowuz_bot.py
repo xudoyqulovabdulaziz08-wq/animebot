@@ -63,7 +63,7 @@ DB_CONFIG = {
     A_ADD_ANI_POSTER,    # 6: Anime posterini qabul qilish
     A_ADD_ANI_DATA,      # 7: Anime ma'lumotlarini qabul qilish
     A_SEND_ADS_PASS,     # 8: Reklama parolini tekshirish
-    A_SELECT_ADS_TARGET  # 9: Reklama yuborishga otish
+    A_SELECT_ADS_TARGET,  # 9: Reklama yuborishga otish
     A_SEND_ADS_MSG,      # 10: Reklama xabarini tarqatish
     A_SEARCH_BY_ID,      # 11: ID orqali qidirish
     A_SEARCH_BY_NAME     # 12: Nomi orqali qidirish
@@ -1521,6 +1521,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
