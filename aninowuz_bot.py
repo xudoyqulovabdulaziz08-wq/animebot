@@ -1280,21 +1280,22 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ====================== MAIN FUNKSIYA (YAKUNIY VARIANT) ======================
 def main():
     keep_alive()
-    init_db()
+    try:
+        init_db()
+    except:
+        pass
 
     app_bot = ApplicationBuilder().token(TOKEN).build()
     menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖|🔙")
 
-    # 1. DOIMIY ISHLAYDIGAN HANDLERLAR (Conversation dan tashqarida)
+    # 1. DOIMIY CALLBACKLAR (Har doim ishlashi shart)
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
-    app_bot.add_handler(CallbackQueryHandler(handle_callback, pattern="^del_ch_"))
 
-    # 2. CONVERSATION HANDLER (Faqat ma'lumot kiritish kerak bo'lgan funksiyalar uchun)
+    # 2. CONVERSATION HANDLER (Faqat ma'lumot kiritish holatlari uchun)
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
-            # Bu yerda faqat TEXT xabarlar qolishi kerak
             MessageHandler(filters.Regex(r"🔍 Anime qidirish"), search_menu_cmd),
             MessageHandler(filters.Regex(r"🛠 ADMIN PANEL"), lambda u, c: u.message.reply_text(
                 "🛠 Admin paneli:", 
@@ -1315,33 +1316,37 @@ def main():
         },
         fallbacks=[
             CommandHandler("start", start),
-            MessageHandler(filters.Regex(r"⬅️ Orqaga|🔙 Orqaga"), start)
+            MessageHandler(filters.Regex(r"⬅️ Orqaga|🔙 Orqaga"), start),
+            # Orqaga qaytish callbacklarini fallbacks ichiga ham qo'shdik
+            CallbackQueryHandler(handle_callback, pattern="^(admin_main|manage_vip|cancel_search)$")
         ],
-        allow_reentry=True,
-        name="my_conversation"
+        allow_reentry=True
     )
 
-    # 3. TARTIB (Eng muhim joyi):
+    # HANDLERLARNI QO'SHISH TARTIBI (BU JUDA MUHIM!)
     
-    # Avval ConversationHandler
+    # Birinchi: Conversation (Holatlarni ushlash uchun)
     app_bot.add_handler(conv_handler)
     
-    # Keyin barcha CALLBACK'lar (Admin panel va qidiruv menyusi tugmalari uchun)
+    # Ikkinchi: BARCHA qolgan tugmalar uchun umumiy callback handler
+    # Bu handler admin panel, VIP menyu va boshqa barcha inline tugmalarni ishlatadi
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
     
-    # Keyin statik tugmalar
+    # Uchinchi: Statik MessageHandlerlar
     app_bot.add_handler(MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime))
     app_bot.add_handler(MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus))
     app_bot.add_handler(MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide))
     app_bot.add_handler(MessageHandler(filters.Regex(r"💎 VIP bo'lish"), vip_info))
 
-    print("🚀 Bot ishga tushdi...")
+    print("🚀 Bot barcha funksiyalar bilan ishga tushdi...")
     app_bot.run_polling()
+    
 
 if __name__ == '__main__':
     main
 
     
+
 
 
 
