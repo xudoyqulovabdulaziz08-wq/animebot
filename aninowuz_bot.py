@@ -1306,7 +1306,7 @@ def main():
     app_bot.add_handler(MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide))
     
     # VIP PASS Tugmasi (Foydalanuvchilar uchun)
-    app_bot.add_handler(MessageHandler(filters.Regex(r"VIP PASS"), vip_info))
+    app_bot.add_handler(MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info))
 
     # 6. Botni ishga tushirish
     print("🚀 Bot muvaffaqiyatli ishga tushdi...")
@@ -1320,6 +1320,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
