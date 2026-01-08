@@ -1308,6 +1308,7 @@ async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("💎 Faqat VIP a'zolar", callback_data="send_to_vip")],
             [InlineKeyboardButton("👮 Faqat Adminlar", callback_data="send_to_admin")],
             [InlineKeyboardButton("🌍 Barchaga (Hammaga)", callback_data="send_to_all")],
+            [InlineKeyboardButton("⬅️ Orqaga (Parolga qaytish)", callback_data="back_to_pass")],
             [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_ads")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -1521,6 +1522,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
