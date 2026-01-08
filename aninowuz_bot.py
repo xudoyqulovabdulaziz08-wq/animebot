@@ -1311,13 +1311,13 @@ async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await update.message.reply_text(
+       await update.message.reply_text(
             "✅ **Parol tasdiqlandi!**\n\nReklama yuborishdan oldin quyidagi bo'limlardan birini tanlang 👇",
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
-        # Diqqat: Bu yerda A_SEND_ADS_MSG ga o'tmaymiz, callback kutamiz
-        return None 
+        # return None o'rniga yangi holatni qaytaramiz
+        return A_SELECT_GROUP
     else:
         status = await get_user_status(update.effective_user.id)
         await update.message.reply_text("❌ Parol noto'g'ri!", reply_markup=get_main_kb(status))
@@ -1505,6 +1505,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
