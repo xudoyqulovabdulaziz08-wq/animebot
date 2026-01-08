@@ -810,6 +810,30 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_vip")]])
         await query.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
         return None
+
+    # Remove VIP ro'yxatini chiqarish
+    elif data == "rem_vip_list":
+        await show_vip_removal_list(update, context, page=0)
+
+    # Sahifadan sahifaga o'tish
+    elif data.startswith("rem_vip_page_"):
+        page = int(data.split("_")[3])
+        await show_vip_removal_list(update, context, page=page)
+
+    # Tanlangan VIPni o'chirish (Statusni 'user'ga qaytarish)
+    elif data.startswith("exec_rem_vip_"):
+        parts = data.split("_")
+        target_id = parts[3]
+        current_page = int(parts[4])
+        
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("UPDATE users SET status = 'user' WHERE user_id = %s", (target_id,))
+        conn.commit()
+        cur.close(); conn.close()
+        
+        await query.answer(f"✅ ID: {target_id} VIP-dan olib tashlandi!", show_alert=True)
+        # Ro'yxatni yangilab qo'yamiz
+        await show_vip_removal_list(update, context, page=current_page)
  
     
 
@@ -1319,6 +1343,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
