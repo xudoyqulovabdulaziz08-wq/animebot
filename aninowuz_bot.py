@@ -1251,7 +1251,7 @@ def main():
     
     # Menyu filtri: Jarayonlar vaqtida (masalan anime qidirishda) 
     # asosiy tugmalar bosilsa, eski jarayonni to'xtatish uchun xizmat qiladi.
-    menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖|🔙|VIP PASS|VIP CONTROL")
+    menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖|💸|🔙|VIP PASS|VIP CONTROL")
 
     # 4. CONVERSATION HANDLER (Botning asosiy mantiqiy markazi)
     conv_handler = ConversationHandler(
@@ -1264,7 +1264,7 @@ def main():
                 reply_markup=get_admin_kb(u.effective_user.id == MAIN_ADMIN_ID)
             )),
             # VIP PASS ni shu yerga qo'shdik - endi u har doim ishlaydi!
-            MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info),
+            MessageHandler(filters.Regex(r"💎 VIP PASS 💸"), vip_pass_info),
             MessageHandler(filters.Regex(r"🎁 Bonus ballarim"), show_bonus),
             MessageHandler(filters.Regex(r"📖 Qo'llanma"), show_guide),
             MessageHandler(filters.Regex(r"📜 Barcha anime ro'yxati"), export_all_anime),
@@ -1320,6 +1320,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
