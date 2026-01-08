@@ -806,6 +806,29 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END # Reklama kutish holatidan chiqamiz
 
+    elif data.startswith("send_to_"):
+        target_group = data.split("_")[2] # user, vip, admin yoki all
+        context.user_data['ads_target'] = target_group
+        
+        group_names = {
+            "user": "👥 Oddiy foydalanuvchilar",
+            "vip": "💎 VIP a'zolar",
+            "admin": "👮 Adminlar",
+            "all": "🌍 Barcha foydalanuvchilar"
+        }
+        
+        await query.edit_message_text(
+            f"🎯 Tanlangan guruh: **{group_names[target_group]}**\n\n"
+            "Endi ushbu guruhga yubormoqchi bo'lgan xabaringizni (Rasm, Video, Post) yuboring:",
+            parse_mode="Markdown"
+        )
+        # Endi xabar kutish holatiga o'tamiz
+        return A_SEND_ADS_MSG
+
+    elif data == "cancel_ads":
+        await query.edit_message_text("❌ Reklama yuborish bekor qilindi.")
+        return ConversationHandler.END
+
     # DB EXPORT (JSON)
     elif data == "adm_export":
         await export_all_anime(update, context)
@@ -1482,6 +1505,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
