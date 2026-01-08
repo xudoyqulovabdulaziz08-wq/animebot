@@ -851,6 +851,26 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await export_all_anime(update, context)
         return None
 
+    elif data == "back_to_select_group":
+        # Guruhlar ro'yxati tugmalari (check_ads_pass dagi kabi)
+        keyboard = [
+            [InlineKeyboardButton("👥 Oddiy foydalanuvchilar (User)", callback_data="send_to_user")],
+            [InlineKeyboardButton("💎 Faqat VIP a'zolar", callback_data="send_to_vip")],
+            [InlineKeyboardButton("👮 Faqat Adminlar", callback_data="send_to_admin")],
+            [InlineKeyboardButton("🌍 Barchaga (Hammaga)", callback_data="send_to_all")],
+            [InlineKeyboardButton("⬅️ Parolga qaytish", callback_data="back_to_pass")],
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_ads")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await query.edit_message_text(
+            "🔄 **Guruhni qayta tanlang:**",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+        # Holatni guruh tanlashga qaytaramiz
+        return A_SELECT_ADS_TARGET
+
 
     # ADMINLARNI BOSHQARISH (ASOSIY MENYU)
     elif data == "manage_admins":
@@ -1537,6 +1557,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
