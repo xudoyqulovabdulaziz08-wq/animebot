@@ -840,22 +840,21 @@ async def show_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await update.message.reply_text(text, parse_mode="Markdown")
 
-async def vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Foydalanuvchiga VIP haqida ma'lumot va admin linkini yuborish"""
+async def vip_pass_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchiga VIP PASS haqida ma'lumot"""
     text = (
-        "💎 **VIP STATUS IMKONIYATLARI:**\n\n"
+        "💎 **VIP PASS IMKONIYATLARI:**\n\n"
         "✅ Reklamasiz ko'rish\n"
         "✅ Yangi qismlarni birinchilardan bo'lib ko'rish\n"
-        "✅ Maxsus guruhga a'zolik\n\n"
-        "💳 VIP status sotib olish uchun adminga murojaat qiling:\n"
+        "✅ Maxsus VIP guruhga a'zolik\n\n"
+        "💳 VIP PASS sotib olish uchun adminga yozing:\n"
         "👉 @Khudoyqulov_pg"
     )
-    # CallbackQuery yoki Message ekanligini tekshirish
     if update.callback_query:
         await update.callback_query.message.reply_text(text, parse_mode="Markdown")
-    elif update.message:
+    else:
         await update.message.reply_text(text, parse_mode="Markdown")
-  
+        
 
   
         
@@ -1312,6 +1311,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
