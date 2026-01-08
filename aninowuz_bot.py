@@ -490,6 +490,52 @@ async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     # Eslatma: Bu yerda END qaytarmaymiz, callback_handler yakunlab qo'yadi
     return None 
+async def show_vip_removal_list(update: Update, context: ContextTypes.DEFAULT_TYPE, page=0):
+    query = update.callback_query
+    limit = 10
+    offset = page * limit
+
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+    
+    # VIP foydalanuvchilar sonini aniqlash
+    cur.execute("SELECT COUNT(*) as total FROM users WHERE status = 'vip'")
+    total_vips = cur.fetchone()['total']
+    
+    # Joriy sahifa uchun ma'lumotlarni olish
+    cur.execute("SELECT user_id FROM users WHERE status = 'vip' LIMIT %s OFFSET %s", (limit, offset))
+    vips = cur.fetchall()
+    cur.close(); conn.close()
+
+    if not vips and page == 0:
+        await query.edit_message_text(
+            "📭 **VIP foydalanuvchilar ro'yxati bo'sh!**",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_vip")]]),
+            parse_mode="Markdown"
+        )
+        return
+
+    keyboard = []
+    # Har bir VIP foydalanuvchi uchun alohida o'chirish tugmasi
+    for v in vips:
+        user_id = v['user_id']
+        keyboard.append([InlineKeyboardButton(f"❌ O'chirish: {user_id}", callback_data=f"exec_rem_vip_{user_id}_{page}")])
+
+    # Pagination tugmalari (Oldingi / Keyingi)
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"rem_vip_page_{page-1}"))
+    if (page + 1) * limit < total_vips:
+        nav_buttons.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"rem_vip_page_{page+1}"))
+    
+    if nav_buttons:
+        keyboard.append(nav_buttons)
+
+    keyboard.append([InlineKeyboardButton("🔙 Orqaga", callback_data="manage_vip")])
+
+    text = f"🗑 **VIP O'CHIRISH BO'LIMI** (Jami: {total_vips})\n\nO'chirmoqchi bo'lgan foydalanuvchini tanlang: 👇"
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
     
 
 # ----------------- CALLBACK HANDLER (MUHIM QISM) -----------------
@@ -559,11 +605,30 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=get_main_kb(status)
         )
         return ConversationHandler.END
+    # MANA BU YERDA 'if' EMAS, 'elif' ISHLATISH KERAK:
+    elif data == "rem_vip_list":
+        await show_vip_removal_list(update, context, page=0)
 
-    # Boshqa callbacklar (get_ep_ va h.k.)
-    elif data.startswith("get_ep_"):
-        await get_episode_handler(update, context)
-        return None
+    elif data.startswith("rem_vip_page_"):
+        page = int(data.split("_")[3])
+        await show_vip_removal_list(update, context, page=page)
+
+    elif data.startswith("exec_rem_vip_"):
+        parts = data.split("_")
+        target_id = parts[3]
+        current_page = int(parts[4])
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET status = 'user' WHERE user_id = %s", (target_id,))
+        conn.commit()
+        cur.close(); conn.close()
+        
+        await query.answer(f"✅ ID: {target_id} VIP ro'yxatidan o'chirildi!", show_alert=True)
+        await show_vip_removal_list(update, context, page=current_page)
+
+   
+  
 
     # ================= 2. FAQAT ADMINLAR UCHUN CALLBACKLAR =================
     
@@ -1343,6 +1408,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
