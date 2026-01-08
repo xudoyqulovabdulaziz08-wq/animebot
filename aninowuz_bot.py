@@ -738,16 +738,40 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_ADD_ANI_POSTER
         
     
-    # STATISTIKA
+    # Statistika (Professional Edit Varianti)
     elif data == "adm_stats":
         conn = get_db()
         cur = conn.cursor()
+        
+        # Jami foydalanuvchilar
         cur.execute("SELECT COUNT(*) FROM users")
         u_count = cur.fetchone()[0]
+        
+        # VIP foydalanuvchilar
         cur.execute("SELECT COUNT(*) FROM users WHERE status='vip'")
         v_count = cur.fetchone()[0]
+        
         cur.close(); conn.close()
-        await query.message.reply_text(f"📊 **Statistika:**\n\n👤 Jami foydalanuvchilar: {u_count}\n💎 VIP foydalanuvchilar: {v_count}", parse_mode="Markdown")
+        
+        # Statistika matni
+        text = (
+            "📊 **BOT STATISTIKASI**\n\n"
+            f"👤 **Jami foydalanuvchilar:** `{u_count}` ta\n"
+            f"💎 **VIP a'zolar:** `{v_count}` ta\n\n"
+            "🕒 _Ma'lumotlar real vaqt rejimida yangilandi._"
+        )
+        
+        # Orqaga qaytish tugmasi
+        kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔙 Orqaga", callback_data="admin_main")]
+        ])
+        
+        # Xabarni yangilash
+        await query.edit_message_text(
+            text=text, 
+            reply_markup=kb, 
+            parse_mode="Markdown"
+        )
         return None
 
     # REKLAMA YUBORISH BOSHLANISHI
@@ -1437,6 +1461,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
