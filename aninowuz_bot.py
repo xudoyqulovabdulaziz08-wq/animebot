@@ -605,6 +605,42 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=get_main_kb(status)
         )
         return ConversationHandler.END
+
+    # ================= VIP TASDIQLASH (ELIF VARIANTI) =================
+    elif data.startswith("conf_vip_"):
+        # callback_data dan ID raqamini ajratib olamiz (conf_vip_12345 -> 12345)
+        target_id = data.split("_")[2]
+        
+        conn = get_db()
+        if conn:
+            cur = conn.cursor()
+            try:
+                # Foydalanuvchi statusini 'vip' ga o'zgartiramiz
+                cur.execute("UPDATE users SET status = 'user' WHERE user_id = %s", (target_id,))
+                conn.commit()
+                
+                # Admin xabarini yangilaymiz
+                await query.edit_message_text(
+                    f"✅ **Muvaffaqiyatli!**\n\nFoydalanuvchi (ID: `{target_id}`) endi VIP statusiga ega.",
+                    reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ VIP Menu", callback_data="manage_vip")]]),
+                    parse_mode="Markdown"
+                )
+                
+                # Foydalanuvchiga xabar yuborish
+                try:
+                    await context.bot.send_message(
+                        chat_id=target_id,
+                        text="✨ **Tabriklaymiz!** Sizga VIP statusi berildi.\nEndi botdan cheklovsiz foydalanishingiz mumkin."
+                    )
+                except:
+                    pass
+                    
+            except Exception as e:
+                await query.answer(f"❌ Baza xatosi: {e}", show_alert=True)
+            finally:
+                cur.close(); conn.close()
+        return None
+        
     # MANA BU YERDA 'if' EMAS, 'elif' ISHLATISH KERAK:
     elif data == "rem_vip_list":
         await show_vip_removal_list(update, context, page=0)
@@ -1411,6 +1447,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
