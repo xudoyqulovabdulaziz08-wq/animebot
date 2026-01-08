@@ -738,7 +738,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_ADD_ANI_POSTER
         
     
-    # Statistika (Professional Edit Varianti)
+   # Statistika (MUTLAQO YANGI VARIANT)
     elif data == "adm_stats":
         conn = get_db()
         cur = conn.cursor()
@@ -753,25 +753,28 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         cur.close(); conn.close()
         
-        # Statistika matni
+        # DIQQAT: query.message.reply_text EMAS, query.edit_message_text BO'LISHI KERAK
         text = (
             "📊 **BOT STATISTIKASI**\n\n"
             f"👤 **Jami foydalanuvchilar:** `{u_count}` ta\n"
             f"💎 **VIP a'zolar:** `{v_count}` ta\n\n"
-            "🕒 _Ma'lumotlar real vaqt rejimida yangilandi._"
+            "🕒 _Ma'lumotlar real vaqtda yangilandi._"
         )
         
-        # Orqaga qaytish tugmasi
+        # Orqaga tugmasi albatta bo'lishi shart
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("🔙 Orqaga", callback_data="admin_main")]
         ])
         
-        # Xabarni yangilash
-        await query.edit_message_text(
-            text=text, 
-            reply_markup=kb, 
-            parse_mode="Markdown"
-        )
+        try:
+            await query.edit_message_text(
+                text=text, 
+                reply_markup=kb, 
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            # Agar xabar bir xil bo'lsa edit qilishda xato berishi mumkin, shuni oldini olamiz
+            await query.answer("Statistika yangilangan.")
         return None
 
     # REKLAMA YUBORISH BOSHLANISHI
@@ -1461,6 +1464,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
