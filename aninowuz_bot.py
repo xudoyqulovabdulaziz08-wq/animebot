@@ -616,7 +616,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cur = conn.cursor()
             try:
                 # Foydalanuvchi statusini 'vip' ga o'zgartiramiz
-                cur.execute("UPDATE users SET status = 'user' WHERE user_id = %s", (target_id,))
+                cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
                 conn.commit()
                 
                 # Admin xabarini yangilaymiz
@@ -1447,6 +1447,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
