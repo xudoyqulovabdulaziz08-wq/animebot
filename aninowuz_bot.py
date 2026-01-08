@@ -796,6 +796,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return A_SEND_ADS_PASS
 
+    # 2. YANGI: Guruh tanlash joyidan PAROLGA qaytish
+    elif data == "back_to_pass":
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Admin Panel", callback_data="admin_main")]])
+        await query.edit_message_text(
+            text="🔑 **Reklama parolini qaytadan kiriting:**",
+            reply_markup=kb,
+            parse_mode="Markdown"
+        )
+        return A_SEND_ADS_PASS
+
     # Agar admin parolni noto'g'ri kiritsa yoki o'sha yerda "Orqaga"ni bossa
     # Bu qism handle_callback ichida bo'lishi kerak
     elif data == "admin_main":
@@ -1522,6 +1532,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
