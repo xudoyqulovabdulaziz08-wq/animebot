@@ -262,7 +262,7 @@ def get_main_kb(status):
     """
     kb = [
         [KeyboardButton("🔍 Anime qidirish 🎬")],
-        [KeyboardButton("🎁 Bonus ballarim 💰"), KeyboardButton("💎 VIP bo'lish ⭐")],
+        [KeyboardButton("🎁 Bonus ballarim 💰"), KeyboardButton("💎 VIP PASS 💸")],
         [KeyboardButton("📜 Barcha anime ro'yxati 📂"), KeyboardButton("📖 Qo'llanma ❓")]
     ]
     
@@ -282,7 +282,7 @@ def get_admin_kb(is_main=False):
             InlineKeyboardButton("🎬 Anime Qo'shish", callback_data="adm_ani_add")
         ],
         [
-            InlineKeyboardButton("💎 VIP Qo'shish", callback_data="adm_vip_add"), 
+            InlineKeyboardButton("💎 VIP CONTROL", callback_data="adm_vip_add"), 
             InlineKeyboardButton("📊 Statistika", callback_data="adm_stats")
         ],
         [
@@ -1321,6 +1321,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
