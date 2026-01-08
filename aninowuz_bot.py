@@ -1276,53 +1276,60 @@ async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ====================== QO'SHIMCHA FUNKSIYALAR (TUZATILGAN) ======================
 
-async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Reklama parolini tekshirish va xabar so'rash"""
-    if update.message.text == ADVERTISING_PASSWORD:
-        await update.message.reply_text(
-            "✅ Parol tasdiqlandi! \n\nEndi barcha foydalanuvchilarga yubormoqchi bo'lgan **reklama xabaringizni** yuboring (Rasm, Video, Matn yoki Post):"
-        )
-        return A_SEND_ADS_MSG
-    else:
-        status = await get_user_status(update.effective_user.id)
-        await update.message.reply_text("❌ Parol noto'g'ri!", reply_markup=get_main_kb(status))
-        return ConversationHandler.END
+# 1. FONDA ISHLAYDIGAN YORDAMCHI FUNKSIYA
+async def background_ads_task(bot, admin_id, users, msg_id, from_chat_id):
+    count = 0
+    total = len(users)
+    status_msg = await bot.send_message(admin_id, f"🚀 Reklama boshlandi (0/{total})...")
 
+    for user in users:
+        try:
+            await bot.copy_message(
+                chat_id=user[0],
+                from_chat_id=from_chat_id,
+                message_id=msg_id
+            )
+            count += 1
+            
+            # Telegram bloklamasligi uchun kichik kechikishlar
+            if count % 30 == 0:
+                await asyncio.sleep(1)
+            else:
+                await asyncio.sleep(0.05)
+
+            # Har 100 ta xabarda holatni yangilash
+            if count % 100 == 0:
+                try:
+                    await status_msg.edit_text(f"🚀 Reklama yuborilmoqda: {count}/{total}")
+                except: pass
+        except Exception:
+            continue
+
+    await bot.send_message(admin_id, f"✅ Reklama yakunlandi!\n🎯 Yetib bordi: {count} ta foydalanuvchiga.")
+
+# 2. CONVERSATION HANDLERDAN CHAQIRILADIGAN FUNKSIYA
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Reklamani barcha foydalanuvchilarga tarqatish"""
     msg = update.message
+    admin_id = update.effective_user.id
+    
     conn = get_db()
-    if not conn:
-        await update.message.reply_text("❌ Bazaga ulanib bo'lmadi.")
-        return ConversationHandler.END
-        
     cur = conn.cursor()
     cur.execute("SELECT user_id FROM users")
     users = cur.fetchall()
     cur.close(); conn.close()
 
-    count = 0
-    status = await get_user_status(update.effective_user.id)
-    status_msg = await update.message.reply_text(f"🚀 Reklama yuborish boshlandi (0/{len(users)})...")
+    if not users:
+        await msg.reply_text("❌ Bazada foydalanuvchi yo'q.")
+        return ConversationHandler.END
 
-    for user in users:
-        try:
-            # copy_message - caption va tugmalar bilan xabarni ko'chirib beradi
-            await context.bot.copy_message(
-                chat_id=user[0],
-                from_chat_id=update.effective_chat.id,
-                message_id=msg.message_id
-            )
-            count += 1
-            await asyncio.sleep(0.05) # Telegram limitlariga tushmaslik uchun kichik kechikish
+    # ASOSIY QISM: Reklamani fonda ishga tushirib, admin bilan muloqotni darhol yopamiz
+    asyncio.create_task(background_ads_task(
+        context.bot, admin_id, users, msg.message_id, update.effective_chat.id
+    ))
 
-            if count % 50 == 0:
-                await status_msg.edit_text(f"🚀 Reklama yuborilmoqda ({count}/{len(users)})...")
-        except Exception:
-            continue
-
-    await update.message.reply_text(
-        f"✅ Reklama yakunlandi. {count} ta foydalanuvchiga yuborildi.", 
+    status = await get_user_status(admin_id)
+    await msg.reply_text(
+        "🚀 Reklama yuborish fon rejimida boshlandi.\nBot ishlayveradi, jarayon yakunlanganda xabar beraman!",
         reply_markup=get_main_kb(status)
     )
     return ConversationHandler.END
@@ -1469,6 +1476,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
