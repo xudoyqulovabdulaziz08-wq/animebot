@@ -1251,7 +1251,7 @@ def main():
     
     # Menyu filtri: Jarayonlar vaqtida (masalan anime qidirishda) 
     # asosiy tugmalar bosilsa, eski jarayonni to'xtatish uchun xizmat qiladi.
-    menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖|💸|🔙|VIP PASS|VIP CONTROL")
+    menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖|💸|🎬|🔙|VIP PASS|VIP CONTROL")
 
     # 4. CONVERSATION HANDLER (Botning asosiy mantiqiy markazi)
     conv_handler = ConversationHandler(
@@ -1320,6 +1320,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
