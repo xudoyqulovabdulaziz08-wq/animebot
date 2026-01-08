@@ -1,4 +1,4 @@
-import os
+0import os
 import logging
 import mysql.connector
 import asyncio
@@ -1251,7 +1251,7 @@ def main():
     app_bot = ApplicationBuilder().token(TOKEN).build()
     
     # Menyu filtri (Tugma nomlari bilan 100% moslangan)
-    menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖|🔙|VIP PASS|VIP CONTROL")
+    menu_filter = filters.Regex("^🔍|📜|🎁|🛠|⬅️|💎|📖|🔙|💸|🔎|🆔|❌|VIP PASS|VIP CONTROL")
 
     # 4. CONVERSATION HANDLER (Barcha jarayonlarni tartibga soladi)
     conv_handler = ConversationHandler(
@@ -1320,6 +1320,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
