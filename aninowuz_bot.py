@@ -772,85 +772,45 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
 
-
-           # VIP BOSHQARISH (ASOSIY MENYU)
+  # ================= VIP CONTROL (ADMIN PANEL) =================
     elif data == "manage_vip":
         keyboard = [
-            [InlineKeyboardButton("💎 VIP qo'shish", callback_data="add_vip_start")],
-            [InlineKeyboardButton("📜 VIP ro'yxati", callback_data="vip_list")],
-            [InlineKeyboardButton("🗑 VIP o'chirish", callback_data="rem_vip_list")],
-            [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
+            [InlineKeyboardButton("➕ Add VIP User", callback_data="start_vip_add")],
+            [InlineKeyboardButton("📜 VIP List", callback_data="vip_list")],
+            [InlineKeyboardButton("🗑 Remove VIP", callback_data="rem_vip_list")],
+            [InlineKeyboardButton("⬅️ Back", callback_data="admin_main")]
         ]
         await query.edit_message_text(
-            "💎 **VIP foydalanuvchilarni boshqarish**\n\nKerakli bo'limni tanlang: 👇",
+            "💎 **VIP CONTROL PANEL**\n\nKerakli bo'limni tanlang: 👇",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
         return None
 
     # VIP qo'shishni boshlash (ID so'rash)
-    elif data == "add_vip_start":
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="manage_vip")]])
-        await query.edit_message_text("💎 **VIP qilinadigan foydalanuvchi ID-sini yuboring:**", reply_markup=kb, parse_mode="Markdown")
+    elif data == "start_vip_add":
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_vip")]])
+        await query.edit_message_text(
+            "🆔 **VIP qilinadigan foydalanuvchi ID-sini yuboring:**", 
+            reply_markup=kb, 
+            parse_mode="Markdown"
+        )
         return A_ADD_VIP
 
-    # VIP ro'yxati (Faqat ko'rish uchun)
+    # VIP ro'yxati
     elif data == "vip_list":
         conn = get_db(); cur = conn.cursor(dictionary=True)
         cur.execute("SELECT user_id FROM users WHERE status = 'vip'")
         vips = cur.fetchall()
         cur.close(); conn.close()
-        
-        text = "📜 **VIP foydalanuvchilar ro'yxati:**\n\n"
-        if not vips:
-            text += "📭 Hozircha VIP foydalanuvchilar yo'q."
+        text = "📜 **VIP Users List:**\n\n"
+        if not vips: text += "📭 Hozircha VIP foydalanuvchilar yo'q."
         else:
-            for idx, v in enumerate(vips, 1):
-                text += f"{idx}. ID: `{v['user_id']}`\n"
-        
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="manage_vip")]])
+            for idx, v in enumerate(vips, 1): text += f"{idx}. ID: `{v['user_id']}`\n"
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_vip")]])
         await query.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
         return None
-
-    # VIP o'chirish ro'yxati (Tugma ko'rinishida)
-    elif data == "rem_vip_list":
-        conn = get_db(); cur = conn.cursor(dictionary=True)
-        cur.execute("SELECT user_id FROM users WHERE status = 'vip'")
-        vips = cur.fetchall()
-        cur.close(); conn.close()
-        
-        if not vips:
-            await query.answer("📭 VIP foydalanuvchilar topilmadi.", show_alert=True)
-            return None
-            
-        keyboard = []
-        for v in vips:
-            keyboard.append([InlineKeyboardButton(f"🗑 O'chirish: {v['user_id']}", callback_data=f"del_vip_{v['user_id']}")])
-        keyboard.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="manage_vip")])
-        
-        await query.edit_message_text("🗑 **VIP statusini olib tashlamoqchi bo'lgan ID-ni tanlang:**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-        return None
-
-    # VIP statusini bekor qilish ijrosi
-    elif data.startswith("del_vip_"):
-        v_id = data.replace("del_vip_", "")
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("UPDATE users SET status = 'user' WHERE user_id = %s", (v_id,))
-        conn.commit(); cur.close(); conn.close()
-        await query.answer(f"✅ ID: {v_id} VIP statusidan olindi.", show_alert=True)
-        return await handle_callback(update, context) # Menyuni yangilash
-
-    # VIP qo'shishni yakuniy tasdiqlash
-    elif data.startswith("conf_vip_"):
-        target_id = data.replace("conf_vip_", "")
-        conn = get_db(); cur = conn.cursor()
-        cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
-        conn.commit(); cur.close(); conn.close()
-        await query.edit_message_text(f"✅ ID: `{target_id}` muvaffaqiyatli **VIP** qilindi!", parse_mode="Markdown")
-        return ConversationHandler.END
-
-    # Agar hech qaysi shartga tushmasa...
-    return None
+ 
     
 
 
@@ -897,6 +857,8 @@ async def vip_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(text, parse_mode="Markdown")
   
 
+  
+        
 
     
 # ====================== ANIME QIDIRISH VA PAGINATION (TUZATILDI) ======================
@@ -1350,6 +1312,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
