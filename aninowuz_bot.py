@@ -753,7 +753,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         # 3. Jami animelar (animes jadvali bor deb hisoblaymiz)
         try:
-            cur.execute("SELECT COUNT(*) FROM animes")
+            cur.execute("SELECT COUNT(*) FROM anime_list")
             a_count = cur.fetchone()[0]
         except:
             a_count = 0 # Agar jadval hali yaratilmagan bo'lsa xato bermasligi uchun
@@ -1469,6 +1469,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
