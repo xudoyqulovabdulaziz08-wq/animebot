@@ -307,7 +307,7 @@ def get_admin_kb(is_main=False):
     buttons = [
         [
             InlineKeyboardButton("📢 Kanallar", callback_data="adm_ch"), 
-            InlineKeyboardButton("🎬 Anime Qo'shish", callback_data="adm_ani_add")
+            InlineKeyboardButton("🎬 Anime control", callback_data="anime_control_panel")
         ],
         [
             InlineKeyboardButton("💎 VIP CONTROL", callback_data="adm_vip_add"), 
@@ -1583,6 +1583,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
