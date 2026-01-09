@@ -89,8 +89,9 @@ DB_CONFIG = {
     A_REM_ANI_LIST,      # 209: O'chirish uchun anime tanlash listi
     A_REM_EP_ANI_LIST,   # 210: Qismini o'chirish uchun anime tanlash
     A_REM_EP_NUM_LIST    # 211: Tanlangan animening qismlarini tanlash (24 talik list)
+    A_MAIN               # main funksiya
 
-) = range(23) # Jami statuslar soni
+) = range(24) # Jami statuslar soni
 
 # Loglash sozlamalari
 logging.basicConfig(
@@ -1702,6 +1703,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
