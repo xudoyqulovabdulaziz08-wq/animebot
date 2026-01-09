@@ -11,8 +11,9 @@ from telegram import (
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 )
 from telegram.ext import (
-    ApplicationBuilder, Comma# ====================== MAIN FUNKSIYA (YANGILANGAN TIZIM) ======================
-def main():
+    ApplicationBuilder, CommandHandler, MessageHandler, 
+    CallbackQueryHandler, ConversationHandler, filters, ContextTypes
+)
     # 1. Serverni uyg'oq saqlash (Render uchun)
     keep_alive()
     
@@ -1770,6 +1771,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
