@@ -567,7 +567,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await add_anime_panel(update, context)
 
     # --- LIST ANIME BO'LIMI ---
-    elif data.startswith("list_ani_pg_"):
+    elif data.startswith("list_ani_pg_0"):
         # list_ani_pg_0 formatida keladi
         return await list_animes_view(update, context)
 
@@ -1684,6 +1684,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
