@@ -580,14 +580,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Klaviaturadan to'g'ridan-to'g'ri keladigan signal uchun
         return await select_ani_for_new_ep(update, context)
 
-    elif data.startswith("new_ep_ani_"):
-        # Boshqa holatlar uchun (agar startswith ishlatilsa)
+    # ➕ Anime qismi qo‘shish tugmasi bosilganda
+    elif data == "new_ep_ani":
         return await select_ani_for_new_ep(update, context)
 
-        # --- YANGI QISM QO'SHISH (MAVJUD ANIMEGA) ---
+    # 🎬 Anime tanlanganda (ID bilan)
     elif data.startswith("new_ep_ani_"):
-            # Qism qo'shish uchun anime tanlash listi
-            return await select_ani_for_new_ep(update, context)
+        return await select_episode_for_new_ep(update, context)
+
 
     elif data.startswith("addepto_"):
         # Anime tanlangach video yuborish rejimiga o'tish
@@ -1762,6 +1762,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
