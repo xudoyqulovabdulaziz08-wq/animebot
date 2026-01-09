@@ -567,7 +567,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await add_anime_panel(update, context)
 
     # --- LIST ANIME BO'LIMI ---
-    elif data.startswith("list_ani_pg_0"):
+    elif data.startswith("list_ani_pg_"):
         # list_ani_pg_0 formatida keladi
         return await list_animes_view(update, context)
 
@@ -576,7 +576,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await show_anime_info(update, context)
 
         # --- YANGI QISM QO'SHISH (MAVJUD ANIMEGA) ---
-    elif data.startswith("new_ep_ani_0"):
+    elif data.startswith("new_ep_ani_"):
             # Qism qo'shish uchun anime tanlash listi
             return await select_ani_for_new_ep(update, context)
 
@@ -1689,6 +1689,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
