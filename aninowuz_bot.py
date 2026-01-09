@@ -1645,7 +1645,6 @@ def main():
                 CallbackQueryHandler(handle_callback),
                 # Agar admin panelda matnli tugmalar bo'lsa, ularni tutish:
                 MessageHandler(filters.Regex("^🛠 Anime boshqaruvi$"), anime_control_panel),
-                MessageHandler(filters.Regex("^📊 Statistika$"), stats_handler),
             ],
     
             # Anime boshqaruv paneli
@@ -1717,6 +1716,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
