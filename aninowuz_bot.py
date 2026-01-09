@@ -1491,7 +1491,42 @@ async def select_ani_for_new_ep(update: Update, context: ContextTypes.DEFAULT_TY
     kb = await get_pagination_keyboard("anime_list", page=page, prefix="addepto_", extra_callback="add_ani_menu")
     await query.edit_message_text("📼 Qism qo'shmoqchi bo'lgan animeni tanlang:", reply_markup=kb)
     return A_SELECT_ANI_EP
-            
+
+
+  async def select_ani_for_rem_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Qismni o‘chirish uchun avval animeni tanlash
+    """
+    if update.callback_query:
+        query = update.callback_query
+        await query.answer()
+        page = int(query.data.split('_')[-1]) if "pg_" in query.data else 0
+        kb = await get_pagination_keyboard(
+            "anime_list",
+            page=page,
+            prefix="remep_",
+            extra_callback="back_to_ctrl"
+        )
+        await query.edit_message_text(
+            "🎞 Qaysi animening qismini o‘chirmoqchisiz?",
+            reply_markup=kb
+        )
+    else:
+        # Text button orqali kelsa
+        page = 0
+        kb = await get_pagination_keyboard(
+            "anime_list",
+            page=page,
+            prefix="remep_",
+            extra_callback="back_to_ctrl"
+        )
+        await update.message.reply_text(
+            "🎞 Qaysi animening qismini o‘chirmoqchisiz?",
+            reply_markup=kb
+        )
+
+    return A_REM_EP_ANI_LIST
+          
             
 
 # ====================== QO'SHIMCHA FUNKSIYALAR (TUZATILGAN) ======================
@@ -1727,6 +1762,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
