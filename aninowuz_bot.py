@@ -607,7 +607,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif data == "rem_ep_menu":
     # Qismlarni o'chirish uchun anime tanlash listini chiqarish
-    return await select_ani_for_rem_ep(update, context)
+        return await select_ani_for_rem_ep(update, context)
 
     elif data.startswith("rem_ani_list_"):
         # O'chirish uchun animelar ro'yxati
@@ -1702,6 +1702,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
