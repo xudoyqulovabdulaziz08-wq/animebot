@@ -15,10 +15,11 @@ from telegram.ext import (
     CallbackQueryHandler, ConversationHandler, filters, ContextTypes
 )
 
+def main():
     # 1. Serverni uyg'oq saqlash (Render uchun)
-    keep_alive()
+    keep_alive()  # <--- Bu qator boshida aynan 4 ta probel bo'lsin
     
-    # 2. Bazani ishga tushirish va jadvallarni yangilash
+    # 2. Bazani ishga tushirish
     try:
         init_db()
     except Exception as e:
@@ -26,6 +27,7 @@ from telegram.ext import (
 
     # 3. Botni yaratish
     app_bot = ApplicationBuilder().token(TOKEN).build()
+    
     
     # Menyu filtri (Asosiy tugmalarni Conversation ichida buzilib ketmasligi uchun)
     menu_filter = filters.Regex("Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish")
@@ -1772,6 +1774,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
