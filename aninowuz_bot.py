@@ -1640,11 +1640,23 @@ def main():
             CallbackQueryHandler(handle_callback)
         ],
         states={
-            # Admin panelga kirgandagi asosiy holat
-            A_MAIN: [CallbackQueryHandler(handle_callback)],
-            
+           # Admin panelga kirgandagi asosiy holat
+            A_MAIN: [
+                CallbackQueryHandler(handle_callback),
+                # Agar admin panelda matnli tugmalar bo'lsa, ularni tutish:
+                MessageHandler(filters.Regex("^🛠 Anime boshqaruvi$"), anime_control_menu_handler), # Misol
+                MessageHandler(filters.Regex("^📊 Statistika$"), stats_handler),
+            ],
+    
             # Anime boshqaruv paneli
-            A_ANI_CONTROL: [CallbackQueryHandler(handle_callback)],
+            A_ANI_CONTROL: [
+                CallbackQueryHandler(handle_callback),
+                # SIZ AYTGAN TUGMALAR UCHUN SHU YERGA MESSAGEHANDLER QO'SHING:
+                MessageHandler(filters.Regex("^📜 Anime List$"), list_animes_view),
+                MessageHandler(filters.Regex("^🗑 Anime o'chirish$"), remove_menu_handler),
+                MessageHandler(filters.Regex("^➕ Yangi qism qo'shish$"), add_episode_start_handler),
+                MessageHandler(filters.Regex("^❌ Qismni o'chirish$"), delete_episode_menu_handler),
+            ],
             
             # Ro'yxat ko'rish va o'chirish holatlari
             A_LIST_VIEW: [CallbackQueryHandler(handle_callback)],
@@ -1703,6 +1715,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
