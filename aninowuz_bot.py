@@ -1436,7 +1436,7 @@ async def show_anime_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (f"🎬 **{ani[1]}**\n\n🆔 ID: {ani[0]}\n🌐 Tili: {ani[3]}\n🎭 Janri: {ani[4]}\n"
             f"📅 Yili: {ani[5]}\n📼 Qismlar: {eps} ta")
     
-    kb = [[InlineKeyboardButton("⬅️ Orqaga", callback_data="list_ani_pg_0")]]
+    kb = [[InlineKeyboardButton("⬅️ Orqaga", callback_data="list_ani_pg_")]]
     await query.message.reply_photo(photo=ani[2], caption=text, reply_markup=InlineKeyboardMarkup(kb))
     await query.message.delete()
     return A_LIST_VIEW
@@ -1689,6 +1689,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
