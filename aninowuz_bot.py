@@ -1624,7 +1624,7 @@ def main():
             MessageHandler(filters.Regex(r"Qo'llanma"), show_guide),
             MessageHandler(filters.Regex(r"Barcha anime ro'yxati"), export_all_anime),
             # Admin panelga kirish nuqtasi
-            MessageHandler(filters.Regex(r"ADMIN PANEL"), admin_panel),
+            MessageHandler(filters.Regex(r"ADMIN PANEL"), admin_panel_text_handler),
             CallbackQueryHandler(handle_callback)
         ],
         states={
@@ -1684,6 +1684,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
