@@ -598,7 +598,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         res = cur.fetchone()
         context.user_data['cur_ani_name'] = res[0] if res else "Anime"
         cur.close(); conn.close()
-    
         await query.edit_message_text(f"📥 **{context.user_data['cur_ani_name']}** uchun video yuboring:\n(Bot avtomatik qism raqamini beradi)")
         return A_ADD_EP_FILES
 
@@ -1703,6 +1702,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
