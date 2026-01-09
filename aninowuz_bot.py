@@ -549,6 +549,103 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
+     # --- ANIME CONTROL ASOSIY ---
+    elif data == "adm_ani_ctrl": # Admin paneldagi "Anime Control" tugmasi uchun
+        return await anime_control_panel(update, context)
+
+    elif data == "back_to_ctrl":
+        return await anime_control_panel(update, context)
+
+    # --- ADD ANIME BO'LIMI ---
+    elif data == "add_ani_menu":
+        return await add_anime_panel(update, context)
+
+    elif data == "start_new_ani":
+        return await start_new_ani(update, context)
+
+    elif data == "back_to_add_menu":
+        return await add_anime_panel(update, context)
+
+    # --- LIST ANIME BO'LIMI ---
+    elif data.startswith("list_ani_pg_"):
+        # list_ani_pg_0 formatida keladi
+        return await list_animes_view(update, context)
+
+    elif data.startswith("viewani_"):
+        # Tanlangan anime haqida batafsil ma'lumot (viewani_12)
+        return await show_anime_info(update, context)
+
+        # --- YANGI QISM QO'SHISH (MAVJUD ANIMEGA) ---
+        elif data.startswith("new_ep_ani_"):
+            # Qism qo'shish uchun anime tanlash listi
+            return await select_ani_for_new_ep(update, context)
+
+    elif data.startswith("addepto_"):
+        # Anime tanlangach video yuborish rejimiga o'tish
+        ani_id = data.split('_')[-1]
+        context.user_data['cur_ani_id'] = ani_id
+        # Bazadan nomini olib saqlab qo'yamiz (xabar chiqarish uchun)
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("SELECT name FROM anime_list WHERE id = %s", (ani_id,))
+        res = cur.fetchone()
+        context.user_data['cur_ani_name'] = res[0] if res else "Anime"
+        cur.close(); conn.close()
+    
+        await query.edit_message_text(f"📥 **{context.user_data['cur_ani_name']}** uchun video yuboring:\n(Bot avtomatik qism raqamini beradi)")
+        return A_ADD_EP_FILES
+
+    # --- REMOVE ANIME BO'LIMI ---
+    elif data == "rem_ani_menu":
+        return await remove_menu_handler(update, context)
+
+    elif data.startswith("rem_ani_list_"):
+        # O'chirish uchun animelar ro'yxati
+        page = int(data.split('_')[-1])
+        kb = await get_pagination_keyboard("anime_list", page=page, prefix="delani_", extra_callback="rem_ani_menu")
+        await query.edit_message_text("🗑 **O'chirish uchun anime tanlang:**", reply_markup=kb)
+        return A_REM_ANI_LIST
+
+    elif data.startswith("delani_"):
+        # O'chirishdan oldin tasdiqlash
+        ani_id = data.split('_')[-1]
+        kb = [
+            [InlineKeyboardButton("✅ TASDIQLASH", callback_data=f"exec_del_{ani_id}")],
+            [InlineKeyboardButton("❌ BEKOR QILISH", callback_data="rem_ani_menu")]
+        ]
+        await query.edit_message_text(f"⚠️ **DIQQAT!**\n\nID: {ani_id} bo'lgan animeni o'chirmoqchimisiz?", reply_markup=InlineKeyboardMarkup(kb))
+        return A_REM_ANI_LIST
+
+    elif data.startswith("exec_del_"):
+        # Haqiqiy o'chirish jarayoni
+        return await delete_anime_exec(update, context)
+
+    elif data == "finish_add":
+        # Jarayonni tugatish tugmasi
+        await query.message.reply_text("✅ Jarayon yakunlandi.", reply_markup=get_main_kb(status))
+        return await anime_control_panel(update, context)
+        
+    # MANA BU YERDA 'if' EMAS, 'elif' ISHLATISH KERAK:
+    elif data == "rem_vip_list":
+        await show_vip_removal_list(update, context, page=0)
+
+    elif data.startswith("rem_vip_page_"):
+        page = int(data.split("_")[3])
+        await show_vip_removal_list(update, context, page=page)
+
+    elif data.startswith("exec_rem_vip_"):
+        parts = data.split("_")
+        target_id = parts[3]
+        current_page = int(parts[4])
+        
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("UPDATE users SET status = 'user' WHERE user_id = %s", (target_id,))
+        conn.commit()
+        cur.close(); conn.close()
+        
+        await query.answer(f"✅ ID: {target_id} VIP ro'yxatidan o'chirildi!", show_alert=True)
+        await show_vip_removal_list(update, context, page=current_page)
+
     # ================= VIP TASDIQLASH (ELIF VARIANTI) =================
     elif data.startswith("conf_vip_"):
         # callback_data dan ID raqamini ajratib olamiz (conf_vip_12345 -> 12345)
@@ -584,106 +681,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 cur.close(); conn.close()
         return None
 
-
-    # --- ANIME CONTROL ASOSIY ---
-elif data == "adm_ani_ctrl": # Admin paneldagi "Anime Control" tugmasi uchun
-    return await anime_control_panel(update, context)
-
-elif data == "back_to_ctrl":
-    return await anime_control_panel(update, context)
-
-# --- ADD ANIME BO'LIMI ---
-elif data == "add_ani_menu":
-    return await add_anime_panel(update, context)
-
-elif data == "start_new_ani":
-    return await start_new_ani(update, context)
-
-elif data == "back_to_add_menu":
-    return await add_anime_panel(update, context)
-
-# --- LIST ANIME BO'LIMI ---
-elif data.startswith("list_ani_pg_"):
-    # list_ani_pg_0 formatida keladi
-    return await list_animes_view(update, context)
-
-elif data.startswith("viewani_"):
-    # Tanlangan anime haqida batafsil ma'lumot (viewani_12)
-    return await show_anime_info(update, context)
-
-# --- YANGI QISM QO'SHISH (MAVJUD ANIMEGA) ---
-elif data.startswith("new_ep_ani_"):
-    # Qism qo'shish uchun anime tanlash listi
-    return await select_ani_for_new_ep(update, context)
-
-elif data.startswith("addepto_"):
-    # Anime tanlangach video yuborish rejimiga o'tish
-    ani_id = data.split('_')[-1]
-    context.user_data['cur_ani_id'] = ani_id
-    # Bazadan nomini olib saqlab qo'yamiz (xabar chiqarish uchun)
-    conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT name FROM anime_list WHERE id = %s", (ani_id,))
-    res = cur.fetchone()
-    context.user_data['cur_ani_name'] = res[0] if res else "Anime"
-    cur.close(); conn.close()
-    
-    await query.edit_message_text(f"📥 **{context.user_data['cur_ani_name']}** uchun video yuboring:\n(Bot avtomatik qism raqamini beradi)")
-    return A_ADD_EP_FILES
-
-# --- REMOVE ANIME BO'LIMI ---
-elif data == "rem_ani_menu":
-    return await remove_menu_handler(update, context)
-
-elif data.startswith("rem_ani_list_"):
-    # O'chirish uchun animelar ro'yxati
-    page = int(data.split('_')[-1])
-    kb = await get_pagination_keyboard("anime_list", page=page, prefix="delani_", extra_callback="rem_ani_menu")
-    await query.edit_message_text("🗑 **O'chirish uchun anime tanlang:**", reply_markup=kb)
-    return A_REM_ANI_LIST
-
-elif data.startswith("delani_"):
-    # O'chirishdan oldin tasdiqlash
-    ani_id = data.split('_')[-1]
-    kb = [
-        [InlineKeyboardButton("✅ TASDIQLASH", callback_data=f"exec_del_{ani_id}")],
-        [InlineKeyboardButton("❌ BEKOR QILISH", callback_data="rem_ani_menu")]
-    ]
-    await query.edit_message_text(f"⚠️ **DIQQAT!**\n\nID: {ani_id} bo'lgan animeni o'chirmoqchimisiz?", reply_markup=InlineKeyboardMarkup(kb))
-    return A_REM_ANI_LIST
-
-elif data.startswith("exec_del_"):
-    # Haqiqiy o'chirish jarayoni
-    return await delete_anime_exec(update, context)
-
-elif data == "finish_add":
-    # Jarayonni tugatish tugmasi
-    await query.message.reply_text("✅ Jarayon yakunlandi.", reply_markup=get_main_kb(status))
-    return await anime_control_panel(update, context)
-        
-    # MANA BU YERDA 'if' EMAS, 'elif' ISHLATISH KERAK:
-    elif data == "rem_vip_list":
-        await show_vip_removal_list(update, context, page=0)
-
-    elif data.startswith("rem_vip_page_"):
-        page = int(data.split("_")[3])
-        await show_vip_removal_list(update, context, page=page)
-
-    elif data.startswith("exec_rem_vip_"):
-        parts = data.split("_")
-        target_id = parts[3]
-        current_page = int(parts[4])
-        
-        conn = get_db()
-        cur = conn.cursor()
-        cur.execute("UPDATE users SET status = 'user' WHERE user_id = %s", (target_id,))
-        conn.commit()
-        cur.close(); conn.close()
-        
-        await query.answer(f"✅ ID: {target_id} VIP ro'yxatidan o'chirildi!", show_alert=True)
-        await show_vip_removal_list(update, context, page=current_page)
-
-   
-  
 
     # ================= 2. FAQAT ADMINLAR UCHUN CALLBACKLAR =================
     
@@ -1685,3 +1682,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
