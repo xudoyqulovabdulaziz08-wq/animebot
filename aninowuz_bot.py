@@ -102,7 +102,7 @@ def get_db():
         return None
 
 def init_db():
-    """Jadvallarni yaratish va tuzatish"""
+    """Ma'lumotlar bazasi jadvallarini yangilangan talablar asosida yaratish va sozlash"""
     conn = get_db()
     if not conn:
         logger.error("❌ Bazaga ulanib bo'lmagani uchun jadvallar yaratilmadi.")
@@ -116,43 +116,47 @@ def init_db():
             joined_at DATETIME, 
             bonus INT DEFAULT 0,
             status VARCHAR(20) DEFAULT 'user'
-        )""")
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""")
 
-        # 2. Animelar jadvali 
-        # FULLTEXT ba'zi serverlarda xato berishi mumkin, shuning uchun oddiy INDEX ishlatamiz
+        # 2. Yangilangan Animelar jadvali (id, name, poster, lang, genre, year)
+        # Eslatma: anime_id endi VARCHAR(50) emas, INT AUTO_INCREMENT bo'lgani ma'qul, 
+        # chunki foydalanuvchi ID kiritishini osonlashtiradi.
         cur.execute("""CREATE TABLE IF NOT EXISTS anime_list (
-            anime_id VARCHAR(50) PRIMARY KEY, 
-            name VARCHAR(255), 
+            id INT AUTO_INCREMENT PRIMARY KEY, 
+            name VARCHAR(255) NOT NULL, 
             poster_id TEXT,
+            lang VARCHAR(100),
+            genre VARCHAR(255),
+            year VARCHAR(20),
             INDEX (name)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""")
 
-        # 3. Anime qismlari jadvali
+        # 3. Yangilangan Anime qismlari jadvali
+        # episode_num - bot avtomatik sanashi uchun INT formatida
         cur.execute("""CREATE TABLE IF NOT EXISTS anime_episodes (
             id INT AUTO_INCREMENT PRIMARY KEY,
-            anime_id VARCHAR(50),
-            episode INT,
-            lang VARCHAR(50),
+            anime_id INT,
+            episode_num INT,
             file_id TEXT,
-            FOREIGN KEY (anime_id) REFERENCES anime_list(anime_id) ON DELETE CASCADE
+            FOREIGN KEY (anime_id) REFERENCES anime_list(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""")
         
-        # 4. Kanallar jadvali (Check-sub uchun)
+        # 4. Kanallar jadvali
         cur.execute("""CREATE TABLE IF NOT EXISTS channels (
             username VARCHAR(255) PRIMARY KEY
-        )""")
-
-        
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""")
 
         # 5. Adminlar jadvali
         cur.execute("""CREATE TABLE IF NOT EXISTS admins (
             user_id BIGINT PRIMARY KEY
-        )""")
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4""")
         
         conn.commit()
-        print("✅ Ma'lumotlar bazasi muvaffaqiyatli tayyorlandi.")
+        print("✅ Ma'lumotlar bazasi yangi tizim uchun muvaffaqiyatli tayyorlandi.")
+        
     except Exception as e:
         print(f"❌ Jadvallarni yaratishda xatolik: {e}")
+        logger.error(f"Database Init Error: {e}")
     finally:
         cur.close()
         conn.close()
@@ -1557,6 +1561,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
