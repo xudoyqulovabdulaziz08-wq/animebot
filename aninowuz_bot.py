@@ -1702,7 +1702,7 @@ def main():
                 MessageHandler(filters.Regex("^➕ Yangi anime$"), add_anime_panel),
                 MessageHandler(filters.Regex("^🗑 Anime o'chirish$"), remove_menu_handler),
                 MessageHandler(filters.Regex("^➕ Yangi qism qo'shish$"), select_ani_for_new_ep),
-                MessageHandler(filters.Regex("^🔙 Orqaga$"), admin_panel_handler),
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), anime_control_panel),
             ],
             
             # Ro'yxat ko'rish va o'chirish holatlari
@@ -1762,6 +1762,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
