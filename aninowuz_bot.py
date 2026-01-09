@@ -362,82 +362,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_main_kb(status)
     )
 
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Barcha inline tugmalar bosilishini boshqarish"""
-    query = update.callback_query
-    uid = query.from_user.id
-    data = query.data
-    status = await get_user_status(uid)
-    await query.answer()
 
-    # --- 1. HAMMA UCHUN OCHIQ CALLBACKLAR ---
-    if data == "recheck":
-        if not await check_sub(uid, context.bot):
-            await query.message.delete()
-            await context.bot.send_message(uid, "Tabriklaymiz! ✅ Obuna tasdiqlandi.", reply_markup=get_main_kb(status))
-        else:
-            await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
-        return
-
-    elif data == "search_type_id":
-        await query.edit_message_text("🆔 **Anime kodini (ID) yuboring:**", parse_mode="Markdown")
-        return A_SEARCH_BY_ID
-
-    elif data == "search_type_name":
-        await query.edit_message_text("🔎 **Anime nomini kiriting:**", parse_mode="Markdown")
-        return A_SEARCH_BY_NAME
-
-    elif data == "cancel_search":
-        context.user_data.clear() 
-        if query.message: await query.message.delete()
-        await context.bot.send_message(uid, "✅ Jarayon yakunlandi.", reply_markup=get_main_kb(status))
-        return ConversationHandler.END
-
-    # --- 2. ADMINLAR UCHUN CALLBACKLAR ---
-    if status not in ["main_admin", "admin"]: 
-        return
-
-    # Anime qo'shishni boshlash (Poster so'rash)
-    if data == "adm_ani_add":
-        await query.message.reply_text("1️⃣ Anime uchun POSTER (rasm) yuboring:")
-        return A_ADD_ANI_POSTER
-
-    # KEYINGI QISMNI QO'SHISH (Siz so'ragan asosiy o'zgarish)
-    elif data == "add_more_ep":
-        await query.message.reply_text(
-            "Endi **VIDEONI** yuboring.\n\n"
-            "⚠️ **DIQQAT:** Video ostiga (caption) quyidagi ma'lumotni yozing:\n"
-            "`ID | Nomi | Tili | Qismi`",
-            parse_mode="Markdown"
-        )
-        return A_ADD_ANI_DATA  # Botni yana video kutish holatiga qaytaradi
-
-    # Kanallar boshqaruvi
-    elif data == "adm_ch":
-        kb = [[InlineKeyboardButton("➕ Qo'shish", callback_data="add_channel_start"), 
-               InlineKeyboardButton("❌ O'chirish", callback_data="rem_channel_start")],
-              [InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_back")]]
-        await query.edit_message_text("📢 Kanallarni boshqarish:", reply_markup=InlineKeyboardMarkup(kb))
-        return
-
-
-
-    # Orqaga qaytish
-    elif data == "adm_back" or data == "admin_main":
-        is_main = (status == "main_admin")
-        await query.edit_message_text("🛠 Admin paneli:", reply_markup=get_admin_kb(is_main))
-        return ConversationHandler.END
-
-    # Qolgan state qaytaruvchi callbacklar
-    elif data == "add_channel_start": return A_ADD_CH
-    elif data == "rem_channel_start": return A_REM_CH
-    elif data == "add_admin_start": return A_ADD_ADM
-    elif data == "adm_vip_add": return A_ADD_VIP
-    elif data == "adm_ads_start": 
-        await query.message.reply_text("🔑 Reklama parolini kiriting:")
-        return A_SEND_ADS_PASS
-
-    return None
     
     
 
@@ -1680,6 +1605,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
