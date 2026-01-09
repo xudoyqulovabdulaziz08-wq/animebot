@@ -1653,7 +1653,7 @@ def main():
                 # SIZ AYTGAN TUGMALAR UCHUN SHU YERGA MESSAGEHANDLER QO'SHING:
                 MessageHandler(filters.Regex("^📜 Anime List$"), list_animes_view),
                 MessageHandler(filters.Regex("^🗑 Anime o'chirish$"), remove_menu_handler),
-                MessageHandler(filters.Regex("^➕ Yangi qism qo'shish$"), add_episode_start_handler),
+                MessageHandler(filters.Regex("^➕ Yangi qism qo'shish$"), select_ani_for_new_ep),
                 MessageHandler(filters.Regex("^❌ Qismni o'chirish$"), delete_episode_menu_handler),
                 MessageHandler(filters.Regex("^➕ Yangi anime$"), add_anime_start_handler), # Bu ham bor edi faylda
                 MessageHandler(filters.Regex("^🔙 Orqaga$"), admin_panel_handler), # Orqaga qaytish uchun
@@ -1716,6 +1716,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
