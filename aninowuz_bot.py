@@ -52,23 +52,45 @@ DB_CONFIG = {
 }
 
 # ====================== CONVERSATION STATES ======================
-# Yangi professional qidiruv mantiqi uchun holatlar (Optimallashtirildi)
 (
+    # --- ADMIN & KANALLAR (0-5) ---
     A_ADD_CH,            # 0: Kanal qo'shish
     A_REM_CH,            # 1: Kanal o'chirish
     A_ADD_ADM,           # 2: Yangi admin ID sini qabul qilish
-    A_CONFIRM_REM_ADM,   # 3: Adminni o'chirishni tasdiqlash
+    A_CONFIRM_REM_ADM,    # 3: Adminni o'chirishni tasdiqlash
     A_ADD_VIP,           # 4: VIP foydalanuvchi qo'shish
     A_REM_VIP,           # 5: VIP-ni bekor qilish
-    A_ADD_ANI_POSTER,    # 6: Anime posterini qabul qilish
-    A_ADD_ANI_DATA,      # 7: Anime ma'lumotlarini qabul qilish
-    A_SEND_ADS_PASS,     # 8: Reklama parolini tekshirish
-    A_SELECT_ADS_TARGET,  # 9: Reklama yuborishga otish
-    A_SEND_ADS_MSG,      # 10: Reklama xabarini tarqatish
-    A_SEARCH_BY_ID,      # 11: ID orqali qidirish
-    A_SEARCH_BY_NAME     # 12: Nomi orqali qidirish
+
+    # --- REKLAMA VA QIDIRUV (6-12) ---
+    A_SEND_ADS_PASS,      # 6: Reklama parolini tekshirish
+    A_SELECT_ADS_TARGET,  # 7: Reklama nishonini tanlash
+    A_SEND_ADS_MSG,       # 8: Reklama xabarini yuborish
+    A_SEARCH_BY_ID,       # 9: ID orqali qidirish
+    A_SEARCH_BY_NAME,     # 10: Nomi orqali qidirish
+
+    # --- ANIME CONTROL PANEL (YANGI: 200+) ---
+    A_ANI_CONTROL,       # 200: Anime control asosiy menyusi
+    A_ADD_MENU,          # 201: Add Anime paneli (Yangi anime yoki yangi qism)
     
-) = range(13)
+    # Yangi Anime qo'shish jarayoni
+    A_GET_POSTER,        # 202: 1-qadam: Poster qabul qilish
+    A_GET_DATA,          # 203: 2-qadam: Ma'lumotlarni qabul qilish (Nomi | Tili | Janri | Yili)
+    A_ADD_EP_FILES,      # 204: 3-qadam: Ketma-ket video/qism qabul qilish
+    
+    # Mavjud animega qism qo'shish
+    A_SELECT_ANI_EP,     # 205: Qism qo'shish uchun animeni tanlash (List)
+    A_ADD_NEW_EP_FILES,  # 206: Tanlangan animega yangi videolar qabul qilish
+
+    # Anime List va Ko'rish
+    A_LIST_VIEW,         # 207: Animelar ro'yxatini ko'rish (Pagination 15 talik)
+
+    # Anime/Qism o'chirish
+    A_REM_MENU,          # 208: Remove Anime paneli (Anime yoki Qism tanlash)
+    A_REM_ANI_LIST,      # 209: O'chirish uchun anime tanlash listi
+    A_REM_EP_ANI_LIST,   # 210: Qismini o'chirish uchun anime tanlash
+    A_REM_EP_NUM_LIST    # 211: Tanlangan animening qismlarini tanlash (24 talik list)
+
+) = range(22) # Jami statuslar soni
 
 # Loglash sozlamalari
 logging.basicConfig(
@@ -1561,6 +1583,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
