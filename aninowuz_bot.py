@@ -1275,7 +1275,7 @@ async def anime_control_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
     query = update.callback_query
     kb = [
         [InlineKeyboardButton("➕ Add Anime", callback_data="add_ani_menu"),
-         InlineKeyboardButton("📜 Anime List", callback_data="list_ani_pg_0")],
+         InlineKeyboardButton("📜 Anime List", callback_data="list_ani_pg_")],
         [InlineKeyboardButton("🗑 Remove Anime", callback_data="rem_ani_menu")],
         [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
     ]
@@ -1689,6 +1689,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
