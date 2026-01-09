@@ -1254,109 +1254,148 @@ async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ====================== CONVERSATION STEPS (TUZATILDI) ======================
 
-async def add_ani_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Anime posterini qabul qilish"""
-    context.user_data['poster'] = update.message.photo[-1].file_id
+# Anime Control Asosiy Menyusi
+async def anime_control_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    kb = [
+        [InlineKeyboardButton("➕ Add Anime", callback_data="add_ani_menu"),
+         InlineKeyboardButton("📜 Anime List", callback_data="list_ani_pg_0")],
+        [InlineKeyboardButton("🗑 Remove Anime", callback_data="rem_ani_menu")],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
+    ]
+    text = "🛠 **Anime Control Panel**\n\nKerakli bo'limni tanlang: 👇"
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    return A_ANI_CONTROL
+
+# Add Anime Panel (Yangi anime yoki qism)
+async def add_anime_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    kb = [
+        [InlineKeyboardButton("✨ Yangi anime qo'shish", callback_data="start_new_ani")],
+        [InlineKeyboardButton("📼 Yangi qism qo'shish", callback_data="new_ep_ani_0")],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_ctrl")]
+    ]
+    text = "➕ **Add Anime Panel**\n\nTanlang: 👇"
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    return A_ADD_MENU
+
+# 1-qadam: Poster so'rash
+async def start_new_ani(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    kb = [[InlineKeyboardButton("⬅️ Orqaga", callback_data="add_ani_menu")]]
+    await query.edit_message_text("1️⃣ Anime uchun **POSTER** (rasm) yuboring:", 
+                                  reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    return A_GET_POSTER
+
+# 2-qadam: Ma'lumotlarni so'rash
+async def get_poster_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.photo:
+        await update.message.reply_text("❌ Iltimos, rasm yuboring!")
+        return A_GET_POSTER
+    
+    context.user_data['tmp_poster'] = update.message.photo[-1].file_id
+    kb = [[InlineKeyboardButton("⬅️ Orqaga", callback_data="start_new_ani")]]
     await update.message.reply_text(
-        "✅ Poster qabul qilindi.\n\n"
-        "Endi **VIDEONI** yuboring.\n\n"
-        "⚠️ **DIQQAT:** Video ostiga (caption) quyidagi ma'lumotni yozing:\n"
-        "`ID | Nomi | Tili | Qismi`", 
-        parse_mode="Markdown"
+        "📝 Anime ma'lumotlarini tashlang:\nFormat: `Nomi | Tili | Janri | Yili`",
+        reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown"
     )
-    return A_ADD_ANI_DATA
+    return A_GET_DATA
 
-async def add_ani_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Anime ma'lumotlarini va videoni saqlash"""
-    uid = update.effective_user.id
+# 3-qadam: Bazaga saqlash va Video kutish
+async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    if "|" not in text:
+        await update.message.reply_text("❌ Format xato! `Nomi | Tili | Janri | Yili` ko'rinishida yuboring.")
+        return A_GET_DATA
     
-    # 1. Video kelganini tekshirish
-    if not update.message.video:
-        await update.message.reply_text(
-            "⚠️ Iltimos, anime qismini **VIDEO** shaklida yuboring.\n"
-            "Caption (izoh) qismida ma'lumotlarni unutmang!",
-            parse_mode="Markdown"
-        )
-        return A_ADD_ANI_DATA
-
-    v_id = update.message.video.file_id
-    caption = update.message.caption
-    
-    # 2. Caption (izoh) borligini tekshirish
-    if not caption or "|" not in caption:
-        await update.message.reply_text(
-            "❌ **Xato!** Video izohida ma'lumotlar topilmadi.\n\n"
-            "Format: `ID | Nomi | Tili | Qismi`", 
-            parse_mode="Markdown"
-        )
-        return A_ADD_ANI_DATA
-
     try:
-        # 3. Ma'lumotlarni ajratish
-        parts = [i.strip() for i in caption.split("|")]
-        if len(parts) < 4:
-            raise ValueError("Ma'lumotlar yetarli emas (4 ta qism bo'lishi shart)")
-            
-        aid, name, lang, ep = parts
-        p_id = context.user_data.get('poster')
-
-        if not p_id:
-            await update.message.reply_text("❌ **Poster topilmadi!** Jarayonni qayta boshlang: /start")
-            return ConversationHandler.END
-
-        # 4. Ma'lumotlar bazasiga yozish
+        n, l, g, y = [i.strip() for i in text.split("|")]
         conn = get_db()
-        if not conn:
-            await update.message.reply_text("❌ Bazaga ulanishda xato!")
-            return A_ADD_ANI_DATA
-            
         cur = conn.cursor()
-        
-        # Anime ro'yxatini yangilash (Agar anime avval bo'lmasa qo'shadi, bo'lsa yangilaydi)
-        cur.execute("""
-            INSERT INTO anime_list (anime_id, name, poster_id) 
-            VALUES (%s, %s, %s)
-            ON DUPLICATE KEY UPDATE name=%s, poster_id=%s
-        """, (aid, name, p_id, name, p_id))
-        
-        # Qismni yuklash
-        cur.execute("""
-            INSERT INTO anime_episodes (anime_id, episode, lang, file_id) 
-            VALUES (%s, %s, %s, %s)
-            ON DUPLICATE KEY UPDATE file_id=%s, lang=%s
-        """, (aid, ep, lang, v_id, v_id, lang))
-        
+        cur.execute("INSERT INTO anime_list (name, poster_id, lang, genre, year) VALUES (%s, %s, %s, %s, %s)",
+                    (n, context.user_data['tmp_poster'], l, g, y))
+        new_id = cur.lastrowid
         conn.commit()
         cur.close()
         conn.close()
 
-        # 5. Muvaffaqiyatli tugmalar
-        kb = [
-            [InlineKeyboardButton("➕ Yana qism qo'shish (Xuddi shu anime)", callback_data="add_more_ep")],
-            [InlineKeyboardButton("✅ Jarayonni yakunlash", callback_data="admin_main")]
-        ]
-        
-        await update.message.reply_text(
-            f"✅ **Qism muvaffaqiyatli saqlandi!**\n\n"
-            f"📺 **Anime:** {name}\n"
-            f"🔢 **Qism:** {ep}\n"
-            f"🌐 **Til:** {lang}\n\n"
-            f"Yana qism qo'shish uchun video yuboring yoki quyidagilardan birini tanlang:",
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode="Markdown"
-        )
-        
-        # MUHIM O'ZGARIŞ: ConversationHandler.END o'rniga holatni saqlab qolamiz
-        # Shunda foydalanuvchi tugmani bosmasdan ham ketma-ket video tashlayverishi mumkin
-        return A_ADD_ANI_DATA 
+        context.user_data['cur_ani_id'] = new_id
+        context.user_data['cur_ani_name'] = n
 
-    except Exception as e:
         await update.message.reply_text(
-            f"❌ **Xatolik yuz berdi:**\n`{str(e)}`\n\n"
-            f"Formatni tekshiring: `ID | Nomi | Tili | Qismi`",
-            parse_mode="Markdown"
+            f"✅ **{n}** bazaga qo'shildi! (ID: {new_id})\n\nEndi anime qismlarini (video) ketma-ket yuboring:",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="add_ani_menu")]])
         )
-        return A_ADD_ANI_DATA
+        return A_ADD_EP_FILES
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xatolik: {e}")
+        return A_GET_DATA
+
+async def handle_ep_uploads(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message.video:
+        await update.message.reply_text("❌ Iltimos, video yuboring!")
+        return A_ADD_EP_FILES
+
+    ani_id = context.user_data.get('cur_ani_id')
+    ani_name = context.user_data.get('cur_ani_name')
+
+    conn = get_db()
+    cur = conn.cursor()
+    # Oxirgi qismni aniqlash
+    cur.execute("SELECT MAX(episode_num) FROM anime_episodes WHERE anime_id = %s", (ani_id,))
+    last_ep = cur.fetchone()[0] or 0
+    new_ep = last_ep + 1
+    
+    # Videoni saqlash (Caption butunlay tozalangan)
+    cur.execute("INSERT INTO anime_episodes (anime_id, episode_num, file_id) VALUES (%s, %s, %s)",
+                (ani_id, new_ep, update.message.video.file_id))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    kb = [[InlineKeyboardButton("🏁 Jarayonni tugatish", callback_data="add_ani_menu")]]
+    await update.message.reply_text(
+        f"✅ **{ani_name}** ga **{new_ep}-qism** qo'shildi!\n\nYana yuboring yoki tugating 👇",
+        reply_markup=InlineKeyboardMarkup(kb)
+    )
+    return A_ADD_EP_FILES
+
+async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_ani_", extra_callback=""):
+    conn = get_db()
+    cur = conn.cursor()
+    
+    # Animelarni olish
+    cur.execute(f"SELECT id, name FROM {table_name} ORDER BY id DESC")
+    all_data = cur.fetchall()
+    cur.close()
+    conn.close()
+
+    start = page * per_page
+    end = start + per_page
+    current_items = all_data[start:end]
+
+    buttons = []
+    # Nomi bor tugmalar
+    for item in current_items:
+        # Masalan: "Naruto [ID: 12]"
+        btn_text = f"{item[1]} [ID: {item[0]}]"
+        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"{prefix}{item[0]}")])
+
+    # Navigatsiya tugmalari (Keyingi / Oldingi)
+    nav_buttons = []
+    if page > 0:
+        nav_buttons.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"pg_{prefix}{page-1}"))
+    if end < len(all_data):
+        nav_buttons.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"pg_{prefix}{page+1}"))
+    
+    if nav_buttons:
+        buttons.append(nav_buttons)
+
+    # Orqaga tugmasi
+    back_call = extra_callback if extra_callback else "back_to_ctrl"
+    buttons.append([InlineKeyboardButton("⬅️ Orqaga", callback_data=back_call)])
+    
+    return InlineKeyboardMarkup(buttons)
             
             
 
@@ -1583,6 +1622,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
