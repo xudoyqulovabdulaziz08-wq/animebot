@@ -1632,6 +1632,7 @@ def main():
             CallbackQueryHandler(handle_callback)
         ],
         states={
+            A_MAIN: [CallbackQueryHandler(handle_callback)],
             A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
             A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_add_channel)],
@@ -1688,6 +1689,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
