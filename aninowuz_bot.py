@@ -576,7 +576,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await show_anime_info(update, context)
 
         # --- YANGI QISM QO'SHISH (MAVJUD ANIMEGA) ---
-    elif data.startswith("new_ep_ani_"):
+    elif data.startswith("new_ep_ani_0"):
             # Qism qo'shish uchun anime tanlash listi
             return await select_ani_for_new_ep(update, context)
 
@@ -1684,6 +1684,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
