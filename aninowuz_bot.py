@@ -1640,23 +1640,23 @@ def main():
             CallbackQueryHandler(handle_callback)
         ],
         states={
-           # Admin panelga kirgandagi asosiy holat
+            # Admin panelga kirgandagi asosiy holat
             A_MAIN: [
                 CallbackQueryHandler(handle_callback),
-                # Agar admin panelda matnli tugmalar bo'lsa, ularni tutish:
+                # Matnli tugmalar: "🛠 Anime boshqaruvi"
                 MessageHandler(filters.Regex("^🛠 Anime boshqaruvi$"), anime_control_panel),
             ],
-    
+            
             # Anime boshqaruv paneli
             A_ANI_CONTROL: [
                 CallbackQueryHandler(handle_callback),
-                # SIZ AYTGAN TUGMALAR UCHUN SHU YERGA MESSAGEHANDLER QO'SHING:
+                # Tugmalar matni kodingizdagi ReplyKeyboardMarkup ga moslandi
                 MessageHandler(filters.Regex("^📜 Anime List$"), list_animes_view),
+                MessageHandler(filters.Regex("^➕ Yangi anime$"), add_anime_panel),
                 MessageHandler(filters.Regex("^🗑 Anime o'chirish$"), remove_menu_handler),
                 MessageHandler(filters.Regex("^➕ Yangi qism qo'shish$"), select_ani_for_new_ep),
-                MessageHandler(filters.Regex("^❌ Qismni o'chirish$"), delete_episode_menu_handler),
-                MessageHandler(filters.Regex("^➕ Yangi anime$"), add_anime_start_handler), # Bu ham bor edi faylda
-                MessageHandler(filters.Regex("^🔙 Orqaga$"), admin_panel_handler), # Orqaga qaytish uchun
+                MessageHandler(filters.Regex("^❌ Qismni o'chirish$"), select_ani_for_rem_ep),
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), admin_panel_handler),
             ],
             
             # Ro'yxat ko'rish va o'chirish holatlari
@@ -1669,7 +1669,7 @@ def main():
             A_GET_DATA: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, save_ani_handler), CallbackQueryHandler(handle_callback)],
             A_ADD_EP_FILES: [MessageHandler(filters.VIDEO, handle_ep_uploads), CallbackQueryHandler(handle_callback)],
             
-            # Qolgan barcha mavjud statelaringiz...
+            # Qidiruv va boshqalar
             A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
             A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_add_channel)],
@@ -1716,6 +1716,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
