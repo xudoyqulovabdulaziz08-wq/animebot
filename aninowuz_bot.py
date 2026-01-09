@@ -1396,6 +1396,64 @@ async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_a
     buttons.append([InlineKeyboardButton("⬅️ Orqaga", callback_data=back_call)])
     
     return InlineKeyboardMarkup(buttons)
+
+# ====================== ANIME LIST & VIEW ======================
+async def list_animes_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    page = int(query.data.split('_')[-1]) if "pg_" in query.data else 0
+    
+    kb = await get_pagination_keyboard("anime_list", page=page, prefix="viewani_", extra_callback="back_to_ctrl")
+    await query.edit_message_text("📜 **Anime ro'yxati:**\nBatafsil ma'lumot uchun tanlang:", reply_markup=kb, parse_mode="Markdown")
+    return A_LIST_VIEW
+
+async def show_anime_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    ani_id = query.data.split('_')[-1]
+    
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT * FROM anime_list WHERE id = %s", (ani_id,))
+    ani = cur.fetchone()
+    cur.execute("SELECT COUNT(*) FROM anime_episodes WHERE anime_id = %s", (ani_id,))
+    eps = cur.fetchone()[0]
+    cur.close(); conn.close()
+    
+    text = (f"🎬 **{ani[1]}**\n\n🆔 ID: {ani[0]}\n🌐 Tili: {ani[3]}\n🎭 Janri: {ani[4]}\n"
+            f"📅 Yili: {ani[5]}\n📼 Qismlar: {eps} ta")
+    
+    kb = [[InlineKeyboardButton("⬅️ Orqaga", callback_data="list_ani_pg_0")]]
+    await query.message.reply_photo(photo=ani[2], caption=text, reply_markup=InlineKeyboardMarkup(kb))
+    await query.message.delete()
+    return A_LIST_VIEW
+
+# ====================== REMOVE LOGIC ======================
+async def remove_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    kb = [
+        [InlineKeyboardButton("❌ Animeni o'chirish", callback_data="rem_ani_list_0")],
+        [InlineKeyboardButton("🎞 Qismni o'chirish", callback_data="rem_ep_list_0")],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_ctrl")]
+    ]
+    await query.edit_message_text("🗑 **Remove Anime paneli**", reply_markup=InlineKeyboardMarkup(kb))
+    return A_REM_MENU
+
+async def delete_anime_exec(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    ani_id = query.data.split('_')[-1]
+    
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("DELETE FROM anime_list WHERE id = %s", (ani_id,))
+    conn.commit(); cur.close(); conn.close()
+    
+    await query.answer("✅ Anime va barcha qismlari o'chirildi!", show_alert=True)
+    return await anime_control_panel(update, context)
+
+# ====================== MAVJUD ANIMEGA QISM QO'SHISH ======================
+async def select_ani_for_new_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    page = int(query.data.split('_')[-1]) if "pg_" in query.data else 0
+    kb = await get_pagination_keyboard("anime_list", page=page, prefix="addepto_", extra_callback="add_ani_menu")
+    await query.edit_message_text("📼 Qism qo'shmoqchi bo'lgan animeni tanlang:", reply_markup=kb)
+    return A_SELECT_ANI_EP
             
             
 
@@ -1622,6 +1680,7 @@ if __name__ == '__main__':
     
 
     
+
 
 
 
