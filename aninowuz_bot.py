@@ -11,7 +11,107 @@ from telegram import (
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
 )
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler,
+    ApplicationBuilder, Comma# ====================== MAIN FUNKSIYA (YANGILANGAN TIZIM) ======================
+def main():
+    # 1. Serverni uyg'oq saqlash (Render uchun)
+    keep_alive()
+    
+    # 2. Bazani ishga tushirish va jadvallarni yangilash
+    try:
+        init_db()
+    except Exception as e:
+        print(f"🛑 Baza ulanishida xato: {e}")
+
+    # 3. Botni yaratish
+    app_bot = ApplicationBuilder().token(TOKEN).build()
+    
+    # Menyu filtri (Asosiy tugmalarni Conversation ichida buzilib ketmasligi uchun)
+    menu_filter = filters.Regex("Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish")
+
+    # 4. CONVERSATION HANDLER (Barcha jarayonlar shu yerda nazorat qilinadi)
+    conv_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler("start", start),
+            MessageHandler(filters.Regex(r"Anime qidirish"), search_menu_cmd),
+            MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info),
+            MessageHandler(filters.Regex(r"Bonus ballarim"), show_bonus),
+            MessageHandler(filters.Regex(r"Qo'llanma"), show_guide),
+            MessageHandler(filters.Regex(r"Barcha anime ro'yxati"), export_all_anime),
+            # Admin Panel tugmasi endi Anime Control Panelni chaqiradi
+            MessageHandler(filters.Regex(r"ADMIN PANEL"), anime_control_panel),
+            CallbackQueryHandler(handle_callback)
+        ],
+        states={
+            # --- Qidiruv ---
+            A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
+            A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
+            
+            # --- Kanal va Admin boshqaruvi ---
+            A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_add_channel)],
+            A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_rem_channel)],
+            A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_add_admin)],
+            A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_vip_add)],
+
+            # --- Reklama tizimi ---
+            A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
+            A_SELECT_ADS_TARGET: [CallbackQueryHandler(handle_callback, pattern="^(send_to_|cancel_ads)")],
+            A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND & ~menu_filter, ads_send_finish)],
+
+            # --- YANGI ANIME CONTROL SISTEMASI ---
+            A_ANI_CONTROL: [CallbackQueryHandler(handle_callback)],
+            A_ADD_MENU: [CallbackQueryHandler(handle_callback)],
+            
+            # Yangi anime qo'shish zanjiri
+            A_GET_POSTER: [MessageHandler(filters.PHOTO, get_poster_handler), CallbackQueryHandler(handle_callback)],
+            A_GET_DATA: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, save_ani_handler), CallbackQueryHandler(handle_callback)],
+            A_ADD_EP_FILES: [MessageHandler(filters.VIDEO, handle_ep_uploads), CallbackQueryHandler(handle_callback)],
+            
+            # Mavjud animega qism qo'shish va List
+            A_SELECT_ANI_EP: [CallbackQueryHandler(handle_callback)],
+            A_LIST_VIEW: [CallbackQueryHandler(handle_callback)],
+            
+            # O'chirish jarayonlari
+            A_REM_MENU: [CallbackQueryHandler(handle_callback)],
+            A_REM_ANI_LIST: [CallbackQueryHandler(handle_callback)],
+            A_REM_EP_ANI_LIST: [CallbackQueryHandler(handle_callback)],
+            A_REM_EP_NUM_LIST: [CallbackQueryHandler(handle_callback)]
+        },
+        fallbacks=[
+            CommandHandler("start", start),
+            MessageHandler(filters.Regex(r"Orqaga|Bekor qilish"), start),
+            CallbackQueryHandler(handle_callback)
+        ],
+        allow_reentry=True,
+        name="aninow_professional_v100" 
+    )
+
+    # 5. HANDLERLARNI RO'YXATGA OLISH (TARTIB MUHIM!)
+    
+    # 1. Komandalar
+    app_bot.add_handler(CommandHandler("start", start))
+    
+    # 2. Maxsus Inline navigatsiyalar (Pagination)
+    app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
+    app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
+    app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list"))
+    app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_page_"))
+
+    # 3. Asosiy Conversation Handler
+    app_bot.add_handler(conv_handler)
+    
+    # 4. Callbacklar (Zaxira)
+    app_bot.add_handler(CallbackQueryHandler(handle_callback))
+    
+    # 5. Noto'g'ri xabarlarni startga yo'naltirish
+    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
+
+    # 6. Botni ishga tushirish
+    print("🚀 Bot v100: Professional boshqaruv tizimi bilan ishga tushdi...")
+    app_bot.run_polling()
+
+if __name__ == '__main__':
+    main()
+ndHandler, MessageHandler,
     CallbackQueryHandler, filters, ContextTypes, ConversationHandler
 )
 
@@ -1582,12 +1682,13 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return None
     
         
-# ====================== MAIN FUNKSIYA (YANGILANGAN TIZIM) ======================
+
+# ====================== MAIN FUNKSIYA (TUZATILDI) ======================
 def main():
-    # 1. Serverni uyg'oq saqlash (Render uchun)
+    # 1. Serverni uyg'oq saqlash
     keep_alive()
     
-    # 2. Bazani ishga tushirish va jadvallarni yangilash
+    # 2. Bazani ishga tushirish
     try:
         init_db()
     except Exception as e:
@@ -1596,10 +1697,10 @@ def main():
     # 3. Botni yaratish
     app_bot = ApplicationBuilder().token(TOKEN).build()
     
-    # Menyu filtri (Asosiy tugmalarni Conversation ichida buzilib ketmasligi uchun)
+    # Menyu filtri
     menu_filter = filters.Regex("Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish")
 
-    # 4. CONVERSATION HANDLER (Barcha jarayonlar shu yerda nazorat qilinadi)
+    # 4. CONVERSATION HANDLER
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
@@ -1608,40 +1709,27 @@ def main():
             MessageHandler(filters.Regex(r"Bonus ballarim"), show_bonus),
             MessageHandler(filters.Regex(r"Qo'llanma"), show_guide),
             MessageHandler(filters.Regex(r"Barcha anime ro'yxati"), export_all_anime),
-            # Admin Panel tugmasi endi Anime Control Panelni chaqiradi
+            # Admin panelga kirish nuqtasi
             MessageHandler(filters.Regex(r"ADMIN PANEL"), anime_control_panel),
             CallbackQueryHandler(handle_callback)
         ],
         states={
-            # --- Qidiruv ---
             A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
             A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
-            
-            # --- Kanal va Admin boshqaruvi ---
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_add_channel)],
             A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_rem_channel)],
             A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_add_admin)],
             A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_vip_add)],
-
-            # --- Reklama tizimi ---
             A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
             A_SELECT_ADS_TARGET: [CallbackQueryHandler(handle_callback, pattern="^(send_to_|cancel_ads)")],
             A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND & ~menu_filter, ads_send_finish)],
-
-            # --- YANGI ANIME CONTROL SISTEMASI ---
             A_ANI_CONTROL: [CallbackQueryHandler(handle_callback)],
             A_ADD_MENU: [CallbackQueryHandler(handle_callback)],
-            
-            # Yangi anime qo'shish zanjiri
             A_GET_POSTER: [MessageHandler(filters.PHOTO, get_poster_handler), CallbackQueryHandler(handle_callback)],
             A_GET_DATA: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, save_ani_handler), CallbackQueryHandler(handle_callback)],
             A_ADD_EP_FILES: [MessageHandler(filters.VIDEO, handle_ep_uploads), CallbackQueryHandler(handle_callback)],
-            
-            # Mavjud animega qism qo'shish va List
             A_SELECT_ANI_EP: [CallbackQueryHandler(handle_callback)],
             A_LIST_VIEW: [CallbackQueryHandler(handle_callback)],
-            
-            # O'chirish jarayonlari
             A_REM_MENU: [CallbackQueryHandler(handle_callback)],
             A_REM_ANI_LIST: [CallbackQueryHandler(handle_callback)],
             A_REM_EP_ANI_LIST: [CallbackQueryHandler(handle_callback)],
@@ -1653,35 +1741,36 @@ def main():
             CallbackQueryHandler(handle_callback)
         ],
         allow_reentry=True,
-        name="aninow_professional_v100" 
+        name="aninow_professional_v101" # Versiyani oshirdik, eski statelar o'chishi uchun
     )
 
-    # 5. HANDLERLARNI RO'YXATGA OLISH (TARTIB MUHIM!)
+    # 5. HANDLERLARNI RO'YXATGA OLISH (TARTIB O'TA MUHIM!)
     
-    # 1. Komandalar
+    # 1. Start har doim birinchi
     app_bot.add_handler(CommandHandler("start", start))
     
-    # 2. Maxsus Inline navigatsiyalar (Pagination)
+    # 2. Maxsus callbacklar
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_page_"))
 
-    # 3. Asosiy Conversation Handler
+    # 3. CONVERSATION HANDLER (Barcha matnli tugmalarni shu boshqaradi)
     app_bot.add_handler(conv_handler)
     
-    # 4. Callbacklar (Zaxira)
+    # 4. Zaxira callback (conv_handlerdan tashqaridagi inline tugmalar uchun)
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
     
-    # 5. Noto'g'ri xabarlarni startga yo'naltirish
-    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
+    # !!! DIQQAT: Pastdagi "zaxira start" handlerini o'chirib tashladik !!!
+    # U conv_handler ishiga xalaqit berayotgan edi.
 
     # 6. Botni ishga tushirish
-    print("🚀 Bot v100: Professional boshqaruv tizimi bilan ishga tushdi...")
+    print("🚀 Bot v101: Admin panel tuzatildi...")
     app_bot.run_polling()
 
 if __name__ == '__main__':
     main()
+
 
 
 
