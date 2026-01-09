@@ -1667,7 +1667,6 @@ def main():
                 MessageHandler(filters.Regex("^➕ Yangi anime$"), add_anime_panel),
                 MessageHandler(filters.Regex("^🗑 Anime o'chirish$"), remove_menu_handler),
                 MessageHandler(filters.Regex("^➕ Yangi qism qo'shish$"), select_ani_for_new_ep),
-                MessageHandler(filters.Regex("^❌ Qismni o'chirish$"), select_ani_for_rem_ep),
                 MessageHandler(filters.Regex("^🔙 Orqaga$"), admin_panel_handler),
             ],
             
@@ -1728,5 +1727,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
