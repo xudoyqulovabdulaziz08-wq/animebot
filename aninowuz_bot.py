@@ -14,6 +14,7 @@ from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler, 
     CallbackQueryHandler, ConversationHandler, filters, ContextTypes
 )
+
     # 1. Serverni uyg'oq saqlash (Render uchun)
     keep_alive()
     
@@ -1771,6 +1772,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
