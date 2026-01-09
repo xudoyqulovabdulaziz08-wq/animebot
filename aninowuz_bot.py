@@ -1632,7 +1632,23 @@ def main():
             CallbackQueryHandler(handle_callback)
         ],
         states={
+            # Admin panelga kirgandagi asosiy holat
             A_MAIN: [CallbackQueryHandler(handle_callback)],
+            
+            # Anime boshqaruv paneli
+            A_ANI_CONTROL: [CallbackQueryHandler(handle_callback)],
+            
+            # Ro'yxat ko'rish va o'chirish holatlari
+            A_LIST_VIEW: [CallbackQueryHandler(handle_callback)],
+            A_REM_MENU: [CallbackQueryHandler(handle_callback)],
+            A_REM_ANI_LIST: [CallbackQueryHandler(handle_callback)],
+            
+            # Ma'lumot yig'ish holatlari
+            A_GET_POSTER: [MessageHandler(filters.PHOTO, get_poster_handler), CallbackQueryHandler(handle_callback)],
+            A_GET_DATA: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, save_ani_handler), CallbackQueryHandler(handle_callback)],
+            A_ADD_EP_FILES: [MessageHandler(filters.VIDEO, handle_ep_uploads), CallbackQueryHandler(handle_callback)],
+            
+            # Qolgan barcha mavjud statelaringiz...
             A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
             A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_add_channel)],
@@ -1642,17 +1658,7 @@ def main():
             A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
             A_SELECT_ADS_TARGET: [CallbackQueryHandler(handle_callback, pattern="^(send_to_|cancel_ads)")],
             A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND & ~menu_filter, ads_send_finish)],
-            A_ANI_CONTROL: [CallbackQueryHandler(handle_callback)],
-            A_ADD_MENU: [CallbackQueryHandler(handle_callback)],
-            A_GET_POSTER: [MessageHandler(filters.PHOTO, get_poster_handler), CallbackQueryHandler(handle_callback)],
-            A_GET_DATA: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, save_ani_handler), CallbackQueryHandler(handle_callback)],
-            A_ADD_EP_FILES: [MessageHandler(filters.VIDEO, handle_ep_uploads), CallbackQueryHandler(handle_callback)],
             A_SELECT_ANI_EP: [CallbackQueryHandler(handle_callback)],
-            A_LIST_VIEW: [CallbackQueryHandler(handle_callback)],
-            A_REM_MENU: [CallbackQueryHandler(handle_callback)],
-            A_REM_ANI_LIST: [CallbackQueryHandler(handle_callback)],
-            A_REM_EP_ANI_LIST: [CallbackQueryHandler(handle_callback)],
-            A_REM_EP_NUM_LIST: [CallbackQueryHandler(handle_callback)]
         },
         fallbacks=[
             CommandHandler("start", start),
@@ -1689,6 +1695,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
