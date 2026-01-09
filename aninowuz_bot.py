@@ -1653,23 +1653,21 @@ def main():
             CallbackQueryHandler(handle_callback)
         ],
         states={
-            # Admin panelga kirgandagi asosiy holat
+            # Admin panel asosiy menyusi
             A_MAIN: [
                 CallbackQueryHandler(handle_callback),
-                # "🛠 Anime boshqaruvi" tugmasi bosilganda
                 MessageHandler(filters.Regex("^🛠 Anime boshqaruvi$"), anime_control_panel),
             ],
             
-            # Anime boshqaruv paneli (Tugmalar ishlamayotgan joy shu yer)
+            # Anime boshqaruv paneli (Tugmalar ishlaydigan joy)
             A_ANI_CONTROL: [
                 CallbackQueryHandler(handle_callback),
-                # Matnli tugmalar uchun Handlerlar:
+                # Quyidagilar matnli (pastdagi) tugmalar uchun:
                 MessageHandler(filters.Regex("^📜 Anime List$"), list_animes_view),
                 MessageHandler(filters.Regex("^➕ Yangi anime$"), add_anime_panel),
                 MessageHandler(filters.Regex("^🗑 Anime o'chirish$"), remove_menu_handler),
                 MessageHandler(filters.Regex("^➕ Yangi qism qo'shish$"), select_ani_for_new_ep),
-                # DIQQAT: Funksiya nomi kodingizda 'select_ani_for_rem_ep_list' ekan
-                MessageHandler(filters.Regex("^❌ Qismni o'chirish$"), select_ani_for_rem_ep_list),
+                MessageHandler(filters.Regex("^❌ Qismni o'chirish$"), select_ani_for_rem_ep),
                 MessageHandler(filters.Regex("^🔙 Orqaga$"), admin_panel_handler),
             ],
             
@@ -1730,42 +1728,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
