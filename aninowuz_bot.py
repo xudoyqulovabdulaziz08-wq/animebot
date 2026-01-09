@@ -1288,7 +1288,7 @@ async def add_anime_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     kb = [
         [InlineKeyboardButton("✨ Yangi anime qo'shish", callback_data="start_new_ani")],
-        [InlineKeyboardButton("📼 Yangi qism qo'shish", callback_data="new_ep_ani_0")],
+        [InlineKeyboardButton("📼 Yangi qism qo'shish", callback_data="list_ani_pg_")],
         [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_ctrl")]
     ]
     text = "➕ **Add Anime Panel**\n\nTanlang: 👇"
@@ -1689,6 +1689,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
