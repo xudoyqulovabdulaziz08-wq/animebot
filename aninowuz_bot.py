@@ -1644,7 +1644,7 @@ def main():
             A_MAIN: [
                 CallbackQueryHandler(handle_callback),
                 # Agar admin panelda matnli tugmalar bo'lsa, ularni tutish:
-                MessageHandler(filters.Regex("^🛠 Anime boshqaruvi$"), anime_control_menu_handler), # Misol
+                MessageHandler(filters.Regex("^🛠 Anime boshqaruvi$"), anime_control_menu_handler),
                 MessageHandler(filters.Regex("^📊 Statistika$"), stats_handler),
             ],
     
@@ -1656,6 +1656,8 @@ def main():
                 MessageHandler(filters.Regex("^🗑 Anime o'chirish$"), remove_menu_handler),
                 MessageHandler(filters.Regex("^➕ Yangi qism qo'shish$"), add_episode_start_handler),
                 MessageHandler(filters.Regex("^❌ Qismni o'chirish$"), delete_episode_menu_handler),
+                MessageHandler(filters.Regex("^➕ Yangi anime$"), add_anime_start_handler), # Bu ham bor edi faylda
+                MessageHandler(filters.Regex("^🔙 Orqaga$"), admin_panel_handler), # Orqaga qaytish uchun
             ],
             
             # Ro'yxat ko'rish va o'chirish holatlari
@@ -1715,6 +1717,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
