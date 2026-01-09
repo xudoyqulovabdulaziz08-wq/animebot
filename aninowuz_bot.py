@@ -15,8 +15,6 @@ from telegram.ext import (
     CallbackQueryHandler, ConversationHandler, filters, ContextTypes
 )
 
-)
-
 # ====================== WEB SERVICE (RENDER UCHUN) ======================
 app = Flask('')
 
@@ -1672,6 +1670,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
