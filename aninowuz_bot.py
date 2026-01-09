@@ -1493,7 +1493,7 @@ async def select_ani_for_new_ep(update: Update, context: ContextTypes.DEFAULT_TY
     return A_SELECT_ANI_EP
 
 
-  async def select_ani_for_rem_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def select_ani_for_rem_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Qismni o‘chirish uchun avval animeni tanlash
     """
@@ -1762,6 +1762,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
