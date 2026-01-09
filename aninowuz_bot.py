@@ -1281,14 +1281,27 @@ async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Anime Control Asosiy Menyusi
 async def anime_control_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    if query:
+        await query.answer()
+
+    # Inline tugmalar (callback_data'lar handle_callback ichida tekshiriladi)
     kb = [
         [InlineKeyboardButton("➕ Add Anime", callback_data="add_ani_menu"),
-         InlineKeyboardButton("📜 Anime List", callback_data="list_ani_pg_")],
+         InlineKeyboardButton("📜 Anime List", callback_data="list_ani_pg_0")], # Sahifa 0 dan boshlanadi
         [InlineKeyboardButton("🗑 Remove Anime", callback_data="rem_ani_menu")],
         [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
     ]
+    
     text = "🛠 **Anime Control Panel**\n\nKerakli bo'limni tanlang: 👇"
-    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+    reply_markup = InlineKeyboardMarkup(kb)
+
+    if query:
+        # Agar inline tugma bosilgan bo'lsa, xabarni tahrirlaymiz
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    else:
+        # Agar matnli tugma bosilgan bo'lsa, yangi xabar yuboramiz
+        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    
     return A_ANI_CONTROL
 
 # Add Anime Panel (Yangi anime yoki qism)
@@ -1717,6 +1730,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
