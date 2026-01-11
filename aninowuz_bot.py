@@ -1595,7 +1595,6 @@ async def background_ads_task(bot, admin_id, users, msg_id, from_chat_id):
         parse_mode="Markdown"
     )
 
-# --- ADS_SEND_FINISH FUNKSIYASINI TO'G'RILASH ---
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     admin_id = update.effective_user.id
@@ -1607,17 +1606,25 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
         
     cur = conn.cursor()
+    
+    # MUHIM: Bazadagi statuslar koddagi callbacklar bilan mos kelishi shart.
+    # Masalan: callback 'send_to_user' bo'lsa, target 'user' bo'ladi.
+    
     if target == "all":
         cur.execute("SELECT user_id FROM users")
     else:
-        cur.execute("SELECT user_id FROM users WHERE status = %s", (target,))
+        # LOWER(status) ishlatish orqali katta-kichik harf farqini yo'qotamiz
+        # Agar bazada status 'User' bo'lsa-yu, kodingizda 'user' kelsa ham ishlaydi
+        cur.execute("SELECT user_id FROM users WHERE LOWER(status) = %s", (target.lower(),))
         
     users = cur.fetchall()
     cur.close()
     conn.close()
 
     if not users:
-        await msg.reply_text(f"📭 Tanlangan guruhda ({target}) foydalanuvchilar yo'q.")
+        # Bu xabar chiqsa, demak bazada ushbu statusga ega birorta ham odam yo'q
+        await msg.reply_text(f"📭 Tanlangan guruhda ({target}) foydalanuvchilar topilmadi.\n\n"
+                             f"Maslahat: Bazangizda foydalanuvchilar 'status' ustuni to'ldirilganini tekshiring.")
         return ConversationHandler.END
 
     # Reklamani fon rejimida ishga tushirish
@@ -1631,10 +1638,9 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     status = await get_user_status(admin_id)
     await msg.reply_text(
-        f"✅ **Reklama yuborish navbatga qo'shildi!**\n\n"
+        f"✅ **Reklama yuborish boshlandi!**\n\n"
         f"Guruh: `{target}`\n"
-        f"Foydalanuvchilar: `{len(users)}` ta.\n\n"
-        f"Bot reklamani sekin-asta yuboradi, jarayonni sizga xabar qilib turaman.",
+        f"Topilgan foydalanuvchilar: `{len(users)}` ta.",
         reply_markup=get_main_kb(status),
         parse_mode="Markdown"
     )
@@ -1802,6 +1808,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
