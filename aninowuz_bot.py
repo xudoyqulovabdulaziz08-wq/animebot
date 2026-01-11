@@ -550,6 +550,22 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END
 
+    # Sahifalash (Pagination) navigatsiyasini tutish
+    if data.startswith("pg_"):
+        parts = data.split('_') # ['pg', 'viewani', '1']
+        new_prefix = parts[1] + "_" # 'viewani_'
+        new_page = int(parts[2])
+        
+        # Qaysi bo'limdaligiga qarab listni yangilash
+        if "viewani" in data:
+            # query.data ni tahrirlab list_animes_view ga jo'natamiz
+            update.callback_query.data = f"list_ani_pg_{new_page}"
+            return await list_animes_view(update, context)
+        elif "delani" in data:
+            # O'chirish listi uchun
+            update.callback_query.data = f"rem_ani_list_{new_page}"
+            # handle_callback ichidagi elif rem_ani_list_ shartiga qaytadi
+
      # --- ANIME CONTROL ASOSIY ---
     if data == "adm_ani_ctrl" or data == "back_to_ctrl" or data == "admin_main":
         return await anime_control_panel(update, context)
@@ -1920,6 +1936,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
