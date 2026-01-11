@@ -1404,25 +1404,21 @@ async def handle_ep_uploads(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_ani_", extra_callback=""):
     conn = get_db()
     cur = conn.cursor()
-    
-    # Animelarni olish
     cur.execute(f"SELECT id, name FROM {table_name} ORDER BY id DESC")
     all_data = cur.fetchall()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
 
     start = page * per_page
     end = start + per_page
     current_items = all_data[start:end]
 
     buttons = []
-    # Nomi bor tugmalar
     for item in current_items:
-        # Masalan: "Naruto [ID: 12]"
+        # PREFIX va ID orasida faqat bitta tagchiziq bo'lishini ta'minlaymiz
+        clean_prefix = prefix.rstrip('_') 
         btn_text = f"{item[1]} [ID: {item[0]}]"
-        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"{prefix}{item[0]}")])
+        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"{clean_prefix}_{item[0]}")])
 
-    # Navigatsiya tugmalari (Keyingi / Oldingi)
     nav_buttons = []
     if page > 0:
         nav_buttons.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"pg_{prefix}{page-1}"))
@@ -1432,7 +1428,6 @@ async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_a
     if nav_buttons:
         buttons.append(nav_buttons)
 
-    # Orqaga tugmasi
     back_call = extra_callback if extra_callback else "back_to_ctrl"
     buttons.append([InlineKeyboardButton("⬅️ Orqaga", callback_data=back_call)])
     
@@ -1930,6 +1925,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
