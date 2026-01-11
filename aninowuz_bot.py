@@ -1957,7 +1957,7 @@ def main():
     app_bot.add_handler(MessageHandler(filters.Regex("Bonus ballarim"), show_bonus)) # Funksiya nomini yozing
     app_bot.add_handler(MessageHandler(filters.Regex("Qo'llanma"), show_guide))
     app_bot.add_handler(MessageHandler(filters.Regex("VIP PASS"), vip_pass_info))# Funksiya nomini yozing
-    app_bot.add_handler(MessageHandler(filters.Regex("Barcha anime ro'yxati"), all_anime_list_funksiyasi))
+    app_bot.add_handler(MessageHandler(filters.Regex("Barcha anime ro'yxati"), export_all_anime))
 
     # 5. ZAXIRA CALLBACK (Conv_handlerdan tashqaridagi inline tugmalar uchun)
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
@@ -1970,4 +1970,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
