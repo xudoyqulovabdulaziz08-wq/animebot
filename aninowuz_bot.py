@@ -552,19 +552,27 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Sahifalash (Pagination) navigatsiyasini tutish
     if data.startswith("pg_"):
+        # Format: pg_viewani_1 yoki pg_delani_0
         parts = data.split('_') # ['pg', 'viewani', '1']
-        new_prefix = parts[1] + "_" # 'viewani_'
-        new_page = int(parts[2])
+        prefix = parts[1]
+        page = int(parts[-1])
         
-        # Qaysi bo'limdaligiga qarab listni yangilash
-        if "viewani" in data:
-            # query.data ni tahrirlab list_animes_view ga jo'natamiz
-            update.callback_query.data = f"list_ani_pg_{new_page}"
+        if prefix == "viewani":
+            update.callback_query.data = f"list_ani_pg_{page}"
             return await list_animes_view(update, context)
-        elif "delani" in data:
-            # O'chirish listi uchun
-            update.callback_query.data = f"rem_ani_list_{new_page}"
-            # handle_callback ichidagi elif rem_ani_list_ shartiga qaytadi
+        elif prefix == "delani":
+            update.callback_query.data = f"rem_ani_list_{page}"
+            # O'chirish ro'yxatini qayta chiqarish
+            kb = await get_pagination_keyboard("anime_list", page=page, prefix="delani_", extra_callback="rem_ani_menu")
+            await query.edit_message_text("🗑 **O'chirish uchun anime tanlang:**", reply_markup=kb, parse_mode="Markdown")
+            return A_REM_ANI_LIST
+        elif prefix == "addepto" or prefix == "addep":
+            update.callback_query.data = f"pg_{page}"
+            return await select_ani_for_new_ep(update, context)
+        elif prefix == "remep":
+            update.callback_query.data = f"pg_{page}"
+            return await select_ani_for_rem_ep(update, context)
+        return
 
      # --- ANIME CONTROL ASOSIY ---
     elif data == "adm_ani_ctrl" or data == "back_to_ctrl" or data == "admin_main":
@@ -1930,6 +1938,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
