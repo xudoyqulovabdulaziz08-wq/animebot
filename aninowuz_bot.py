@@ -363,6 +363,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_main_kb(status)
     )
 
+async def start(update, context):
+    # ... menyularni chiqarish kodi ...
+    return ConversationHandler.END # Bu foydalanuvchini har qanday admin holatidan chiqarib yuboradi
+
 
     
     
@@ -1924,28 +1928,37 @@ def main():
         },
         fallbacks=[
             CommandHandler("start", start),
-            MessageHandler(filters.Regex(r"Orqaga|Bekor qilish"), start),
+            MessageHandler(filters.Regex(r"Orqaga|Bekor qilish|Bosh menyu"), start),
+            # Agar foydalanuvchi adashib qolsa, handle_callback orqali ham startga qaytarish:
             CallbackQueryHandler(handle_callback)
         ],
         allow_reentry=True,
-        name="aninow_v102" # Versiya yangilandi
+        name="aninow_v103" # Versiya yangilandi
     )
 
-    # 5. HANDLERLARNI RO'YXATGA OLISH (TARTIB O'TA MUHIM!)
-    
-    # 1. Start har doim birinchi
-    app_bot.add_handler(CommandHandler("start", start))
-    
-    # 2. Maxsus callbacklar
+    # 5. HANDLERLARNI RO'YXATGA OLISH (YANGI TARTIB)
+
+    # 1. Global Callbacklar (Har doim va hamma joyda ishlashi kerak bo'lganlar)
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_page_"))
 
-    # 3. CONVERSATION HANDLER (Barcha matnli tugmalarni shu boshqaradi)
+    # 2. CONVERSATION HANDLER (Admin va Qidiruv rejimlari)
+    # Bu handler foydalanuvchi ma'lum bir jarayonda (masalan anime qo'shish) bo'lganda ishlaydi
     app_bot.add_handler(conv_handler)
-    
-    # 4. Zaxira callback (conv_handlerdan tashqaridagi inline tugmalar uchun)
+
+    # 3. GLOBAL COMMANDS (Agar Conversation ichida bo'lmasangiz, bular ishlaydi)
+    app_bot.add_handler(CommandHandler("start", start))
+
+    # 4. GLOBAL MESSAGE HANDLERS (Foydalanuvchi menyusi tugmalari uchun)
+    # Agar conv_handler ichida bo'lmasangiz, bu handlerlar menyu tugmalarini ushlaydi
+    app_bot.add_handler(MessageHandler(filters.Regex("Anime qidirish"), search_menu_cmd))
+    app_bot.add_handler(MessageHandler(filters.Regex("Bonus ballarim"), bonus_funksiyasi_nomi)) # Funksiya nomini yozing
+    app_bot.add_handler(MessageHandler(filters.Regex("Qo'llanma"), guide_funksiyasi_nomi)) # Funksiya nomini yozing
+    app_bot.add_handler(MessageHandler(filters.Regex("Barcha anime ro'yxati"), all_anime_list_funksiyasi))
+
+    # 5. ZAXIRA CALLBACK (Conv_handlerdan tashqaridagi inline tugmalar uchun)
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
     
     
@@ -1956,37 +1969,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
