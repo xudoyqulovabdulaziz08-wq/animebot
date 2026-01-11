@@ -551,28 +551,34 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
     # Sahifalash (Pagination) navigatsiyasini tutish
+    # 1. Navigatsiyani tutish (Eng tepada)
     if data.startswith("pg_"):
-        # Format: pg_viewani_1 yoki pg_delani_0
-        parts = data.split('_') # ['pg', 'viewani', '1']
+        parts = data.split('_') # pg_viewani_1 -> ['pg', 'viewani', '1']
         prefix = parts[1]
-        page = int(parts[-1])
+        try:
+            new_page = int(parts[-1])
+        except:
+            new_page = 0
         
         if prefix == "viewani":
-            update.callback_query.data = f"list_ani_pg_{page}"
+            update.callback_query.data = f"list_ani_pg_{new_page}"
             return await list_animes_view(update, context)
         elif prefix == "delani":
-            update.callback_query.data = f"rem_ani_list_{page}"
-            # O'chirish ro'yxatini qayta chiqarish
-            kb = await get_pagination_keyboard("anime_list", page=page, prefix="delani_", extra_callback="rem_ani_menu")
+            update.callback_query.data = f"rem_ani_list_{new_page}"
+            # O'chirish listini qayta yuklaymiz
+            kb = await get_pagination_keyboard("anime_list", page=new_page, prefix="delani_", extra_callback="rem_ani_menu")
             await query.edit_message_text("🗑 **O'chirish uchun anime tanlang:**", reply_markup=kb, parse_mode="Markdown")
             return A_REM_ANI_LIST
-        elif prefix == "addepto" or prefix == "addep":
-            update.callback_query.data = f"pg_{page}"
+        elif prefix == "addepto":
+            # Qism qo'shish uchun anime tanlash listi
+            # query.data ni yangilab funksiyani chaqiramiz
+            query.data = f"pg_{new_page}"
             return await select_ani_for_new_ep(update, context)
         elif prefix == "remep":
-            update.callback_query.data = f"pg_{page}"
+            # Qism o'chirish uchun anime tanlash listi
+            query.data = f"pg_{new_page}"
             return await select_ani_for_rem_ep(update, context)
-        return
+        return await query.answer()
 
      # --- ANIME CONTROL ASOSIY ---
     elif data == "adm_ani_ctrl" or data == "back_to_ctrl" or data == "admin_main":
@@ -1947,6 +1953,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
