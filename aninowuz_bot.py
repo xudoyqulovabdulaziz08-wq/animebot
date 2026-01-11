@@ -1461,6 +1461,35 @@ async def select_ani_for_ep_callback(update: Update, context: ContextTypes.DEFAU
     await query.edit_message_text(f"📥 **{res[0]}** tanlandi.\n\nEndi yangi qismlarni yuboring (videofayl):")
     return A_ADD_EP_FILES
 
+
+async def list_episodes_for_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    ani_id = query.data.split('_')[-1]
+    
+    conn = get_db(); cur = conn.cursor()
+    cur.execute("SELECT id, episode_num FROM anime_episodes WHERE anime_id = %s ORDER BY episode_num ASC", (ani_id,))
+    episodes = cur.fetchall()
+    cur.close(); conn.close()
+    
+    if not episodes:
+        await query.answer("📭 Bu animeda qismlar mavjud emas!", show_alert=True)
+        return A_REM_EP_ANI_LIST
+
+    buttons = []
+    # Qismlarni 4 tadan qilib chiqarish
+    row = []
+    for ep in episodes:
+        row.append(InlineKeyboardButton(f"{ep[1]}-qism", callback_data=f"ex_del_ep_{ep[0]}"))
+        if len(row) == 4:
+            buttons.append(row)
+            row = []
+    if row: buttons.append(row)
+    
+    buttons.append([InlineKeyboardButton("⬅️ Orqaga", callback_data="rem_ep_menu")])
+    
+    await query.edit_message_text(f"🗑 **Qaysi qismni o'chirmoqchisiz?**", reply_markup=InlineKeyboardMarkup(buttons))
+    return A_REM_EP_NUM_LIST
+
 # ====================== ANIME LIST & VIEW ======================
 async def list_animes_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1843,6 +1872,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
