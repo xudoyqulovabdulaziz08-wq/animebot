@@ -338,15 +338,24 @@ def get_cancel_kb():
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Botni ishga tushirish va foydalanuvchini ro'yxatga olish"""
     uid = update.effective_user.id
-    status = await get_user_status(uid)
     
+    # 1. Bazaga foydalanuvchini qo'shish (Xatolikdan himoyalangan)
     conn = get_db()
     if conn:
-        cur = conn.cursor()
-        cur.execute("INSERT IGNORE INTO users (user_id, joined_at, status) VALUES (%s, %s, 'user')", 
-                    (uid, datetime.datetime.now()))
-        conn.commit(); cur.close(); conn.close()
+        try:
+            cur = conn.cursor()
+            cur.execute("INSERT IGNORE INTO users (user_id, joined_at, status) VALUES (%s, %s, 'user')", 
+                        (uid, datetime.datetime.now()))
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            print(f"Baza xatosi (user add): {e}")
+
+    # 2. Statusni aniqlash
+    status = await get_user_status(uid)
     
+    # 3. Obunani tekshirish
     not_joined = await check_sub(uid, context.bot)
     if not_joined:
         btn = [[InlineKeyboardButton(f"Obuna bo'lish ➕", url=f"https://t.me/{c.replace('@','')}") ] for c in not_joined]
@@ -356,14 +365,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(btn)
         )
     
+    # 4. Asosiy menyuni chiqarish
     await update.message.reply_text(
         "✨ Xush kelibsiz! Anime olamiga marhamat.", 
         reply_markup=get_main_kb(status)
     )
-
-async def start(update, context):
-    # ... menyularni chiqarish kodi ...
-    return ConversationHandler.END # Bu foydalanuvchini har qanday admin holatidan chiqarib yuboradi
+    
+    # ConversationHandler ichida bo'lsa, jarayonni yakunlash uchun kerak
+    return ConversationHandler.END
 
 
     
@@ -1999,6 +2008,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
