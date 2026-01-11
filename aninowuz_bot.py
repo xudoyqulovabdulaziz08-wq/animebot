@@ -279,8 +279,6 @@ async def check_sub(uid, bot):
     return not_joined
 
 
-    
-    
 
 # ====================== KLAVIATURALAR (TUZATILDI) ======================
 
@@ -1847,7 +1845,24 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
     return None
-    
+
+async def fix_database_structure(update, context):
+    # Faqat admin ishlata olishi uchun tekshiruv (ixtiyoriy)
+    conn = get_db()
+    cur = conn.cursor()
+    try:
+        # 1. 'lang' ustunini qo'shish
+        cur.execute("ALTER TABLE anime_list ADD COLUMN lang VARCHAR(50) DEFAULT 'Noma’lum'")
+        # 2. 'episode_num' o'rniga 'part' bo'lsa, uni tekshirish (yoki qo'shish)
+        # cur.execute("ALTER TABLE anime_episodes ADD COLUMN episode_num INT")
+        
+        conn.commit()
+        await update.message.reply_text("✅ Baza tuzilishi muvaffaqiyatli yangilandi! Endi 'lang' xatosi chiqmaydi.")
+    except Exception as e:
+        await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
+    finally:
+        cur.close()
+        conn.close()
         
 
 # ====================== MAIN FUNKSIYA (TUZATILDI) ======================
@@ -1958,6 +1973,7 @@ def main():
     app_bot.add_handler(MessageHandler(filters.Regex("Qo'llanma"), show_guide))
     app_bot.add_handler(MessageHandler(filters.Regex("VIP PASS"), vip_pass_info))# Funksiya nomini yozing
     app_bot.add_handler(MessageHandler(filters.Regex("Barcha anime ro'yxati"), export_all_anime))
+    app_bot.add_handler(CommandHandler("update_db", update_db_structure))
 
     # 5. ZAXIRA CALLBACK (Conv_handlerdan tashqaridagi inline tugmalar uchun)
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
@@ -1970,6 +1986,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
