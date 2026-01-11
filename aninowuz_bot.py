@@ -1464,8 +1464,14 @@ async def select_ani_for_ep_callback(update: Update, context: ContextTypes.DEFAU
 # ====================== ANIME LIST & VIEW ======================
 async def list_animes_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    page = int(query.data.split('_')[-1]) if "pg_" in query.data else 0
-    
+    # Sahifa raqamini olish mantiqi
+    page = 0
+    if "_" in query.data:
+        try:
+            page = int(query.data.split('_')[-1])
+        except ValueError:
+            page = 0
+            
     kb = await get_pagination_keyboard("anime_list", page=page, prefix="viewani_", extra_callback="back_to_ctrl")
     await query.edit_message_text("📜 **Anime ro'yxati:**\nBatafsil ma'lumot uchun tanlang:", reply_markup=kb, parse_mode="Markdown")
     return A_LIST_VIEW
@@ -1477,81 +1483,72 @@ async def show_anime_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = get_db(); cur = conn.cursor()
     cur.execute("SELECT * FROM anime_list WHERE id = %s", (ani_id,))
     ani = cur.fetchone()
+    if not ani:
+        await query.answer("❌ Anime topilmadi!")
+        return A_LIST_VIEW
+        
     cur.execute("SELECT COUNT(*) FROM anime_episodes WHERE anime_id = %s", (ani_id,))
     eps = cur.fetchone()[0]
     cur.close(); conn.close()
     
-    text = (f"🎬 **{ani[1]}**\n\n🆔 ID: {ani[0]}\n🌐 Tili: {ani[3]}\n🎭 Janri: {ani[4]}\n"
-            f"📅 Yili: {ani[5]}\n📼 Qismlar: {eps} ta")
+    text = (f"🎬 **{ani[1]}**\n\n"
+            f"🆔 ID: `{ani[0]}`\n"
+            f"🌐 Tili: {ani[3]}\n"
+            f"🎭 Janri: {ani[4]}\n"
+            f"📅 Yili: {ani[5]}\n"
+            f"📼 Jami qismlar: {eps} ta")
     
-    kb = [[InlineKeyboardButton("⬅️ Orqaga", callback_data="list_ani_pg_")]]
-    await query.message.reply_photo(photo=ani[2], caption=text, reply_markup=InlineKeyboardMarkup(kb))
+    # Orqaga qaytishda 0-sahifaga yo'naltirish
+    kb = [[InlineKeyboardButton("⬅️ Ro'yxatga qaytish", callback_data="list_ani_pg_0")]]
+    
+    # Rasm yuborish va eski xabarni o'chirish
+    await query.message.reply_photo(photo=ani[2], caption=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
     await query.message.delete()
     return A_LIST_VIEW
 
 # ====================== REMOVE LOGIC ======================
-async def remove_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    kb = [
-        [InlineKeyboardButton("❌ Animeni o'chirish", callback_data="rem_ani_list_0")],
-        [InlineKeyboardButton("🎞 Qismni o'chirish", callback_data="rem_ep_list_0")],
-        [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_ctrl")]
-    ]
-    await query.edit_message_text("🗑 **Remove Anime paneli**", reply_markup=InlineKeyboardMarkup(kb))
-    return A_REM_MENU
-
 async def delete_anime_exec(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     ani_id = query.data.split('_')[-1]
     
     conn = get_db(); cur = conn.cursor()
-    cur.execute("DELETE FROM anime_list WHERE id = %s", (ani_id,))
-    conn.commit(); cur.close(); conn.close()
+    try:
+        # 1. Avval ushbu animega tegishli barcha qismlarni o'chiramiz
+        cur.execute("DELETE FROM anime_episodes WHERE anime_id = %s", (ani_id,))
+        # 2. Keyin animening o'zini o'chiramiz
+        cur.execute("DELETE FROM anime_list WHERE id = %s", (ani_id,))
+        conn.commit()
+        await query.answer("✅ Anime va uning barcha qismlari muvaffaqiyatli o'chirildi!", show_alert=True)
+    except Exception as e:
+        conn.rollback()
+        await query.answer(f"❌ O'chirishda xatolik: {e}", show_alert=True)
+    finally:
+        cur.close(); conn.close()
     
-    await query.answer("✅ Anime va barcha qismlari o'chirildi!", show_alert=True)
     return await anime_control_panel(update, context)
 
-# ====================== MAVJUD ANIMEGA QISM QO'SHISH ======================
-async def select_ani_for_new_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    page = int(query.data.split('_')[-1]) if "pg_" in query.data else 0
-    kb = await get_pagination_keyboard("anime_list", page=page, prefix="addepto_", extra_callback="add_ani_menu")
-    await query.edit_message_text("📼 Qism qo'shmoqchi bo'lgan animeni tanlang:", reply_markup=kb)
-    return A_SELECT_ANI_EP
-
-
+# ====================== QISMNI O'CHIRISH UCHUN ANIME TANLASH ======================
 async def select_ani_for_rem_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Qismni o‘chirish uchun avval animeni tanlash
-    """
-    if update.callback_query:
-        query = update.callback_query
-        await query.answer()
-        page = int(query.data.split('_')[-1]) if "pg_" in query.data else 0
-        kb = await get_pagination_keyboard(
-            "anime_list",
-            page=page,
-            prefix="remep_",
-            extra_callback="back_to_ctrl"
-        )
-        await query.edit_message_text(
-            "🎞 Qaysi animening qismini o‘chirmoqchisiz?",
-            reply_markup=kb
-        )
+    query = update.callback_query
+    # Sahifa raqamini aniqlash
+    page = 0
+    if query and "pg_" in query.data:
+        page = int(query.data.split('_')[-1])
+        
+    kb = await get_pagination_keyboard(
+        "anime_list", 
+        page=page, 
+        prefix="remep_", 
+        extra_callback="rem_ani_menu" # Remove menyusiga qaytish
+    )
+    
+    text = "🎞 **Qaysi animening qismini o‘chirmoqchisiz?**\nRo'yxatdan tanlang: 👇"
+    
+    if query:
+        await query.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
     else:
-        # Text button orqali kelsa
-        page = 0
-        kb = await get_pagination_keyboard(
-            "anime_list",
-            page=page,
-            prefix="remep_",
-            extra_callback="back_to_ctrl"
-        )
-        await update.message.reply_text(
-            "🎞 Qaysi animening qismini o‘chirmoqchisiz?",
-            reply_markup=kb
-        )
-
+        await update.message.reply_text(text, reply_markup=kb, parse_mode="Markdown")
+        
     return A_REM_EP_ANI_LIST
           
             
@@ -1846,6 +1843,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
