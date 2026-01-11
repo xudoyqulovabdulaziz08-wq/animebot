@@ -1847,29 +1847,32 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return None
 
 async def update_db_structure(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Bazaga yetishmayotgan lang va year ustunlarini qo'shish"""
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 1. lang ustunini tekshirish va qo'shish
+        # 1. 'lang' ustuni
         try:
-            cur.execute("ALTER TABLE anime_list ADD COLUMN lang VARCHAR(50) DEFAULT 'Uzbek'")
+            cur.execute("ALTER TABLE anime_list ADD COLUMN lang VARCHAR(50)")
             conn.commit()
-            print("✅ 'lang' ustuni qo'shildi.")
-        except Exception as e:
-            print(f"ℹ️ 'lang' ustuni qo'shilmadi (balki bor): {e}")
+        except: pass
 
-        # 2. year ustunini tekshirish va qo'shish
+        # 2. 'year' ustuni
         try:
-            cur.execute("ALTER TABLE anime_list ADD COLUMN year INT DEFAULT 2024")
+            cur.execute("ALTER TABLE anime_list ADD COLUMN year INT")
             conn.commit()
-            print("✅ 'year' ustuni qo'shildi.")
-        except Exception as e:
-            print(f"ℹ️ 'year' ustuni qo'shilmadi (balki bor): {e}")
+        except: pass
 
-        await update.message.reply_text("✅ Baza muvaffaqiyatli yangilandi: 'lang' va 'year' ustunlari tekshirildi/qo'shildi!")
+        # 3. 'genre' ustuni (Mana shu yetishmayotgan edi)
+        try:
+            cur.execute("ALTER TABLE anime_list ADD COLUMN genre VARCHAR(255)")
+            conn.commit()
+            print("✅ 'genre' ustuni qo'shildi.")
+        except Exception as e:
+            print(f"ℹ️ 'genre' qo'shilmadi: {e}")
+
+        await update.message.reply_text("✅ Baza to'liq yangilandi: 'lang', 'year' va 'genre' ustunlari tayyor!")
     except Exception as e:
-        await update.message.reply_text(f"❌ Umumiy xatolik: {e}")
+        await update.message.reply_text(f"❌ Xatolik: {e}")
     finally:
         cur.close()
         conn.close()
@@ -1996,6 +1999,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
