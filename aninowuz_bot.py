@@ -1724,7 +1724,7 @@ def main():
             A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_vip_add)],
             A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
             A_SELECT_ADS_TARGET: [CallbackQueryHandler(handle_callback, pattern="^(send_to_|cancel_ads)")],
-            A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND & ~menu_filter, ads_send_finish)],
+            A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
             A_SELECT_ANI_EP: [CallbackQueryHandler(handle_callback)],
         },
         fallbacks=[
@@ -1762,6 +1762,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
