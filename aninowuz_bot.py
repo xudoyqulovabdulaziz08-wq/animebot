@@ -1436,6 +1436,31 @@ async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_a
     
     return InlineKeyboardMarkup(buttons)
 
+# Mavjud animega qism qo'shish uchun ro'yxatni ko'rsatish
+async def select_ani_for_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    # Sahifa 0 dan boshlab animelar ro'yxatini chiqaramiz
+    markup = await get_pagination_keyboard("anime_list", page=0, prefix="addep_")
+    await query.edit_message_text("📼 Qaysi animega yangi qism qo'shmoqchisiz?", reply_markup=markup)
+    return A_SELECT_ANI_EP
+
+# Tanlangan anime uchun video kutish
+async def select_ani_for_ep_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    ani_id = query.data.replace("addep_", "")
+    
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM anime_list WHERE id = %s", (ani_id,))
+    res = cur.fetchone()
+    cur.close(); conn.close()
+    
+    context.user_data['cur_ani_id'] = ani_id
+    context.user_data['cur_ani_name'] = res[0]
+    
+    await query.edit_message_text(f"📥 **{res[0]}** tanlandi.\n\nEndi yangi qismlarni yuboring (videofayl):")
+    return A_ADD_EP_FILES
+
 # ====================== ANIME LIST & VIEW ======================
 async def list_animes_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1821,6 +1846,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
