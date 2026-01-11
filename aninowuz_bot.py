@@ -1954,8 +1954,9 @@ def main():
     # 4. GLOBAL MESSAGE HANDLERS (Foydalanuvchi menyusi tugmalari uchun)
     # Agar conv_handler ichida bo'lmasangiz, bu handlerlar menyu tugmalarini ushlaydi
     app_bot.add_handler(MessageHandler(filters.Regex("Anime qidirish"), search_menu_cmd))
-    app_bot.add_handler(MessageHandler(filters.Regex("Bonus ballarim"), bonus_funksiyasi_nomi)) # Funksiya nomini yozing
-    app_bot.add_handler(MessageHandler(filters.Regex("Qo'llanma"), guide_funksiyasi_nomi)) # Funksiya nomini yozing
+    app_bot.add_handler(MessageHandler(filters.Regex("Bonus ballarim"), show_bonus)) # Funksiya nomini yozing
+    app_bot.add_handler(MessageHandler(filters.Regex("Qo'llanma"), show_guide))
+    app_bot.add_handler(MessageHandler(filters.Regex("VIP PASS"), vip_pass_info))# Funksiya nomini yozing
     app_bot.add_handler(MessageHandler(filters.Regex("Barcha anime ro'yxati"), all_anime_list_funksiyasi))
 
     # 5. ZAXIRA CALLBACK (Conv_handlerdan tashqaridagi inline tugmalar uchun)
@@ -1969,3 +1970,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
