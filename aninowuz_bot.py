@@ -1498,7 +1498,7 @@ async def list_episodes_for_delete(update: Update, context: ContextTypes.DEFAULT
     ani_id = query.data.split('_')[-1]
     
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT id, episode_num FROM anime_episodes WHERE anime_id = %s ORDER BY episode_num ASC", (ani_id,))
+    cur.execute("SELECT id, part FROM anime_episodes WHERE anime_id = %s ORDER BY part ASC", (ani_id,))
     episodes = cur.fetchall()
     cur.close(); conn.close()
     
@@ -1970,5 +1970,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
