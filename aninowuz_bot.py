@@ -1556,35 +1556,70 @@ async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Parol noto'g'ri!", reply_markup=get_main_kb(status))
         return ConversationHandler.END
 
+# --- FONDA REKLAMA YUBORISH FUNKSIYASI ---
+async def background_ads_task(bot, admin_id, users, msg_id, from_chat_id):
+    sent = 0
+    failed = 0
+    
+    # Adminni jarayon boshlangani haqida ogohlantirish
+    progress_msg = await bot.send_message(admin_id, "⏳ Reklama yuborish boshlandi...")
+
+    for user in users:
+        uid = user[0] # Bazadan kelgan (user_id,) formatidan IDni olish
+        try:
+            # Xabarni nusxalab yuborish (Copy message barcha turdagi xabarlarni yuboradi)
+            await bot.copy_message(
+                chat_id=uid,
+                from_chat_id=from_chat_id,
+                message_id=msg_id
+            )
+            sent += 1
+        except Exception:
+            failed += 1
+        
+        # Har 20 ta xabardan keyin admin xabarini yangilab turish (Telegram limitiga tushmaslik uchun)
+        if (sent + failed) % 20 == 0:
+            try:
+                await progress_msg.edit_text(f"⏳ Jarayon: {sent + failed}/{len(users)}\n✅ Muvaffaqiyatli: {sent}\n❌ Xato: {failed}")
+            except:
+                pass
+        
+        # Telegram spam filteriga tushmaslik uchun kichik tanaffus
+        await asyncio.sleep(0.05) 
+
+    # Yakuniy hisobot
+    await bot.send_message(
+        admin_id, 
+        f"🏁 **Reklama yakunlandi!**\n\n✅ Yuborildi: `{sent}`\n❌ Yuborilmadi: `{failed}`",
+        parse_mode="Markdown"
+    )
+
+# --- ADS_SEND_FINISH FUNKSIYASINI TO'G'RILASH ---
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     admin_id = update.effective_user.id
-    
-    # MUHIM: handle_callback ichida saqlangan guruhni olamiz
     target = context.user_data.get('ads_target', 'all')
     
     conn = get_db()
     if not conn:
-        await msg.reply_text("❌ Ma'lumotlar bazasiga ulanishda xato!")
+        await msg.reply_text("❌ Bazaga ulanishda xato!")
         return ConversationHandler.END
         
     cur = conn.cursor()
-    
-    # SQL so'rovni guruhga qarab filtrlaymiz
     if target == "all":
         cur.execute("SELECT user_id FROM users")
     else:
-        # status ustuni bazangizda qanday nomlangan bo'lsa shuni yozing
         cur.execute("SELECT user_id FROM users WHERE status = %s", (target,))
         
     users = cur.fetchall()
-    cur.close(); conn.close()
+    cur.close()
+    conn.close()
 
     if not users:
-        await msg.reply_text(f"📭 Tanlangan guruhda ({target}) foydalanuvchilar mavjud emas.")
+        await msg.reply_text(f"📭 Tanlangan guruhda ({target}) foydalanuvchilar yo'q.")
         return ConversationHandler.END
 
-    # Reklamani fon rejimida yuborish
+    # Reklamani fon rejimida ishga tushirish
     asyncio.create_task(background_ads_task(
         bot=context.bot,
         admin_id=admin_id,
@@ -1595,13 +1630,16 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     status = await get_user_status(admin_id)
     await msg.reply_text(
-        f"✅ **Reklama {target} guruhiga fon rejimida yuborilmoqda!**\n\n"
-        f"Jami urinish: `{len(users)}` ta.",
+        f"✅ **Reklama yuborish navbatga qo'shildi!**\n\n"
+        f"Guruh: `{target}`\n"
+        f"Foydalanuvchilar: `{len(users)}` ta.\n\n"
+        f"Bot reklamani sekin-asta yuboradi, jarayonni sizga xabar qilib turaman.",
         reply_markup=get_main_kb(status),
         parse_mode="Markdown"
     )
     
     return ConversationHandler.END
+
 
 async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Barcha animelar ro'yxatini JSON fayl qilib yuborish"""
@@ -1763,6 +1801,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
