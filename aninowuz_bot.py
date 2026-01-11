@@ -1533,42 +1533,22 @@ async def select_ani_for_rem_ep(update: Update, context: ContextTypes.DEFAULT_TY
 
 # ====================== QO'SHIMCHA FUNKSIYALAR (TUZATILGAN) ======================
 
-async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.text == ADVERTISING_PASSWORD:
-        keyboard = [
-            [InlineKeyboardButton("👥 Oddiy foydalanuvchilar (User)", callback_data="send_to_user")],
-            [InlineKeyboardButton("💎 Faqat VIP a'zolar", callback_data="send_to_vip")],
-            [InlineKeyboardButton("👮 Faqat Adminlar", callback_data="send_to_admin")],
-            [InlineKeyboardButton("🌍 Barchaga (Hammaga)", callback_data="send_to_all")],
-            [InlineKeyboardButton("⬅️ Orqaga (Parolga qaytish)", callback_data="back_to_pass")],
-            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_ads")]
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        
-        await update.message.reply_text(
-            "✅ **Parol tasdiqlandi!**\n\nReklama yuborishdan oldin quyidagi bo'limlardan birini tanlang 👇",
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
-        # States ro'yxatidagi nom bilan bir xil bo'lishi kerak
-        return A_SELECT_ADS_TARGET 
-    else:
-        status = await get_user_status(update.effective_user.id)
-        await update.message.reply_text("❌ Parol noto'g'ri!", reply_markup=get_main_kb(status))
-        return ConversationHandler.END
-
-# --- FONDA REKLAMA YUBORISH FUNKSIYASI ---
+# --- 1. FONDA REKLAMA YUBORISH (PROGRESS BILAN) ---
 async def background_ads_task(bot, admin_id, users, msg_id, from_chat_id):
     sent = 0
     failed = 0
+    total = len(users)
     
     # Adminni jarayon boshlangani haqida ogohlantirish
-    progress_msg = await bot.send_message(admin_id, "⏳ Reklama yuborish boshlandi...")
+    progress_msg = await bot.send_message(
+        admin_id, 
+        f"⏳ **Reklama yuborish boshlandi...**\nJami: `{total}` ta foydalanuvchi."
+    )
 
     for user in users:
-        uid = user[0] # Bazadan kelgan (user_id,) formatidan IDni olish
+        uid = user[0]  # Kortejdan (ID,) formatidan raqamni olish
         try:
-            # Xabarni nusxalab yuborish (Copy message barcha turdagi xabarlarni yuboradi)
+            # Har qanday turdagi xabarni (rasm, video, tekst) nusxalab yuboradi
             await bot.copy_message(
                 chat_id=uid,
                 from_chat_id=from_chat_id,
@@ -1578,26 +1558,62 @@ async def background_ads_task(bot, admin_id, users, msg_id, from_chat_id):
         except Exception:
             failed += 1
         
-        # Har 20 ta xabardan keyin admin xabarini yangilab turish (Telegram limitiga tushmaslik uchun)
+        # Har 20 ta xabarda admin panelidagi statusni yangilab turish
         if (sent + failed) % 20 == 0:
             try:
-                await progress_msg.edit_text(f"⏳ Jarayon: {sent + failed}/{len(users)}\n✅ Muvaffaqiyatli: {sent}\n❌ Xato: {failed}")
+                await progress_msg.edit_text(
+                    f"⏳ **Yuborish jarayoni:**\n\n"
+                    f"📊 Jami: `{total}`\n"
+                    f"✅ Yuborildi: `{sent}`\n"
+                    f"❌ Xato: `{failed}`",
+                    parse_mode="Markdown"
+                )
             except:
                 pass
         
-        # Telegram spam filteriga tushmaslik uchun kichik tanaffus
+        # Telegram bloklamasligi uchun qisqa tanaffus
         await asyncio.sleep(0.05) 
 
     # Yakuniy hisobot
     await bot.send_message(
         admin_id, 
-        f"🏁 **Reklama yakunlandi!**\n\n✅ Yuborildi: `{sent}`\n❌ Yuborilmadi: `{failed}`",
+        f"🏁 **Reklama yakunlandi!**\n\n"
+        f"✅ Muvaffaqiyatli: `{sent}`\n"
+        f"❌ Muvaffaqiyatsiz: `{failed}`",
         parse_mode="Markdown"
     )
 
+# --- 2. PAROLNI TEKSHIRISH ---
+async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message.text == ADVERTISING_PASSWORD:
+        keyboard = [
+            [InlineKeyboardButton("👥 Oddiy foydalanuvchilar (user)", callback_data="send_to_user")],
+            [InlineKeyboardButton("💎 Faqat VIP a'zolar (vip)", callback_data="send_to_vip")],
+            [InlineKeyboardButton("👮 Faqat Adminlar (admin)", callback_data="send_to_admin")],
+            [InlineKeyboardButton("🌍 Barchaga (Hammaga)", callback_data="send_to_all")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_pass")],
+            [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_ads")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        await update.message.reply_text(
+            "✅ **Parol tasdiqlandi!**\n\nKimlarga yubormoqchisiz? Tanlang 👇",
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
+        )
+        return A_SELECT_ADS_TARGET
+    else:
+        uid = update.effective_user.id
+        status = await get_user_status(uid)
+        await update.message.reply_text("❌ Parol noto'g'ri!", reply_markup=get_main_kb(status))
+        return ConversationHandler.END
+
+# --- 3. REKLAMANI YAKUNLASH VA YUBORISHNI BOSHLASH ---
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
     admin_id = update.effective_user.id
+    
+    # Callback-dan saqlangan guruhni olish
     target = context.user_data.get('ads_target', 'all')
     
     conn = get_db()
@@ -1607,27 +1623,22 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     cur = conn.cursor()
     
-    # MUHIM: Bazadagi statuslar koddagi callbacklar bilan mos kelishi shart.
-    # Masalan: callback 'send_to_user' bo'lsa, target 'user' bo'ladi.
-    
+    # Guruh bo'yicha filtrlash
     if target == "all":
         cur.execute("SELECT user_id FROM users")
     else:
-        # LOWER(status) ishlatish orqali katta-kichik harf farqini yo'qotamiz
-        # Agar bazada status 'User' bo'lsa-yu, kodingizda 'user' kelsa ham ishlaydi
-        cur.execute("SELECT user_id FROM users WHERE LOWER(status) = %s", (target.lower(),))
+        # Bazadagi status kichik harf bo'lsa target bilan mos tushadi
+        cur.execute("SELECT user_id FROM users WHERE status = %s", (target,))
         
     users = cur.fetchall()
     cur.close()
     conn.close()
 
     if not users:
-        # Bu xabar chiqsa, demak bazada ushbu statusga ega birorta ham odam yo'q
-        await msg.reply_text(f"📭 Tanlangan guruhda ({target}) foydalanuvchilar topilmadi.\n\n"
-                             f"Maslahat: Bazangizda foydalanuvchilar 'status' ustuni to'ldirilganini tekshiring.")
+        await msg.reply_text(f"📭 Tanlangan guruhda ({target}) foydalanuvchilar topilmadi.")
         return ConversationHandler.END
 
-    # Reklamani fon rejimida ishga tushirish
+    # Fon rejimida yuborishni boshlash
     asyncio.create_task(background_ads_task(
         bot=context.bot,
         admin_id=admin_id,
@@ -1636,11 +1647,13 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from_chat_id=update.effective_chat.id
     ))
 
-    status = await get_user_status(admin_id)
+    uid = update.effective_user.id
+    status = await get_user_status(uid)
     await msg.reply_text(
-        f"✅ **Reklama yuborish boshlandi!**\n\n"
-        f"Guruh: `{target}`\n"
-        f"Topilgan foydalanuvchilar: `{len(users)}` ta.",
+        f"🚀 **Reklama navbatga qo'shildi!**\n\n"
+        f"🎯 Guruh: `{target}`\n"
+        f"👥 Soni: `{len(users)}` ta\n\n"
+        f"Bot fonda ishlashni boshladi. Tugagach hisobot yuboraman.",
         reply_markup=get_main_kb(status),
         parse_mode="Markdown"
     )
@@ -1808,6 +1821,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
