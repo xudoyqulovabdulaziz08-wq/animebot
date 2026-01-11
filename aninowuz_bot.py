@@ -589,6 +589,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("viewani_"):
         return await show_anime_info(update, context)
 
+    elif data.startswith("addep_"): # select_ani_for_ep dan keladigan signal
+        return await select_ani_for_ep_callback(update, context)
+
     # --- REMOVE ANIME BO'LIMI ---
     elif data == "rem_ani_menu":
         return await remove_menu_handler(update, context)
@@ -1925,6 +1928,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
