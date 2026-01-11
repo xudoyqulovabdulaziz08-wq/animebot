@@ -1846,20 +1846,30 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return None
 
-async def fix_database_structure(update, context):
-    # Faqat admin ishlata olishi uchun tekshiruv (ixtiyoriy)
+async def update_db_structure(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Bazaga yetishmayotgan lang va year ustunlarini qo'shish"""
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 1. 'lang' ustunini qo'shish
-        cur.execute("ALTER TABLE anime_list ADD COLUMN lang VARCHAR(50) DEFAULT 'Noma’lum'")
-        # 2. 'episode_num' o'rniga 'part' bo'lsa, uni tekshirish (yoki qo'shish)
-        # cur.execute("ALTER TABLE anime_episodes ADD COLUMN episode_num INT")
-        
-        conn.commit()
-        await update.message.reply_text("✅ Baza tuzilishi muvaffaqiyatli yangilandi! Endi 'lang' xatosi chiqmaydi.")
+        # 1. lang ustunini tekshirish va qo'shish
+        try:
+            cur.execute("ALTER TABLE anime_list ADD COLUMN lang VARCHAR(50) DEFAULT 'Uzbek'")
+            conn.commit()
+            print("✅ 'lang' ustuni qo'shildi.")
+        except Exception as e:
+            print(f"ℹ️ 'lang' ustuni qo'shilmadi (balki bor): {e}")
+
+        # 2. year ustunini tekshirish va qo'shish
+        try:
+            cur.execute("ALTER TABLE anime_list ADD COLUMN year INT DEFAULT 2024")
+            conn.commit()
+            print("✅ 'year' ustuni qo'shildi.")
+        except Exception as e:
+            print(f"ℹ️ 'year' ustuni qo'shilmadi (balki bor): {e}")
+
+        await update.message.reply_text("✅ Baza muvaffaqiyatli yangilandi: 'lang' va 'year' ustunlari tekshirildi/qo'shildi!")
     except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
+        await update.message.reply_text(f"❌ Umumiy xatolik: {e}")
     finally:
         cur.close()
         conn.close()
@@ -1986,6 +1996,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
