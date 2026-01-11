@@ -1420,29 +1420,38 @@ async def handle_ep_uploads(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return A_ADD_EP_FILES
 
 async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_ani_", extra_callback=""):
-    conn = get_db(); cur = conn.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute(f"SELECT id, name FROM {table_name} ORDER BY id DESC")
-    all_data = cur.fetchall(); cur.close(); conn.close()
+    all_data = cur.fetchall()
+    cur.close(); conn.close()
 
-    start, end = page * per_page, (page + 1) * per_page
-    items = all_data[start:end]
+    start = page * per_page
+    end = start + per_page
+    current_items = all_data[start:end]
 
     buttons = []
-    # Prefixning oxirida _ bor-yo'qligini tekshirib, ID ni ulaymiz
-    p = prefix if prefix.endswith("_") else prefix + "_"
-    
-    for item in items:
-        buttons.append([InlineKeyboardButton(f"{item[1]} [ID: {item[0]}]", callback_data=f"{p}{item[0]}")])
+    # Prefixni tozalash (oxiridagi barcha tagchiziqlarni olib tashlaymiz va bitta qo'shamiz)
+    clean_prefix = prefix.rstrip('_')
+    final_prefix = f"{clean_prefix}_" 
 
-    # Navigatsiya (handle_callback dagi pg_ shartiga mos)
-    nav = []
+    for item in current_items:
+        # Natija: addepto_12, viewani_5 va hokazo
+        btn_text = f"{item[1]} [ID: {item[0]}]"
+        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"{final_prefix}{item[0]}")])
+
+    # Navigatsiya tugmalari
+    nav_buttons = []
     if page > 0:
-        nav.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"pg_{p}{page-1}"))
+        nav_buttons.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"pg_{final_prefix}{page-1}"))
     if end < len(all_data):
-        nav.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"pg_{p}{page+1}"))
+        nav_buttons.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"pg_{final_prefix}{page+1}"))
     
-    if nav: buttons.append(nav)
-    buttons.append([InlineKeyboardButton("⬅️ Orqaga", callback_data=extra_callback or "back_to_ctrl")])
+    if nav_buttons:
+        buttons.append(nav_buttons)
+
+    back_call = extra_callback if extra_callback else "back_to_ctrl"
+    buttons.append([InlineKeyboardButton("⬅️ Orqaga", callback_data=back_call)])
     
     return InlineKeyboardMarkup(buttons)
 
@@ -1938,6 +1947,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
