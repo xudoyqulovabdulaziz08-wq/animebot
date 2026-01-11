@@ -842,17 +842,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return A_SEND_ADS_PASS
 
-    # Agar admin parolni noto'g'ri kiritsa yoki o'sha yerda "Orqaga"ni bossa
-    # Bu qism handle_callback ichida bo'lishi kerak
-     # Reklama kutish holatidan chiqamiz
+    # Reklama kutish holatidan chiqamiz
     elif data == "admin_main":
-    status = await get_user_status(uid)
+        # Hamma qatorlar elif'dan 4 ta probel ichkarida bo'lishi shart:
+        uid = query.from_user.id 
+        status = await get_user_status(uid)
+        
         await query.edit_message_text(
             text="👨‍💻 **Admin paneliga xush kelibsiz:**",
             reply_markup=get_admin_kb(),
             parse_mode="Markdown"
         )
-        return A_MAIN  # 🔥 MUAMMO SHU BILAN HAL BO‘LADI
+        return A_MAIN  # Endi muammo hal bo'ldi
 
 
     elif data.startswith("send_to_"):
@@ -1801,6 +1802,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
