@@ -69,27 +69,27 @@ DB_CONFIG = {
     A_SEARCH_BY_NAME,     # 10: Nomi orqali qidirish
 
     # --- ANIME CONTROL PANEL (YANGI: 200+) ---
-    A_ANI_CONTROL,       # 200: Anime control asosiy menyusi
-    A_ADD_MENU,          # 201: Add Anime paneli (Yangi anime yoki yangi qism)
+    A_ANI_CONTROL,       # 11: Anime control asosiy menyusi
+    A_ADD_MENU,          # 12: Add Anime paneli (Yangi anime yoki yangi qism)
     
     # Yangi Anime qo'shish jarayoni
-    A_GET_POSTER,        # 202: 1-qadam: Poster qabul qilish
-    A_GET_DATA,          # 203: 2-qadam: Ma'lumotlarni qabul qilish (Nomi | Tili | Janri | Yili)
-    A_ADD_EP_FILES,      # 204: 3-qadam: Ketma-ket video/qism qabul qilish
+    A_GET_POSTER,        # 13: 1-qadam: Poster qabul qilish
+    A_GET_DATA,          # 14: 2-qadam: Ma'lumotlarni qabul qilish (Nomi | Tili | Janri | Yili)
+    A_ADD_EP_FILES,      # 15: 3-qadam: Ketma-ket video/qism qabul qilish
     
     # Mavjud animega qism qo'shish
-    A_SELECT_ANI_EP,     # 205: Qism qo'shish uchun animeni tanlash (List)
-    A_ADD_NEW_EP_FILES,  # 206: Tanlangan animega yangi videolar qabul qilish
+    A_SELECT_ANI_EP,     # 16: Qism qo'shish uchun animeni tanlash (List)
+    A_ADD_NEW_EP_FILES,  # 17: Tanlangan animega yangi videolar qabul qilish
 
     # Anime List va Ko'rish
-    A_LIST_VIEW,         # 207: Animelar ro'yxatini ko'rish (Pagination 15 talik)
+    A_LIST_VIEW,         # 18: Animelar ro'yxatini ko'rish (Pagination 15 talik)
 
     # Anime/Qism o'chirish
-    A_REM_MENU,          # 208: Remove Anime paneli (Anime yoki Qism tanlash)
-    A_REM_ANI_LIST,      # 209: O'chirish uchun anime tanlash listi
-    A_REM_EP_ANI_LIST,   # 210: Qismini o'chirish uchun anime tanlash
-    A_REM_EP_NUM_LIST,    # 211: Tanlangan animening qismlarini tanlash (24 talik list)
-    A_MAIN               # main funksiya
+    A_REM_MENU,          # 19: Remove Anime paneli (Anime yoki Qism tanlash)
+    A_REM_ANI_LIST,      # 20: O'chirish uchun anime tanlash listi
+    A_REM_EP_ANI_LIST,   # 23: Qismini o'chirish uchun anime tanlash
+    A_REM_EP_NUM_LIST,    # 23: Tanlangan animening qismlarini tanlash (24 talik list)
+    A_MAIN               #23 main funksiya
 
 ) = range(24) # Jami statuslar soni
 
@@ -1925,6 +1925,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
