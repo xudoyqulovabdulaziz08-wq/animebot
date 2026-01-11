@@ -567,9 +567,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # handle_callback ichidagi elif rem_ani_list_ shartiga qaytadi
 
      # --- ANIME CONTROL ASOSIY ---
-    if data == "adm_ani_ctrl" or data == "back_to_ctrl" or data == "admin_main":
+    elif data == "adm_ani_ctrl" or data == "back_to_ctrl" or data == "admin_main":
         return await anime_control_panel(update, context)
-
     # --- ADD ANIME BO'LIMI ---
     elif data == "add_ani_menu":
         return await add_anime_panel(update, context)
@@ -1936,6 +1935,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
