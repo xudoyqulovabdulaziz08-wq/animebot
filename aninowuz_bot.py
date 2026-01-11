@@ -551,10 +551,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
      # --- ANIME CONTROL ASOSIY ---
-    elif data == "adm_ani_ctrl": # Admin paneldagi "Anime Control" tugmasi uchun
-        return await anime_control_panel(update, context)
-
-    elif data == "back_to_ctrl":
+    elif data == "adm_ani_ctrl" or data == "back_to_ctrl":
         return await anime_control_panel(update, context)
 
     # --- ADD ANIME BO'LIMI ---
@@ -564,76 +561,81 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "start_new_ani":
         return await start_new_ani(update, context)
 
-    elif data == "back_to_add_menu":
-        return await add_anime_panel(update, context)
-
-    # --- LIST ANIME BO'LIMI ---
-    elif data.startswith("list_ani_pg_"):
-        # list_ani_pg_0 formatida keladi
-        return await list_animes_view(update, context)
-
-    elif data.startswith("viewani_"):
-        # Tanlangan anime haqida batafsil ma'lumot (viewani_12)
-        return await show_anime_info(update, context)
-
-    elif data == "new_ep_ani_list":
-        # Klaviaturadan to'g'ridan-to'g'ri keladigan signal uchun
+    elif data == "new_ep_ani": # Add panelidagi tugma uchun
         return await select_ani_for_new_ep(update, context)
-
-    # ➕ Anime qismi qo‘shish tugmasi bosilganda
-    elif data == "new_ep_ani":
-        return await select_ani_for_new_ep(update, context)
-
-    # 🎬 Anime tanlanganda (ID bilan)
-    elif data.startswith("new_ep_ani_"):
-        return await select_episode_for_new_ep(update, context)
-
 
     elif data.startswith("addepto_"):
         # Anime tanlangach video yuborish rejimiga o'tish
         ani_id = data.split('_')[-1]
         context.user_data['cur_ani_id'] = ani_id
-        # Bazadan nomini olib saqlab qo'yamiz (xabar chiqarish uchun)
+        
         conn = get_db(); cur = conn.cursor()
         cur.execute("SELECT name FROM anime_list WHERE id = %s", (ani_id,))
         res = cur.fetchone()
         context.user_data['cur_ani_name'] = res[0] if res else "Anime"
         cur.close(); conn.close()
-        await query.edit_message_text(f"📥 **{context.user_data['cur_ani_name']}** uchun video yuboring:\n(Bot avtomatik qism raqamini beradi)")
+        
+        await query.edit_message_text(
+            f"📥 **{context.user_data['cur_ani_name']}** uchun video yuboring:\n"
+            f"(Bot avtomatik qism raqamini beradi)", 
+            parse_mode="Markdown"
+        )
         return A_ADD_EP_FILES
+
+    # --- LIST ANIME BO'LIMI ---
+    elif data.startswith("list_ani_pg_"):
+        return await list_animes_view(update, context)
+
+    elif data.startswith("viewani_"):
+        return await show_anime_info(update, context)
 
     # --- REMOVE ANIME BO'LIMI ---
     elif data == "rem_ani_menu":
         return await remove_menu_handler(update, context)
 
-    elif data == "rem_ep_menu":
-    # Qismlarni o'chirish uchun anime tanlash listini chiqarish
+    elif data == "rem_ep_menu" or data.startswith("rem_ep_list_"):
+        # Qismlarni o'chirish uchun anime tanlash listini chiqarish
         return await select_ani_for_rem_ep(update, context)
 
     elif data.startswith("rem_ani_list_"):
-        # O'chirish uchun animelar ro'yxati
+        # O'chirish uchun animelar ro'yxati (Pagination)
         page = int(data.split('_')[-1])
         kb = await get_pagination_keyboard("anime_list", page=page, prefix="delani_", extra_callback="rem_ani_menu")
-        await query.edit_message_text("🗑 **O'chirish uchun anime tanlang:**", reply_markup=kb)
+        await query.edit_message_text("🗑 **O'chirish uchun anime tanlang:**", reply_markup=kb, parse_mode="Markdown")
         return A_REM_ANI_LIST
 
+    elif data.startswith("remep_"): 
+        # Anime tanlandi, endi qismlarni o'chirish uchun ro'yxat chiqarish
+        return await list_episodes_for_delete(update, context)
+
     elif data.startswith("delani_"):
-        # O'chirishdan oldin tasdiqlash
+        # Butun animeni o'chirishdan oldin tasdiqlash
         ani_id = data.split('_')[-1]
         kb = [
             [InlineKeyboardButton("✅ TASDIQLASH", callback_data=f"exec_del_{ani_id}")],
             [InlineKeyboardButton("❌ BEKOR QILISH", callback_data="rem_ani_menu")]
         ]
-        await query.edit_message_text(f"⚠️ **DIQQAT!**\n\nID: {ani_id} bo'lgan animeni o'chirmoqchimisiz?", reply_markup=InlineKeyboardMarkup(kb))
+        await query.edit_message_text(
+            f"⚠️ **DIQQAT!**\n\nID: {ani_id} bo'lgan animeni va uning BARCHA qismlarini o'chirmoqchimisiz?", 
+            reply_markup=InlineKeyboardMarkup(kb), 
+            parse_mode="Markdown"
+        )
         return A_REM_ANI_LIST
 
     elif data.startswith("exec_del_"):
-        # Haqiqiy o'chirish jarayoni
         return await delete_anime_exec(update, context)
 
+    elif data.startswith("ex_del_ep_"):
+        # Muayyan qismni o'chirish
+        ep_id = data.split('_')[-1]
+        conn = get_db(); cur = conn.cursor()
+        cur.execute("DELETE FROM anime_episodes WHERE id = %s", (ep_id,))
+        conn.commit(); cur.close(); conn.close()
+        await query.answer("✅ Qism o'chirildi!", show_alert=True)
+        return await anime_control_panel(update, context)
+
     elif data == "finish_add":
-        # Jarayonni tugatish tugmasi
-        await query.message.reply_text("✅ Jarayon yakunlandi.", reply_markup=get_main_kb(status))
+        await query.message.reply_text("✅ Jarayon yakunlandi.")
         return await anime_control_panel(update, context)
         
     # MANA BU YERDA 'if' EMAS, 'elif' ISHLATISH KERAK:
@@ -1923,6 +1925,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
