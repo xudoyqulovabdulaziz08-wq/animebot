@@ -844,15 +844,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Agar admin parolni noto'g'ri kiritsa yoki o'sha yerda "Orqaga"ni bossa
     # Bu qism handle_callback ichida bo'lishi kerak
+     # Reklama kutish holatidan chiqamiz
     elif data == "admin_main":
-        # Admin bosh menyusini chiqarish kodi...
-        status = await get_user_status(uid)
+    status = await get_user_status(uid)
         await query.edit_message_text(
             text="👨‍💻 **Admin paneliga xush kelibsiz:**",
-            reply_markup=get_admin_kb(), # Admin bosh menyu tugmalari
+            reply_markup=get_admin_kb(),
             parse_mode="Markdown"
         )
-        return ConversationHandler.END # Reklama kutish holatidan chiqamiz
+        return A_MAIN  # 🔥 MUAMMO SHU BILAN HAL BO‘LADI
+
 
     elif data.startswith("send_to_"):
         target_group = data.split("_")[2]
@@ -1762,6 +1763,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
