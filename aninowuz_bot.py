@@ -1535,6 +1535,37 @@ async def show_anime_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.message.delete()
     return A_LIST_VIEW
 
+async def select_ani_for_new_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Yangi qism qo'shish uchun avval animeni tanlash listini chiqarish
+    """
+    query = update.callback_query
+    # Sahifa raqamini aniqlash
+    page = 0
+    if query and "pg_" in query.data:
+        try:
+            page = int(query.data.split('_')[-1])
+        except:
+            page = 0
+            
+    # Diqqat: Prefix 'addepto_' bo'lishi kerak, chunki handle_callback shuni kutyapti
+    kb = await get_pagination_keyboard(
+        "anime_list", 
+        page=page, 
+        prefix="addepto_", 
+        extra_callback="add_ani_menu"
+    )
+    
+    text = "📼 **Qaysi animega yangi qism qo'shmoqchisiz?**\nRo'yxatdan tanlang: 👇"
+    
+    if query:
+        await query.answer()
+        await query.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
+    else:
+        await update.message.reply_text(text, reply_markup=kb, parse_mode="Markdown")
+        
+    return A_SELECT_ANI_EP
+
 # ====================== REMOVE LOGIC ======================
 async def delete_anime_exec(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1599,37 +1630,6 @@ async def remove_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
     
     return A_REM_MENU
-
-async def select_ani_for_new_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Yangi qism qo'shish uchun avval animeni tanlash listini chiqarish
-    """
-    query = update.callback_query
-    # Sahifa raqamini aniqlash
-    page = 0
-    if query and "pg_" in query.data:
-        try:
-            page = int(query.data.split('_')[-1])
-        except:
-            page = 0
-            
-    # Diqqat: Prefix 'addepto_' bo'lishi kerak, chunki handle_callback shuni kutyapti
-    kb = await get_pagination_keyboard(
-        "anime_list", 
-        page=page, 
-        prefix="addepto_", 
-        extra_callback="add_ani_menu"
-    )
-    
-    text = "📼 **Qaysi animega yangi qism qo'shmoqchisiz?**\nRo'yxatdan tanlang: 👇"
-    
-    if query:
-        await query.answer()
-        await query.edit_message_text(text, reply_markup=kb, parse_mode="Markdown")
-    else:
-        await update.message.reply_text(text, reply_markup=kb, parse_mode="Markdown")
-        
-    return A_SELECT_ANI_EP
           
             
 
@@ -1923,6 +1923,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
