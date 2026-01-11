@@ -1544,6 +1544,7 @@ async def show_anime_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_LIST_VIEW
         
     cur.execute("SELECT COUNT(*) FROM anime_episodes WHERE anime_id = %s", (ani_id,))
+    
     eps = cur.fetchone()[0]
     cur.close(); conn.close()
     
@@ -1955,6 +1956,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
