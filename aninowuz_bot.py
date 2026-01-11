@@ -1579,6 +1579,26 @@ async def select_ani_for_rem_ep(update: Update, context: ContextTypes.DEFAULT_TY
         await update.message.reply_text(text, reply_markup=kb, parse_mode="Markdown")
         
     return A_REM_EP_ANI_LIST
+
+async def remove_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Bu yerda query yoki message ekanligini tekshiramiz
+    query = update.callback_query
+    
+    kb = [
+        [InlineKeyboardButton("❌ Animeni o'chirish", callback_data="rem_ani_list_0")],
+        [InlineKeyboardButton("🎞 Qismni o'chirish", callback_data="rem_ep_menu")],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="adm_ani_ctrl")]
+    ]
+    reply_markup = InlineKeyboardMarkup(kb)
+    text = "🗑 **Remove Anime paneli**\nNimani o'chirmoqchisiz?"
+
+    if query:
+        await query.answer()
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    else:
+        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    
+    return A_REM_MENU
           
             
 
@@ -1872,6 +1892,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
