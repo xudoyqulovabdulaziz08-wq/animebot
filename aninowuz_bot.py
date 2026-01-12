@@ -1245,6 +1245,26 @@ async def admin_panel_text_handler(update: Update, context: ContextTypes.DEFAULT
     else:
         await update.message.reply_text("❌ Sizda admin huquqlari yo'q.")
 
+async def admin_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    uid = update.effective_user.id
+    await query.answer()
+
+    # 1. "Orqaga" (admin_main) bosilganda asosiy panelga qaytish
+    if data == "admin_main":
+        status = await get_user_status(uid)
+        is_main = (status == "main_admin")
+        
+        # Xabarni tahrirlab, asosiy admin menyusini chiqaramiz
+        await query.edit_message_text(
+            "🛠 **Admin paneliga xush kelibsiz:**",
+            reply_markup=get_admin_kb(is_main),
+            parse_mode="Markdown"
+        )
+        # MUHIM: Labirintdan chiqish uchun END qaytaramiz
+        return ConversationHandler.END
+
 async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Qism tugmasi bosilganda videoni yuborish (SIZDA SHU QISM YO'Q EDI)"""
     query = update.callback_query
@@ -2018,6 +2038,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
