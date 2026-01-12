@@ -2042,43 +2042,42 @@ def main():
         name="aninow_v103" # Versiya yangilandi
     )
 
-    # 5. HANDLERLARNI RO'YXATGA OLISH (OPTIMALLASHTIRILGAN TARTIB)
+   # 5. HANDLERLARNI RO'YXATGA OLISH (TUZATILGAN TARTIB)
 
-    # 1. Callback Handlerlar (Inline tugmalar har doim ishlashi uchun tepada bo'lishi kerak)
-    # Avval maxsus patternli callbacklar
+    # 1. MAXSUS CALLBACKLAR (Faqat aniq patternlar)
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_page_"))
     
-    # ASOSIY CALLBACK (viewani, addepto, delani va hamma umumiy tugmalar uchun)
-    # Bu conv_handlerdan tepada bo'lishi admin paneldagi tugmalar ishlashini kafolatlaydi
-    app_bot.add_handler(CallbackQueryHandler(handle_callback))
-
-    # 2. CONVERSATION HANDLER
-    # Anime qo'shish, o'chirish va qidirish jarayonlarini boshqaradi
+    # 2. CONVERSATION HANDLER (TEPADA BO'LISHI SHART)
+    # Rasm va matn kiritish jarayonlari buzilmasligi uchun u CallbackQueryHandler(handle_callback)dan tepada turishi kerak
     app_bot.add_handler(conv_handler)
 
     # 3. GLOBAL COMMANDS
     app_bot.add_handler(CommandHandler("start", start))
-    #app_bot.add_handler(CommandHandler("reset_db", reset_and_init_db)) # Bir marta ishlatib o'chirib tashlang
+    #app_bot.add_handler(CommandHandler("reset_db", reset_and_init_db)) buni commentga ozkazdim juda xavdli kod
     
 
-    # 4. GLOBAL MESSAGE HANDLERS (Menyu tugmalari uchun)
+    # 4. GLOBAL MESSAGE HANDLERS
     app_bot.add_handler(MessageHandler(filters.Regex("Anime qidirish"), search_menu_cmd))
     app_bot.add_handler(MessageHandler(filters.Regex("Bonus ballarim"), show_bonus))
     app_bot.add_handler(MessageHandler(filters.Regex("Qo'llanma"), show_guide))
     app_bot.add_handler(MessageHandler(filters.Regex("VIP PASS"), vip_pass_info))
     app_bot.add_handler(MessageHandler(filters.Regex("Barcha anime ro'yxati"), export_all_anime))
+
+    # 5. ASOSIY CALLBACK (ENG PASTDA)
+    # Agar yuqoridagilar ushlay olmasa, keyin bu handler ishlaydi
+    app_bot.add_handler(CallbackQueryHandler(handle_callback))
     
-    # 5. NOANIQ XABARLAR (Ixtiyoriy)
-    # Agar hech qaysi handlerga tushmasa, startga qaytarish mumkin
-    # app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
+    # 6. NOANIQ XABARLAR (ENG OXIRIDA)
+    app_bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
 
     print("🚀 Bot ishga tushdi...")
     app_bot.run_polling()
 
 if __name__ == '__main__':
     main()
+
 
 
