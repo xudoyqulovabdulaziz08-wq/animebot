@@ -1580,7 +1580,7 @@ async def show_anime_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ani_id = query.data.split('_')[-1]
     
     conn = get_db(); cur = conn.cursor()
-    cur.execute("SELECT * FROM anime_list WHERE id = %s", (ani_id,))
+    cur.execute("SELECT * FROM anime_list WHERE anime_id = %s", (ani_id,))
     ani = cur.fetchone()
     if not ani:
         await query.answer("❌ Anime topilmadi!")
@@ -2079,6 +2079,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
