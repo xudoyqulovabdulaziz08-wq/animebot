@@ -1647,7 +1647,7 @@ async def delete_anime_exec(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 1. Avval ushbu animega tegishli barcha qismlarni o'chiramiz
         cur.execute("DELETE FROM anime_episodes WHERE anime_id = %s", (ani_id,))
         # 2. Keyin animening o'zini o'chiramiz
-        cur.execute("DELETE FROM anime_list WHERE id = %s", (ani_id,))
+        cur.execute("DELETE FROM anime_list WHERE anime_id = %s", (ani_id,))
         conn.commit()
         await query.answer("✅ Anime va uning barcha qismlari muvaffaqiyatli o'chirildi!", show_alert=True)
     except Exception as e:
@@ -2079,6 +2079,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
