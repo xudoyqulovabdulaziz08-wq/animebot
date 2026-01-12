@@ -1337,31 +1337,42 @@ async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ====================== CONVERSATION STEPS (TUZATILDI) ======================
 
-# Anime Control Asosiy Menyusi
 async def anime_control_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    if query:
-        await query.answer()
+    query = update.callback_query
+    if query:
+        await query.answer()
+        
+        # AGAR FOYDALANUVCHI "ORQAGA" TUGMASINI BOSGAN BO'LSA
+        if query.data == "admin_main":
+            uid = update.effective_user.id
+            status = await get_user_status(uid)
+            is_main = (status == "main_admin")
+            
+            await query.edit_message_text(
+                "🛠 **Admin paneliga xush kelibsiz:**",
+                reply_markup=get_admin_kb(is_main),
+                parse_mode="Markdown"
+            )
+            # MANA SHU YERDA END QAYTARAMIZ, SHUNDA STATE YOPILADI
+            return ConversationHandler.END
 
-    # Inline tugmalar (callback_data'lar handle_callback ichida tekshiriladi)
-    kb = [
-        [InlineKeyboardButton("➕ Add Anime", callback_data="add_ani_menu"),
-         InlineKeyboardButton("📜 Anime List", callback_data="list_ani_pg_0")], # Sahifa 0 dan boshlanadi
-        [InlineKeyboardButton("🗑 Remove Anime", callback_data="rem_ani_menu")],
-        [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
-    ]
-    
-    text = "🛠 **Anime Control Panel**\n\nKerakli bo'limni tanlang: 👇"
-    reply_markup = InlineKeyboardMarkup(kb)
+    # Oddiy menyu ko'rsatish qismi
+    kb = [
+        [InlineKeyboardButton("➕ Add Anime", callback_data="add_ani_menu"),
+         InlineKeyboardButton("📜 Anime List", callback_data="list_ani_pg_0")],
+        [InlineKeyboardButton("🗑 Remove Anime", callback_data="rem_ani_menu")],
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_main")]
+    ]
+    
+    text = "🛠 **Anime Control Panel**\n\nKerakli bo'limni tanlang: 👇"
+    reply_markup = InlineKeyboardMarkup(kb)
 
-    if query:
-        # Agar inline tugma bosilgan bo'lsa, xabarni tahrirlaymiz
-        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-    else:
-        # Agar matnli tugma bosilgan bo'lsa, yangi xabar yuboramiz
-        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
-    
-    return A_ANI_CONTROL
+    if query:
+        await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    else:
+        await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="Markdown")
+    
+    return A_ANI_CONTROL
 
 # Add Anime Panel (Yangi anime yoki qism)
 async def add_anime_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2038,6 +2049,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
