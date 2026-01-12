@@ -2055,6 +2055,8 @@ def main():
 
     # 3. GLOBAL COMMANDS (Agar Conversation ichida bo'lmasangiz, bular ishlaydi)
     app_bot.add_handler(CommandHandler("start", start))
+    # MANA SHU YERGA QO'SHING:
+    app_bot.add_handler(CommandHandler("reset_db", reset_and_init_db))
 
     # 4. GLOBAL MESSAGE HANDLERS (Foydalanuvchi menyusi tugmalari uchun)
     # Agar conv_handler ichida bo'lmasangiz, bu handlerlar menyu tugmalarini ushlaydi
@@ -2076,6 +2078,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
