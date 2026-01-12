@@ -1906,31 +1906,32 @@ async def update_db_structure(update: Update, context: ContextTypes.DEFAULT_TYPE
     try:
         # 1. anime_id ni AUTO_INCREMENT holatiga keltirish (Sizdagi asosiy xato shu edi)
         try:
+            # Avval primary key ekanini aniqlab, keyin auto_increment qo'shamiz
             cur.execute("ALTER TABLE anime_list MODIFY COLUMN anime_id INT AUTO_INCREMENT PRIMARY KEY")
             conn.commit()
             print("✅ 'anime_id' AUTO_INCREMENT qilindi.")
         except Exception as e:
             print(f"ℹ️ anime_id o'zgartirilmadi (balki allaqachon sozlangan): {e}")
 
-        # 2. 'lang' ustuni
+        # 2. 'lang' ustuni (Tili)
         try:
             cur.execute("ALTER TABLE anime_list ADD COLUMN lang VARCHAR(50)")
             conn.commit()
         except: pass
 
-        # 3. 'year' ustuni
+        # 3. 'year' ustuni (Yili)
         try:
             cur.execute("ALTER TABLE anime_list ADD COLUMN year INT")
             conn.commit()
         except: pass
 
-        # 4. 'genre' ustuni
+        # 4. 'genre' ustuni (Janri)
         try:
             cur.execute("ALTER TABLE anime_list ADD COLUMN genre VARCHAR(255)")
             conn.commit()
         except: pass
 
-        # 5. users jadvaliga 'status' ustuni (Adminlar ishlashi uchun)
+        # 5. users jadvaliga 'status' ustuni (Adminlar xatosiz ishlashi uchun)
         try:
             cur.execute("ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'user'")
             conn.commit()
@@ -1938,8 +1939,9 @@ async def update_db_structure(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         await update.message.reply_text(
             "✅ **Baza muvaffaqiyatli yangilandi!**\n\n"
-            "🔹 ID: Avtomatik raqamlash yoqildi\n"
-            "🔹 Ustunlar: lang, year, genre, status qo'shildi.\n\n"
+            "🔹 **ID:** Avtomatik raqamlash yoqildi (AUTO_INCREMENT)\n"
+            "🔹 **Yangi ustunlar:** lang, year, genre tayyor.\n"
+            "🔹 **User status:** status ustuni tekshirildi.\n\n"
             "Endi anime qo'shib ko'rishingiz mumkin!"
         )
     except Exception as e:
@@ -2070,6 +2072,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
