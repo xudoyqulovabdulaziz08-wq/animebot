@@ -1899,51 +1899,59 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def update_db_structure(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = get_db()
     if not conn:
-        await update.message.reply_text("❌ Ma'lumotlar bazasiga ulanib bo'lmadi!")
+        await update.message.reply_text("❌ Bazaga ulanib bo'lmadi!")
         return
 
     cur = conn.cursor()
     try:
-        # 1. ESKI JADVALNI O'CHIRISH (Ma'lumotlar o'chadi, lekin struktura to'g'rilanadi)
-        # Agar ichidagi ma'lumotlar juda muhim bo'lsa, buni ehtiyotkorlik bilan qiling
-        cur.execute("DROP TABLE IF EXISTS anime_list")
+        # 1. Bog'liqlikni tekshirishni vaqtincha o'chiramiz
+        cur.execute("SET FOREIGN_KEY_CHECKS = 0")
         
-        # 2. JADVALNI TO'G'RI STRUKTURA BILAN QAYTA YARATISH
-        create_query = """
-        CREATE TABLE anime_list (
-            anime_id INT AUTO_INCREMENT PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            poster_id VARCHAR(255),
-            lang VARCHAR(50),
-            year INT,
-            genre VARCHAR(255)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-        """
-        cur.execute(create_query)
-        conn.commit()
+        # 2. Anime_id ustunini AUTO_INCREMENT holatiga keltirish
+        # Jadvalni o'chirmasdan, ustunni majburan o'zgartiramiz
+        try:
+            cur.execute("ALTER TABLE anime_list MODIFY COLUMN anime_id INT AUTO_INCREMENT PRIMARY KEY")
+            conn.commit()
+        except Exception as e:
+            print(f"ID o'zgartirishda xato: {e}")
 
-        # 3. Users jadvaliga status ustunini tekshirish
+        # 3. Yangi ustunlarni qo'shish
+        columns = [
+            ("lang", "VARCHAR(50)"),
+            ("year", "INT"),
+            ("genre", "VARCHAR(255)")
+        ]
+        
+        for col_name, col_type in columns:
+            try:
+                cur.execute(f"ALTER TABLE anime_list ADD COLUMN {col_name} {col_type}")
+                conn.commit()
+            except: pass # Allaqachon bo'lsa o'tib ketadi
+
+        # 4. Users jadvali uchun status
         try:
             cur.execute("ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'user'")
             conn.commit()
-        except:
-            pass
+        except: pass
 
+        # 5. Bog'liqlikni tekshirishni qayta yoqamiz
+        cur.execute("SET FOREIGN_KEY_CHECKS = 1")
+        
         await update.message.reply_text(
-            "🚀 **Baza tubdan yangilandi!**\n\n"
-            "✅ `anime_id` endi avtomatik sanaladi (AUTO_INCREMENT).\n"
-            "✅ `lang`, `year`, `genre` ustunlari yaratildi.\n"
-            "✅ Baza toza va ishlashga tayyor.\n\n"
-            "Endi anime qo'shib ko'ring!"
+            "✅ **Baza strukturasi muvaffaqiyatli tuzatildi!**\n\n"
+            "🔹 Foreign Key cheklovlari chetlab o'tildi\n"
+            "🔹 `anime_id` endi AUTO_INCREMENT (avtomat)\n"
+            "🔹 `lang`, `year`, `genre` ustunlari qo'shildi.\n\n"
+            "Endi anime qo'shishingiz mumkin!"
         )
         
     except Exception as e:
+        cur.execute("SET FOREIGN_KEY_CHECKS = 1") # Har qanday holatda qayta yoqish
         await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
     finally:
         cur.close()
         conn.close()
         
-
 # ====================== MAIN FUNKSIYA (TUZATILDI) ======================
 def main():
     # 1. Serverni uyg'oq saqlash
@@ -2065,6 +2073,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
