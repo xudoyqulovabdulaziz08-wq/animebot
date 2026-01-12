@@ -431,6 +431,7 @@ async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return A_ADD_ADM
 
+
     # Tasdiqlash tugmasini yaratish
     keyboard = [
         [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"conf_adm_{text}")],
@@ -446,6 +447,24 @@ async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     # Eslatma: Bu yerda END qaytarmaymiz, callback_handler yakunlab qo'yadi
     return None 
+
+async def admin_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    uid = update.effective_user.id
+    await query.answer()
+
+    # MANA SHU QISM LABIRINTNI BUZADI VA ASOSIY ADMIN PANELGA QAYTARADI
+    if data == "admin_main":
+        status = await get_user_status(uid)
+        is_main = (status == "main_admin")
+        await query.edit_message_text(
+            "🛠 **Admin paneliga xush kelibsiz:**",
+            reply_markup=get_admin_kb(is_main),
+            parse_mode="Markdown"
+        )
+        return ConversationHandler.END # <--- Jarayonni butunlay tugatish
+        
 async def show_vip_removal_list(update: Update, context: ContextTypes.DEFAULT_TYPE, page=0):
     query = update.callback_query
     limit = 10
@@ -2019,6 +2038,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
