@@ -1521,7 +1521,7 @@ async def select_ani_for_ep_callback(update: Update, context: ContextTypes.DEFAU
     
     conn = get_db()
     cur = conn.cursor()
-    cur.execute("SELECT name FROM anime_list WHERE id = %s", (ani_id,))
+    cur.execute("SELECT name FROM anime_list WHERE anime_id = %s", (ani_id,))
     res = cur.fetchone()
     cur.close(); conn.close()
     
@@ -2078,6 +2078,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
