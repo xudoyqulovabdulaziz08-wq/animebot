@@ -2065,7 +2065,7 @@ def main():
     app_bot.add_handler(MessageHandler(filters.Regex("Qo'llanma"), show_guide))
     app_bot.add_handler(MessageHandler(filters.Regex("VIP PASS"), vip_pass_info))# Funksiya nomini yozing
     app_bot.add_handler(MessageHandler(filters.Regex("Barcha anime ro'yxati"), export_all_anime))
-    app_bot.add_handler(CommandHandler("update_db", update_db_structure))
+    
 
     # 5. ZAXIRA CALLBACK (Conv_handlerdan tashqaridagi inline tugmalar uchun)
     app_bot.add_handler(CallbackQueryHandler(handle_callback))
@@ -2078,6 +2078,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
