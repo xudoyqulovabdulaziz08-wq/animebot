@@ -1898,31 +1898,52 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def update_db_structure(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = get_db()
+    if not conn:
+        await update.message.reply_text("❌ Ma'lumotlar bazasiga ulanib bo'lmadi!")
+        return
+
     cur = conn.cursor()
     try:
-        # 1. 'lang' ustuni
+        # 1. anime_id ni AUTO_INCREMENT holatiga keltirish (Sizdagi asosiy xato shu edi)
+        try:
+            cur.execute("ALTER TABLE anime_list MODIFY COLUMN anime_id INT AUTO_INCREMENT PRIMARY KEY")
+            conn.commit()
+            print("✅ 'anime_id' AUTO_INCREMENT qilindi.")
+        except Exception as e:
+            print(f"ℹ️ anime_id o'zgartirilmadi (balki allaqachon sozlangan): {e}")
+
+        # 2. 'lang' ustuni
         try:
             cur.execute("ALTER TABLE anime_list ADD COLUMN lang VARCHAR(50)")
             conn.commit()
         except: pass
 
-        # 2. 'year' ustuni
+        # 3. 'year' ustuni
         try:
             cur.execute("ALTER TABLE anime_list ADD COLUMN year INT")
             conn.commit()
         except: pass
 
-        # 3. 'genre' ustuni (Mana shu yetishmayotgan edi)
+        # 4. 'genre' ustuni
         try:
             cur.execute("ALTER TABLE anime_list ADD COLUMN genre VARCHAR(255)")
             conn.commit()
-            print("✅ 'genre' ustuni qo'shildi.")
-        except Exception as e:
-            print(f"ℹ️ 'genre' qo'shilmadi: {e}")
+        except: pass
 
-        await update.message.reply_text("✅ Baza to'liq yangilandi: 'lang', 'year' va 'genre' ustunlari tayyor!")
+        # 5. users jadvaliga 'status' ustuni (Adminlar ishlashi uchun)
+        try:
+            cur.execute("ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'user'")
+            conn.commit()
+        except: pass
+
+        await update.message.reply_text(
+            "✅ **Baza muvaffaqiyatli yangilandi!**\n\n"
+            "🔹 ID: Avtomatik raqamlash yoqildi\n"
+            "🔹 Ustunlar: lang, year, genre, status qo'shildi.\n\n"
+            "Endi anime qo'shib ko'rishingiz mumkin!"
+        )
     except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik: {e}")
+        await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
     finally:
         cur.close()
         conn.close()
@@ -2049,6 +2070,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
