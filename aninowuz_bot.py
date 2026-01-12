@@ -1899,53 +1899,59 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def update_db_structure(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = get_db()
     if not conn:
-        await update.message.reply_text("❌ Bazaga ulanib bo'lmadi!")
+        await update.message.reply_text("❌ Ma'lumotlar bazasiga ulanib bo'lmadi!")
         return
 
     cur = conn.cursor()
     try:
-        # 1. Bog'liqliklarni vaqtincha to'xtatish (Xavfsizlik uchun)
+        # 1. Bog'liqliklarni vaqtincha to'xtatish (Ma'lumotlar xavfsizligi uchun)
         cur.execute("SET FOREIGN_KEY_CHECKS = 0")
         
         # 2. anime_id ustunini AUTO_INCREMENT holatiga o'tkazish
-        # Bu ma'lumotlarni o'chirmaydi, faqat ID berishni bazaga yuklaydi
+        # Bu ma'lumotlarni o'chirmaydi, faqat ID-ni avtomatik sanaydigan qiladi
         try:
-            # Avval PK ekanini tasdiqlaymiz va auto_increment qo'shamiz
-            cur.execute("ALTER TABLE anime_list MODIFY COLUMN anime_id INT AUTO_INCREMENT")
+            cur.execute("ALTER TABLE anime_list MODIFY COLUMN anime_id INT AUTO_INCREMENT PRIMARY KEY")
             conn.commit()
-            print("✅ 'anime_id' AUTO_INCREMENT qilindi.")
+            print("✅ 'anime_id' muvaffaqiyatli AUTO_INCREMENT qilindi.")
         except Exception as e:
-            print(f"ID o'zgartirishda xato: {e}")
+            print(f"ℹ️ MODIFY xatosi (balki allaqachon sozlangan): {e}")
 
         # 3. Yangi ustunlarni bittadan qo'shish (Agar yo'q bo'lsa)
-        columns = [
-            ("lang", "VARCHAR(50)"),
-            ("year", "INT"),
-            ("genre", "VARCHAR(255)"),
-            ("status", "VARCHAR(20) DEFAULT 'user'") # users jadvali uchun
-        ]
-        
-        for col_name, col_type in columns:
-            try:
-                # Qaysi jadvalga qo'shishni aniqlaymiz
-                table = "users" if col_name == "status" else "anime_list"
-                cur.execute(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}")
-                conn.commit()
-            except:
-                continue # Agar ustun bo'lsa, xato bermay keyingisiga o'tadi
+        # Ma'lumotlar bor bo'lsa ularga tegmaydi, faqat yangi ustun qo'shadi
+        try:
+            cur.execute("ALTER TABLE anime_list ADD COLUMN lang VARCHAR(50)")
+            conn.commit()
+        except: pass
 
-        # 4. Tekshirishni qayta yoqish
+        try:
+            cur.execute("ALTER TABLE anime_list ADD COLUMN year INT")
+            conn.commit()
+        except: pass
+
+        try:
+            cur.execute("ALTER TABLE anime_list ADD COLUMN genre VARCHAR(255)")
+            conn.commit()
+        except: pass
+
+        try:
+            cur.execute("ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'user'")
+            conn.commit()
+        except: pass
+
+        # 4. Bog'liqliklarni qayta yoqish
         cur.execute("SET FOREIGN_KEY_CHECKS = 1")
         
         await update.message.reply_text(
-            "✅ **Baza strukturasi xavfsiz yangilandi!**\n\n"
-            "Ma'lumotlaringiz joyida qoldi. Endi anime qo'shib ko'ring, "
-            "agar ishlasa, bu funksiyani koddan olib tashlashingiz mumkin."
+            "✅ **Baza strukturasi muvaffaqiyatli yangilandi!**\n\n"
+            "🔹 Ma'lumotlar saqlab qolindi.\n"
+            "🔹 ID avtomatik sanaladigan bo'ldi.\n"
+            "🔹 Yangi ustunlar qo'shildi.\n\n"
+            "Endi anime qo'shib ko'rishingiz mumkin. Hammasi ishlagach, bu buyruqni koddan o'chirib tashlang."
         )
         
     except Exception as e:
         cur.execute("SET FOREIGN_KEY_CHECKS = 1")
-        await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
+        await update.message.reply_text(f"❌ Kutilmagan xatolik: {e}")
     finally:
         cur.close()
         conn.close()
@@ -2071,6 +2077,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
