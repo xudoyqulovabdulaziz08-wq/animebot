@@ -2061,8 +2061,8 @@ def main():
 
     # 3. GLOBAL COMMANDS
     app_bot.add_handler(CommandHandler("start", start))
-    app_bot.add_handler(CommandHandler("reset_db", reset_and_init_db)) # Bir marta ishlatib o'chirib tashlang
-    app_bot.add_handler(CommandHandler("update_db", update_db_structure))
+    #app_bot.add_handler(CommandHandler("reset_db", reset_and_init_db)) # Bir marta ishlatib o'chirib tashlang
+    
 
     # 4. GLOBAL MESSAGE HANDLERS (Menyu tugmalari uchun)
     app_bot.add_handler(MessageHandler(filters.Regex("Anime qidirish"), search_menu_cmd))
@@ -2080,35 +2080,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
