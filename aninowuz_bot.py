@@ -1896,64 +1896,61 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return None
 
-async def update_db_structure(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def reset_and_init_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Faqat asosiy admin ishlata olishi uchun
+    if update.effective_user.id != MAIN_ADMIN_ID:
+        return
+
     conn = get_db()
     if not conn:
-        await update.message.reply_text("❌ Ma'lumotlar bazasiga ulanib bo'lmadi!")
+        await update.message.reply_text("❌ Bazaga ulanib bo'lmadi!")
         return
 
     cur = conn.cursor()
     try:
-        # 1. Bog'liqliklarni vaqtincha to'xtatish
+        # 1. Cheklovlarni vaqtincha o'chirish
         cur.execute("SET FOREIGN_KEY_CHECKS = 0")
-        
-        # 2. 'anime_id'ni xavfsiz AUTO_INCREMENT qilish
-        try:
-            # Avval mavjud Primary Key-ni bekor qilishga harakat qilamiz
-            # (Agar u allaqachon bo'lsa, MODIFY xato bermasligi uchun)
-            try:
-                cur.execute("ALTER TABLE anime_list MODIFY anime_id INT NOT NULL")
-                cur.execute("ALTER TABLE anime_list DROP PRIMARY KEY")
-                conn.commit()
-            except:
-                pass
 
-            # Endi anime_id-ni qaytadan PRIMARY KEY va AUTO_INCREMENT qilib o'rnatamiz
-            cur.execute("ALTER TABLE anime_list MODIFY COLUMN anime_id INT AUTO_INCREMENT PRIMARY KEY")
-            conn.commit()
-            print("✅ 'anime_id' muvaffaqiyatli AUTO_INCREMENT qilindi.")
-        except Exception as e:
-            print(f"ℹ️ ID-ni sozlashda muammo: {e}")
+        # 2. Eskilarini butunlay o'chirish
+        cur.execute("DROP TABLE IF EXISTS anime_episodes")
+        cur.execute("DROP TABLE IF EXISTS anime_list")
+        # 'users' jadvalini o'chirmasangiz ham bo'ladi, agar userlar kerak bo'lsa
+        # cur.execute("DROP TABLE IF EXISTS users") 
 
-        # 3. Yangi ustunlarni bittadan qo'shish (Agar yo'q bo'lsa)
-        for col_name, col_type in [("lang", "VARCHAR(50)"), ("year", "INT"), ("genre", "VARCHAR(255)")]:
-            try:
-                cur.execute(f"ALTER TABLE anime_list ADD COLUMN {col_name} {col_type}")
-                conn.commit()
-            except:
-                pass # Ustun bo'lsa o'tib ketadi
+        # 3. 'anime_list' jadvalini to'g'ri AUTO_INCREMENT bilan yaratish
+        cur.execute("""
+            CREATE TABLE anime_list (
+                anime_id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(255) NOT NULL,
+                poster_id TEXT,
+                lang VARCHAR(100),
+                genre VARCHAR(255),
+                year VARCHAR(20)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
 
-        # 4. Users jadvaliga status ustunini qo'shish
-        try:
-            cur.execute("ALTER TABLE users ADD COLUMN status VARCHAR(20) DEFAULT 'user'")
-            conn.commit()
-        except:
-            pass
+        # 4. 'anime_episodes' jadvalini yaratish
+        cur.execute("""
+            CREATE TABLE anime_episodes (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                anime_id INT,
+                episode INT,
+                file_id TEXT,
+                FOREIGN KEY (anime_id) REFERENCES anime_list(anime_id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        """)
 
-        # 5. Bog'liqliklarni qayta yoqish
         cur.execute("SET FOREIGN_KEY_CHECKS = 1")
-        
+        conn.commit()
+
         await update.message.reply_text(
-            "✅ **Baza strukturasi to'liq tuzatildi!**\n\n"
-            "🔹 Mavjud ma'lumotlar o'chirilmadi.\n"
-            "🔹 `anime_id` endi avtomatik sanaladi.\n"
-            "🔹 `lang`, `year`, `genre` ustunlari tekshirildi.\n\n"
-            "Endi anime qo'shib ko'rishingiz mumkin!"
+            "🚀 **Baza tozalandi va AUTO_INCREMENT yoqildi!**\n\n"
+            "Endi anime qo'shsangiz, ID raqami 1 dan boshlab avtomatik beriladi."
         )
-        
+
     except Exception as e:
         cur.execute("SET FOREIGN_KEY_CHECKS = 1")
-        await update.message.reply_text(f"❌ Kutilmagan xatolik: {e}")
+        await update.message.reply_text(f"❌ Xatolik: {e}")
     finally:
         cur.close()
         conn.close()
@@ -2079,6 +2076,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
