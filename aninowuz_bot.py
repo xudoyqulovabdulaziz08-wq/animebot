@@ -1156,6 +1156,20 @@ async def vip_pass_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.message.reply_text(text, parse_mode="Markdown")
     else:
         await update.message.reply_text(text, parse_mode="Markdown")
+
+async def admin_panel_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    status = await get_user_status(uid)
+    
+    if status in ["main_admin", "admin"]:
+        is_main = (status == "main_admin")
+        await update.message.reply_text(
+            "🛠 **Admin paneliga xush kelibsiz:**",
+            reply_markup=get_admin_kb(is_main), # Siz so'ragan get_admin_kb shu yerda chaqiriladi
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text("❌ Sizda admin huquqlari yo'q.")
         
 
   
@@ -1250,20 +1264,6 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         parse_mode="Markdown"
     )
     return ConversationHandler.END
-
-async def admin_panel_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    status = await get_user_status(uid)
-    
-    if status in ["main_admin", "admin"]:
-        is_main = (status == "main_admin")
-        await update.message.reply_text(
-            "🛠 **Admin paneliga xush kelibsiz:**",
-            reply_markup=get_admin_kb(is_main), # Siz so'ragan get_admin_kb shu yerda chaqiriladi
-            parse_mode="Markdown"
-        )
-    else:
-        await update.message.reply_text("❌ Sizda admin huquqlari yo'q.")
 
 async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Qism tugmasi bosilganda videoni yuborish (SIZDA SHU QISM YO'Q EDI)"""
@@ -2079,6 +2079,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
