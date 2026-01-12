@@ -629,7 +629,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['cur_ani_id'] = ani_id
         
         conn = get_db(); cur = conn.cursor()
-        cur.execute("SELECT name FROM anime_list WHERE id = %s", (ani_id,))
+        # BU YERNI O'ZGARTIRDIK: id -> anime_id
+        cur.execute("SELECT name FROM anime_list WHERE anime_id = %s", (ani_id,))
         res = cur.fetchone()
         context.user_data['cur_ani_name'] = res[0] if res else "Anime"
         cur.close(); conn.close()
@@ -2078,6 +2079,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
