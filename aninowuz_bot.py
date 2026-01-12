@@ -1801,6 +1801,16 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     return ConversationHandler.END
 
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Barcha jarayonlarni to'xtatadi va asosiy menyuga qaytaradi"""
+    uid = update.effective_user.id
+    status = await get_user_status(uid) # Admin yoki User ekanini aniqlash
+
+    await update.message.reply_text(
+        "🔙 Bekor qilindi. Asosiy menyu:",
+        reply_markup=get_main_kb(status) # Sizdagi asosiy menyu funksiyasi
+    )
+    return ConversationHandler.END # MANA SHU QATOR SIZNI LABIRINTDAN CHIQARADI!
 
 async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Barcha animelar ro'yxatini JSON fayl qilib yuborish"""
@@ -2008,6 +2018,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
