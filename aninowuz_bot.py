@@ -1440,41 +1440,57 @@ async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_GET_DATA
 
 async def handle_ep_uploads(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Agar foydalanuvchi video emas, boshqa narsa yuborsa
-    if not update.message.video:
-        await update.message.reply_text("❌ Iltimos, video yuboring!")
+    # 1. Videoni aniqlash (oddiy video yoki hujjat sifatidagi video)
+    # Forward qilingan videolar ba'zan hujjat (document) ko'rinishida keladi
+    video_obj = None
+    if update.message.video:
+        video_obj = update.message.video
+    elif update.message.document and update.message.document.mime_type.startswith('video/'):
+        video_obj = update.message.document
+
+    # Agar xabar video bo'lmasa
+    if not video_obj:
+        await update.message.reply_text("❌ Iltimos, video fayl yuboring!")
         return A_ADD_EP_FILES
 
+    # 2. Sessiyadan anime ma'lumotlarini olish
     ani_id = context.user_data.get('cur_ani_id')
     ani_name = context.user_data.get('cur_ani_name')
 
-    # Agar sessiya vaqti tugab qolgan bo'lsa yoki ID topilmasa
     if not ani_id:
-        await update.message.reply_text("❌ Xatolik: Anime ID topilmadi. Iltimos, qaytadan boshlang.")
+        await update.message.reply_text("❌ Xatolik: Anime ID topilmadi. Iltimos, jarayonni qaytadan boshlang.")
         return "add_ani_menu"
 
     conn = get_db()
     cur = conn.cursor()
     try:
-        # 1. Oxirgi qismni aniqlash (episode_num emas, episode!)
+        # 3. Oxirgi qism raqamini aniqlash
         cur.execute("SELECT MAX(episode) FROM anime_episodes WHERE anime_id = %s", (ani_id,))
-        last_ep = cur.fetchone()[0] or 0
+        res = cur.fetchone()
+        last_ep = res[0] if res and res[0] is not None else 0
         new_ep = last_ep + 1
         
-        # 2. Videoni saqlash (Ustun nomi: episode)
+        # 4. Videoni bazaga saqlash
+        # Biz faqat file_id ni saqlaymiz, shuning uchun eski caption (matn) bazaga kirmaydi
         cur.execute(
             "INSERT INTO anime_episodes (anime_id, episode, file_id) VALUES (%s, %s, %s)",
-            (ani_id, new_ep, update.message.video.file_id)
+            (ani_id, new_ep, video_obj.file_id)
         )
         conn.commit()
         
+        # 5. Javob qaytarish (Tugmalar bilan)
         kb = [[InlineKeyboardButton("🏁 Jarayonni tugatish", callback_data="add_ani_menu")]]
         await update.message.reply_text(
-            f"✅ **{ani_name}** ga **{new_ep}-qism** qo'shildi!\n\nYana yuboring yoki tugating 👇",
-            reply_markup=InlineKeyboardMarkup(kb)
+            f"✅ **{ani_name}**\n🎬 **{new_ep}-qism** muvaffaqiyatli qo'shildi!\n\n"
+            f"ℹ️ *Video ostidagi eski matnlar (caption) avtomatik olib tashlandi.* \n\n"
+            f"Yana qism yuborishingiz mumkin 👇",
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="Markdown"
         )
+        
     except Exception as e:
-        await update.message.reply_text(f"❌ Bazaga saqlashda xatolik: {e}")
+        await update.message.reply_text(f"❌ Bazaga saqlashda texnik xatolik: {e}")
+        print(f"DEBUG: Video upload error: {e}")
     finally:
         cur.close()
         conn.close()
@@ -2112,6 +2128,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
