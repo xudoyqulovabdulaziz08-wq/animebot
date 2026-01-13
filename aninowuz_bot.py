@@ -1302,7 +1302,7 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"┃ 🎭 **Janri:** {anime.get('genre', 'Sarguzasht')}\n"
         f"┃ 📅 **Yili:** {anime.get('year', 'Noma’lum')}\n"
         f"┃ 🆔 **ID:** `{anime['anime_id']}`\n"
-        f"┣━━━━━━━━━━━━━━━━━━━━━┣\n"
+        f"┣━━━━━━━━━━━━━━━━━━━━━┓\n"
         f"┃ 📢 @Aninovuz\n"
         f"┗━━━━━━━━━━━━━━━━━━━━━┛\n"
         f"📥 **Qismlardan birini tanlang:**"
