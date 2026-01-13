@@ -1359,53 +1359,53 @@ async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
    async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Sahifadan sahifaga o'tish (12 talik formatda)"""
-    query = update.callback_query
-    parts = query.data.split("_")
+        """Sahifadan sahifaga o'tish (12 talik formatda)"""
+        query = update.callback_query
+        parts = query.data.split("_")
     
-    # parts[1] - anime_id, parts[2] - offset (nechanchi qismdan boshlanishi)
-    aid = parts[1]
-    offset = int(parts[2])
+        # parts[1] - anime_id, parts[2] - offset (nechanchi qismdan boshlanishi)
+        aid = parts[1]
+        offset = int(parts[2])
     
-    conn = get_db()
-    cur = conn.cursor(dictionary=True)
-    # Bizga bazadagi tartib ID si va qism raqami kerak
-    cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (aid,))
-    episodes = cur.fetchall()
-    cur.close(); conn.close()
+        conn = get_db()
+        cur = conn.cursor(dictionary=True)
+        # Bizga bazadagi tartib ID si va qism raqami kerak
+        cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (aid,))
+        episodes = cur.fetchall()
+        cur.close(); conn.close()
 
-    keyboard = []
-    row = []
+        keyboard = []
+        row = []
     
-    # 12 ta qismni kesib olish (3 qator uchun)
-    display_eps = episodes[offset : offset + 12]
+        # 12 ta qismni kesib olish (3 qator uchun)
+        display_eps = episodes[offset : offset + 12]
     
-    for ep in display_eps:
-        # callback_data ni get_ep_ID formatiga mosladik
-        row.append(InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}"))
+        for ep in display_eps:
+            # callback_data ni get_ep_ID formatiga mosladik
+            row.append(InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}"))
         
-        # 4 tadan qatorga tizish
-        if len(row) == 4:
+            # 4 tadan qatorga tizish
+            if len(row) == 4:
+                keyboard.append(row)
+                row = []
+    
+        if row: 
             keyboard.append(row)
-            row = []
-    
-    if row: 
-        keyboard.append(row)
 
-    # Navigatsiya tugmalari (Oldingi va Keyingi)
-    nav_buttons = []
-    if offset > 0:
-        nav_buttons.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"page_{aid}_{offset-12}"))
+        # Navigatsiya tugmalari (Oldingi va Keyingi)
+        nav_buttons = []
+        if offset > 0:
+            nav_buttons.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"page_{aid}_{offset-12}"))
     
-    if offset + 12 < len(episodes):
-        nav_buttons.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{aid}_{offset+12}"))
+        if offset + 12 < len(episodes):
+            nav_buttons.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{aid}_{offset+12}"))
     
-    if nav_buttons:
-        keyboard.append(nav_buttons)
+        if nav_buttons:
+            keyboard.append(nav_buttons)
 
-    # Faqat tugmalarni yangilash
-    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
-    await query.answer() 
+        # Faqat tugmalarni yangilash
+        await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+        await query.answer() 
     
 
     
@@ -2203,6 +2203,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
