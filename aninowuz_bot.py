@@ -1303,7 +1303,7 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     f"┃ 📅 <b>Yili:</b> {anime.get('year', 'Noma’lum')}\n"
     f"┃ 🆔 <b>ID:</b> <code>{anime['anime_id']}</code>\n"
     "┣━━━━━━━━━━━━━━━━━━━━━┓\n"
-    "┃ 📢 <a href='https://t.me/Aninovuz'>@Aninovuz</a>
+    "┃ 📢 <a href='https://t.me/Aninovuz'>@Aninovuz</a>"
     "┗━━━━━━━━━━━━━━━━━━━━━┛\n\n"
     "📥 <b>Qismlardan birini tanlang:</b>"
     )
@@ -2197,6 +2197,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
