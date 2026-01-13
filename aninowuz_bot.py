@@ -721,8 +721,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.message.reply_video(
                 video=file_id,
                 caption=(
-                    f"🎬 **{ani_name}**\n"
-                    f"💿 **{ep_num}-qism**\n\n"
+                    f"🎬 {ani_name}\n"
+                    f"💿 {ep_num}-qism\n\n"
                     f"✨ @Aninovuz — Eng sara animelar manbasi!"
                 ),
                 parse_mode="Markdown"
@@ -776,7 +776,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 try:
                     await context.bot.send_message(
                         chat_id=target_id,
-                        text="✨ **Tabriklaymiz!** Sizga VIP statusi berildi.\nEndi botdan cheklovsiz foydalanishingiz mumkin."
+                        text="✨ Tabriklaymiz! Sizga VIP statusi berildi.\nEndi botdan cheklovsiz foydalanishingiz mumkin."
                     )
                 except:
                     pass
@@ -1281,25 +1281,52 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text("⚠️ Bu anime topildi, lekin qismlar hali yuklanmagan.")
         return ConversationHandler.END
 
-    # Pagination Keyboard (Dastlabki 10 ta qism)
+    
+    # Pagination Keyboard (Har bir qatorda 5 tadan qism)
     keyboard = []
     row = []
+    # episodes bu bazadan kelgan lug'atlar ro'yxati (id, episode va h.k.)
     for ep in episodes[:10]:
-        row.append(InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{anime['anime_id']}_{ep['episode']}"))
+        # MUHIM: callback_data da ep['id'] ishlatish tavsiya etiladi (bazadagi qator ID-si)
+        # Agar handle_callback faqat 'get_ep_' + ID ni kutayotgan bo'lsa:
+        row.append(InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}"))
+        
         if len(row) == 5:
             keyboard.append(row)
             row = []
     if row: keyboard.append(row)
     
+    # Agar 10 tadan ko'p qism bo'lsa "Keyingi" tugmasi
     if len(episodes) > 10:
         keyboard.append([InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{anime['anime_id']}_10")])
-
-    await update.message.reply_photo(
-        photo=anime['poster_id'],
-        caption=f"🎬 **{anime['name']}**\n🆔 ID: `{anime['anime_id']}`\n\nQuyidagi qismlardan birini tanlang 👇",
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode="Markdown"
+        
+    caption = (
+        f"➖➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"💠 🎬 **{anime['name']}**\n\n"
+        f"💠 🌐 **Tili:** {anime.get('lang', 'Oʻzbekcha')}\n"
+        f"💠 🎭 **Janri:** {anime.get('genre', 'Sarguzasht')}\n"
+        f"💠 📅 **Yili:** {anime.get('year', 'Noma’lum')}\n"
+        f"💠 🆔 **ID raqami:** `{anime['anime_id']}`\n\n"
+        f"➖➖➖➖➖➖➖➖➖➖➖➖\n"
+        f"📥 **Quyidagi qismlardan birini tanlang va tomosha qiling:**"
     )
+
+    # Xabarni yuborish
+    try:
+        await update.message.reply_photo(
+            photo=anime['poster_id'],
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        # Agar Markdown xatosi bersa (nomda maxsus belgilar bo'lsa)
+        await update.message.reply_photo(
+            photo=anime['poster_id'],
+            caption=caption.replace("*", ""), # Formatlashni olib tashlab yuborish
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+    
     return ConversationHandler.END
 
 async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2164,6 +2191,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
