@@ -1440,6 +1440,7 @@ async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_GET_DATA
 
 async def handle_ep_uploads(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Agar foydalanuvchi video emas, boshqa narsa yuborsa
     if not update.message.video:
         await update.message.reply_text("❌ Iltimos, video yuboring!")
         return A_ADD_EP_FILES
@@ -1447,25 +1448,37 @@ async def handle_ep_uploads(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ani_id = context.user_data.get('cur_ani_id')
     ani_name = context.user_data.get('cur_ani_name')
 
+    # Agar sessiya vaqti tugab qolgan bo'lsa yoki ID topilmasa
+    if not ani_id:
+        await update.message.reply_text("❌ Xatolik: Anime ID topilmadi. Iltimos, qaytadan boshlang.")
+        return "add_ani_menu"
+
     conn = get_db()
     cur = conn.cursor()
-    # Oxirgi qismni aniqlash
-    cur.execute("SELECT MAX(episode_num) FROM anime_episodes WHERE anime_id = %s", (ani_id,))
-    last_ep = cur.fetchone()[0] or 0
-    new_ep = last_ep + 1
-    
-    # Videoni saqlash (Caption butunlay tozalangan)
-    cur.execute("INSERT INTO anime_episodes (anime_id, episode_num, file_id) VALUES (%s, %s, %s)",
-                (ani_id, new_ep, update.message.video.file_id))
-    conn.commit()
-    cur.close()
-    conn.close()
+    try:
+        # 1. Oxirgi qismni aniqlash (episode_num emas, episode!)
+        cur.execute("SELECT MAX(episode) FROM anime_episodes WHERE anime_id = %s", (ani_id,))
+        last_ep = cur.fetchone()[0] or 0
+        new_ep = last_ep + 1
+        
+        # 2. Videoni saqlash (Ustun nomi: episode)
+        cur.execute(
+            "INSERT INTO anime_episodes (anime_id, episode, file_id) VALUES (%s, %s, %s)",
+            (ani_id, new_ep, update.message.video.file_id)
+        )
+        conn.commit()
+        
+        kb = [[InlineKeyboardButton("🏁 Jarayonni tugatish", callback_data="add_ani_menu")]]
+        await update.message.reply_text(
+            f"✅ **{ani_name}** ga **{new_ep}-qism** qo'shildi!\n\nYana yuboring yoki tugating 👇",
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
+    except Exception as e:
+        await update.message.reply_text(f"❌ Bazaga saqlashda xatolik: {e}")
+    finally:
+        cur.close()
+        conn.close()
 
-    kb = [[InlineKeyboardButton("🏁 Jarayonni tugatish", callback_data="add_ani_menu")]]
-    await update.message.reply_text(
-        f"✅ **{ani_name}** ga **{new_ep}-qism** qo'shildi!\n\nYana yuboring yoki tugating 👇",
-        reply_markup=InlineKeyboardMarkup(kb)
-    )
     return A_ADD_EP_FILES
 
 async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_ani_", extra_callback=""):
@@ -1509,27 +1522,47 @@ async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_a
 # Mavjud animega qism qo'shish uchun ro'yxatni ko'rsatish
 async def select_ani_for_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    # Sahifa 0 dan boshlab animelar ro'yxatini chiqaramiz
-    markup = await get_pagination_keyboard("anime_list", page=0, prefix="addep_")
+    await query.answer()
+    
+    # Prefixni 'addepto_' qildik (handle_callback'ga moslab)
+    markup = await get_pagination_keyboard("anime_list", page=0, prefix="addepto_")
     await query.edit_message_text("📼 Qaysi animega yangi qism qo'shmoqchisiz?", reply_markup=markup)
     return A_SELECT_ANI_EP
 
 # Tanlangan anime uchun video kutish
 async def select_ani_for_ep_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    ani_id = query.data.replace("addep_", "")
+    await query.answer()
+    
+    # 'addepto_' prefixini olib tashlab faqat ID ni olamiz
+    ani_id_raw = query.data.replace("addepto_", "")
+    
+    # ID ni son ko'rinishiga keltiramiz
+    try:
+        ani_id = int(ani_id_raw)
+    except ValueError:
+        await query.message.reply_text("❌ ID xatosi!")
+        return A_SELECT_ANI_EP
     
     conn = get_db()
     cur = conn.cursor()
+    # Ustun nomi 'anime_id' ekanligiga ishonch hosil qiling
     cur.execute("SELECT name FROM anime_list WHERE anime_id = %s", (ani_id,))
     res = cur.fetchone()
     cur.close(); conn.close()
     
-    context.user_data['cur_ani_id'] = ani_id
-    context.user_data['cur_ani_name'] = res[0]
-    
-    await query.edit_message_text(f"📥 **{res[0]}** tanlandi.\n\nEndi yangi qismlarni yuboring (videofayl):")
-    return A_ADD_EP_FILES
+    if res:
+        context.user_data['cur_ani_id'] = ani_id
+        context.user_data['cur_ani_name'] = res[0]
+        
+        await query.edit_message_text(
+            f"📥 **{res[0]}** tanlandi.\n\nEndi yangi qismlarni yuboring (videofayl):",
+            parse_mode="Markdown"
+        )
+        return A_ADD_EP_FILES
+    else:
+        await query.edit_message_text("❌ Anime topilmadi!")
+        return A_SELECT_ANI_EP
 
 
 async def list_episodes_for_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2078,6 +2111,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
