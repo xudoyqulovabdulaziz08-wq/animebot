@@ -2048,7 +2048,8 @@ def main():
                 CallbackQueryHandler(handle_callback)
             ],
             A_ADD_EP_FILES: [
-                MessageHandler(filters.VIDEO, handle_ep_uploads), 
+                # Faqat VIDEO emas, DOCUMENT sifatida yuborilgan videolarni ham tutish kerak
+                MessageHandler(filters.VIDEO | filters.Document.VIDEO, handle_ep_uploads),
                 CallbackQueryHandler(handle_callback)
             ],
 
@@ -2111,6 +2112,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
