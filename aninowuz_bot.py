@@ -693,6 +693,42 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data == "finish_add":
         await query.message.reply_text("✅ Jarayon yakunlandi.")
         return await anime_control_panel(update, context)
+
+    elif data.startswith("get_ep_"):
+        # Tugmadan ep_id ni olamiz (masalan: get_ep_25)
+        ep_id = data.replace("get_ep_", "")
+    
+        conn = get_db()
+        cur = conn.cursor()
+        # Join orqali anime nomini ham birga olamiz
+        cur.execute("""
+            SELECT e.file_id, e.episode, a.name 
+            FROM anime_episodes e 
+            JOIN anime_list a ON e.anime_id = a.anime_id 
+            WHERE e.id = %s
+        """, (ep_id,))
+        res = cur.fetchone()
+        cur.close(); conn.close()
+    
+        if res:
+            file_id, ep_num, ani_name = res
+        
+            # 1. Tugmani bosganda "yuklanmoqda" degan yozuvni yo'qotish
+            await query.answer(f"⌛ {ani_name}: {ep_num}-qism yuborilmoqda...")
+        
+            # 2. Videoni oddiy xabar ko'rinishida yuborish
+            # caption="" berilsa, videoning barcha eski matnlari o'chib ketadi
+            await query.message.reply_video(
+                video=file_id,
+                caption=(
+                    f"🎬 **{ani_name}**\n"
+                    f"💿 **{ep_num}-qism**\n\n"
+                    f"✨ @Aninovuz — Eng sara animelar manbasi!"
+                ),
+                parse_mode="Markdown"
+            )
+        else:
+            await query.answer("❌ Kechirasiz, video fayl bazadan topilmadi.", show_alert=True)
         
     # MANA BU YERDA 'if' EMAS, 'elif' ISHLATISH KERAK:
     elif data == "rem_vip_list":
@@ -2128,6 +2164,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
