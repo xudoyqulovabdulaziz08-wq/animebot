@@ -1295,16 +1295,16 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         keyboard.append([InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{anime['anime_id']}_12")])
     
     caption = (
-        f"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\n"
+        f"┏━━━━━━━━━━━━━━━━━━━━━┓\n"
         f"┃ 🎬 **{anime['name']}**\n"
-        f"┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        f"┣━━━━━━━━━━━━━━━━━━━━━┛\n"
         f"┃ 🌐 **Tili:** {anime.get('lang', 'Oʻzbekcha')}\n"
         f"┃ 🎭 **Janri:** {anime.get('genre', 'Sarguzasht')}\n"
         f"┃ 📅 **Yili:** {anime.get('year', 'Noma’lum')}\n"
         f"┃ 🆔 **ID:** `{anime['anime_id']}`\n"
-        f"┃━━━━━━━━━━━━━━━━━━━━━━━━━━━━┃\n"
+        f"┣━━━━━━━━━━━━━━━━━━━━━┣\n"
         f"┃ 📢 @Aninovuz\n"
-        f"┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\n"
+        f"┗━━━━━━━━━━━━━━━━━━━━━┛\n"
         f"📥 **Qismlardan birini tanlang:**"
     )
 
@@ -2197,6 +2197,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
