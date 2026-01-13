@@ -1272,33 +1272,37 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return # Foydalanuvchi yana kiritib ko'rishi uchun state'da (A_SEARCH_BY_ID yoki A_SEARCH_BY_NAME) qoladi
 
-    # Anime qismlarini olish
-    cur.execute("SELECT episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
-    episodes = cur.fetchall()
+   # Anime qismlarini olish (ID ni ham olishni unutmaslik kerak)
+    # Bizga 'id' (bazadagi tartib raqami) va 'episode' (qism raqami) kerak
+    cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
+    episodes = cur.fetchall() # Bu (id, episode) ko'rinishidagi tuple'lar ro'yxati qaytaradi
     cur.close(); conn.close()
 
     if not episodes:
         await update.message.reply_text("⚠️ Bu anime topildi, lekin qismlar hali yuklanmagan.")
         return ConversationHandler.END
 
-    
-    # Pagination Keyboard (Har bir qatorda 5 tadan qism)
+    # Pagination Keyboard (12 ta qism: 3 qator, 4 tadan)
     keyboard = []
     row = []
-    # episodes bu bazadan kelgan lug'atlar ro'yxati (id, episode va h.k.)
-    for ep in episodes[:10]:
-        # MUHIM: callback_data da ep['id'] ishlatish tavsiya etiladi (bazadagi qator ID-si)
-        # Agar handle_callback faqat 'get_ep_' + ID ni kutayotgan bo'lsa:
-        row.append(InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}"))
+    
+    # episodes[:12] -> Dastlabki 12 ta qismni oladi
+    for ep in episodes[:12]:
+        # ep[0] -> id, ep[1] -> episode (chunki fetchall() tuple qaytaradi)
+        row.append(InlineKeyboardButton(str(ep[1]), callback_data=f"get_ep_{ep[0]}"))
         
-        if len(row) == 5:
+        # 4 ta tugma bo'lganda yangi qatorga o'tish
+        if len(row) == 4:
             keyboard.append(row)
             row = []
+    
+    # Qolgan tugmalarni qo'shish
     if row: keyboard.append(row)
     
-    # Agar 10 tadan ko'p qism bo'lsa "Keyingi" tugmasi
-    if len(episodes) > 10:
-        keyboard.append([InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{anime['anime_id']}_10")])
+    # Agar 12 tadan ko'p qism bo'lsa "Keyingi" tugmasi
+    if len(episodes) > 12:
+        keyboard.append([InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{anime['anime_id']}_12")])
+    
         
     caption = (
         f"➖➖➖➖➖➖➖➖➖➖➖➖\n"
@@ -2191,6 +2195,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
