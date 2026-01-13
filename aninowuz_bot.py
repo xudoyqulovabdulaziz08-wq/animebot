@@ -1242,14 +1242,13 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return ConversationHandler.END
 
     conn = get_db()
-    # YANGI (To'g'ri):
     if not conn:
         await update.message.reply_text("❌ Bazaga ulanishda xato.")
         return ConversationHandler.END
 
+    # dictionary=True ishlatilganiga e'tibor bering
     cur = conn.cursor(dictionary=True)
     
-    # ID yoki Nom bo'yicha qidirish (Optimallashtirildi)
     if text.isdigit():
         cur.execute("SELECT * FROM anime_list WHERE anime_id=%s", (text,))
     else:
@@ -1258,52 +1257,43 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     anime = cur.fetchone()
     
     if not anime:
-        # Orqaga (menyuga) va To'xtatish (yopish) tugmalarini qo'shamiz
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_search_menu")],
             [InlineKeyboardButton("❌ To'xtatish", callback_data="cancel_search")]
         ])
-        
         await update.message.reply_text(
-            f"😔 `{text}` bo'yicha hech narsa topilmadi.\n\n"
-            "Iltimos, ID raqamni yoki nomini qayta tekshirib ko'ring yoki quyidagi tugmalar orqali navigatsiya qiling:",
+            f"😔 `{text}` bo'yicha hech narsa topilmadi.\n\nIltimos, qayta tekshirib ko'ring:",
             reply_markup=kb,
             parse_mode="Markdown"
         )
-        return # Foydalanuvchi yana kiritib ko'rishi uchun state'da (A_SEARCH_BY_ID yoki A_SEARCH_BY_NAME) qoladi
+        return 
 
-   # Anime qismlarini olish (ID ni ham olishni unutmaslik kerak)
-    # Bizga 'id' (bazadagi tartib raqami) va 'episode' (qism raqami) kerak
+    # Anime qismlarini olish
     cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
-    episodes = cur.fetchall() # Bu (id, episode) ko'rinishidagi tuple'lar ro'yxati qaytaradi
+    episodes = cur.fetchall() 
     cur.close(); conn.close()
 
     if not episodes:
         await update.message.reply_text("⚠️ Bu anime topildi, lekin qismlar hali yuklanmagan.")
         return ConversationHandler.END
 
-    # Pagination Keyboard (12 ta qism: 3 qator, 4 tadan)
+    # 12 ta qism: 3 qator, 4 tadan
     keyboard = []
     row = []
     
-    # episodes[:12] -> Dastlabki 12 ta qismni oladi
     for ep in episodes[:12]:
-        # ep[0] -> id, ep[1] -> episode (chunki fetchall() tuple qaytaradi)
-        row.append(InlineKeyboardButton(str(ep[1]), callback_data=f"get_ep_{ep[0]}"))
+        # dictionary=True bo'lgani uchun ep['id'] va ep['episode'] ishlatiladi
+        row.append(InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}"))
         
-        # 4 ta tugma bo'lganda yangi qatorga o'tish
         if len(row) == 4:
             keyboard.append(row)
             row = []
     
-    # Qolgan tugmalarni qo'shish
     if row: keyboard.append(row)
     
-    # Agar 12 tadan ko'p qism bo'lsa "Keyingi" tugmasi
     if len(episodes) > 12:
         keyboard.append([InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{anime['anime_id']}_12")])
     
-        
     caption = (
         f"➖➖➖➖➖➖➖➖➖➖➖➖\n"
         f"💠 🎬 **{anime['name']}**\n\n"
@@ -1315,7 +1305,6 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         f"📥 **Quyidagi qismlardan birini tanlang va tomosha qiling:**"
     )
 
-    # Xabarni yuborish
     try:
         await update.message.reply_photo(
             photo=anime['poster_id'],
@@ -1324,42 +1313,47 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
             parse_mode="Markdown"
         )
     except Exception as e:
-        # Agar Markdown xatosi bersa (nomda maxsus belgilar bo'lsa)
         await update.message.reply_photo(
             photo=anime['poster_id'],
-            caption=caption.replace("*", ""), # Formatlashni olib tashlab yuborish
+            caption=caption.replace("*", ""),
             reply_markup=InlineKeyboardMarkup(keyboard)
         )
     
     return ConversationHandler.END
 
 async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Qism tugmasi bosilganda videoni yuborish (SIZDA SHU QISM YO'Q EDI)"""
     query = update.callback_query
-    data = query.data.split("_") # get_ep_ID_EPISODE
+    # data format: "get_ep_123" -> split qilsak ["get", "ep", "123"]
+    data = query.data.split("_") 
     
-    anime_id = data[2]
-    episode_num = data[3]
+    if len(data) < 3: return
+    
+    row_id = data[2] # Bazadagi asosiy ID
     
     await query.answer("Video yuklanmoqda...")
     
     conn = get_db()
     cur = conn.cursor(dictionary=True)
-    cur.execute("SELECT * FROM anime_episodes WHERE anime_id=%s AND episode=%s", (anime_id, episode_num))
-    episode_data = cur.fetchone()
     
-    cur.execute("SELECT name FROM anime_list WHERE anime_id=%s", (anime_id,))
-    anime_info = cur.fetchone()
+    # Faqat bitta ID orqali hamma ma'lumotni olamiz
+    cur.execute("""
+        SELECT e.file_id, e.episode, a.name 
+        FROM anime_episodes e 
+        JOIN anime_list a ON e.anime_id = a.anime_id 
+        WHERE e.id = %s
+    """, (row_id,))
+    
+    res = cur.fetchone()
     cur.close(); conn.close()
 
-    if episode_data:
+    if res:
         try:
             await query.message.reply_video(
-                video=episode_data['file_id'],
-                caption=f"🎬 **{anime_info['name']}**\n🔢 **{episode_num}-qism**\n\n✅ @Aninovuz"
+                video=res['file_id'],
+                caption=f"🎬 {res['name']}\n🔢 {res['episode']}-qism\n\n✅ @Aninovuz"
             )
         except Exception as e:
-            await query.message.reply_text(f"❌ Videoni yuborishda xatolik: {e}")
+            await query.message.reply_text(f"❌ Xatolik: {e}")
     else:
         await query.answer("❌ Video topilmadi!", show_alert=True)
 
@@ -2195,6 +2189,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
