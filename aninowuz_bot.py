@@ -1295,17 +1295,17 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         keyboard.append([InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{anime['anime_id']}_12")])
     
     caption = (
-    "┏━━━━━━━━━━━━━━━━━━━━━┓\n"
+    f"┏━━━━━━━━━━━━━━━━━━━━━┓\n"
     f"┃ 🎬 <b>{anime['name']}</b>\n"
-    "┣━━━━━━━━━━━━━━━━━━━━━┛\n"
+    f"┣━━━━━━━━━━━━━━━━━━━━━┛\n"
     f"┃ 🌐 <b>Tili:</b> {anime.get('lang', 'Oʻzbekcha')}\n"
     f"┃ 🎭 <b>Janri:</b> {anime.get('genre', 'Sarguzasht')}\n"
     f"┃ 📅 <b>Yili:</b> {anime.get('year', 'Noma’lum')}\n"
     f"┃ 🆔 <b>ID:</b> <code>{anime['anime_id']}</code>\n"
-    "┣━━━━━━━━━━━━━━━━━━━━━┓\n"
-    "┃ 📢 <a href='https://t.me/Aninovuz'>@Aninovuz</a>\n"
-    "┗━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-    "📥 <b>Qismlardan birini tanlang:</b>"
+    f"┣━━━━━━━━━━━━━━━━━━━━━┓\n"
+    f"┃ 📢 <a href='https://t.me/Aninovuz'>@Aninovuz</a>\n"
+    f"┗━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+    f"📥 <b>Qismlardan birini tanlang:</b>"
     )
     
     try:
@@ -2197,6 +2197,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
