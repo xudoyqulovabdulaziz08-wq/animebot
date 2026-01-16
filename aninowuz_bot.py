@@ -1213,7 +1213,7 @@ async def admin_panel_text_handler(update: Update, context: ContextTypes.DEFAULT
         
 
     
-# ====================== ANIME QIDIRISH VA PAGINATION (TUZATILDI) ======================
+# ====================== ANIME QIDIRISH VA PAGINATION (TO'LIQ) ======================
 
 async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Qidiruv turini tanlash menyusi"""
@@ -1222,10 +1222,14 @@ async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🔎 Nomi orqali qidirish", callback_data="search_type_name")],
         [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")]
     ]
-    await update.message.reply_text(
-        "🎬 **Anime qidirish bo'limi**\n\nQidiruv usulini tanlang:", 
+    # Agar xabar reply orqali kelsa (MessageHandler), update.message ishlatiladi
+    # Agar callback orqali kelsa, query.message ishlatiladi
+    msg = update.message if update.message else update.callback_query.message
+    
+    await msg.reply_text(
+        "🎬 <b>Anime qidirish bo'limi</b>\n\nQidiruv usulini tanlang:", 
         reply_markup=InlineKeyboardMarkup(kb),
-        parse_mode="Markdown"
+        parse_mode="HTML"
     )
 
 async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1248,7 +1252,7 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     cur = conn.cursor(dictionary=True)
     
-    # ID yoki Nom bo'yicha qidirish (fetchall orqali hamma fasllarni olamiz)
+    # ID yoki Nom bo'yicha qidirish
     if text.isdigit():
         cur.execute("SELECT * FROM anime_list WHERE anime_id=%s", (text,))
     else:
@@ -1268,61 +1272,59 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return 
 
-    # AGAR FAQAT BITTA NATIJA CHIQSA - To'g'ridan-to'g'ri ko'rsatamiz
+    # FAQAT BITTA NATIJA CHIQSA
     if len(results) == 1:
-        return await show_anime_info(update, results[0])
+        return await show_anime_info(update, results[0], context)
 
-    # AGAR BIR NECHTA NATIJA CHIQSA (Masalan: 1-fasl, 2-fasl)
+    # BIR NECHTA NATIJA CHIQSA
     keyboard = []
     for anime in results:
-        # Har bir fasl uchun alohida tugma
         keyboard.append([InlineKeyboardButton(f"🎬 {anime['name']}", callback_data=f"show_anime_{anime['anime_id']}")])
     
     await update.message.reply_text(
-        f"🔍 <b>'{text}' bo'yicha {len(results)} ta natija topildi:</b>\n\nIltimos, kerakli faslni tanlang:",
+        f"🔍 <b>'{text}' bo'yicha {len(results)} ta natija topildi:</b>\n\nIltimos,  tanlang:👇",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML"
     )
-    # State'ni saqlab qolamiz (ConversationHandler tugallanmaydi)
 
 async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Qidiruv natijasidagi ro'yxatdan anime tanlanganda ishlaydi"""
     query = update.callback_query
-    # Callback data'dan ID ni ajratib olish
+    await query.answer() # "Loading" holatini to'xtatadi
+    
     anime_id = query.data.replace("show_anime_", "")
     
     conn = get_db()
     cur = conn.cursor(dictionary=True)
     cur.execute("SELECT * FROM anime_list WHERE anime_id=%s", (anime_id,))
     anime = cur.fetchone()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
     
     if anime:
-        # Tanlash ro'yxatini o'chiramiz
-        await query.message.delete()
-        # Animeni poster va caption bilan ko'rsatish funksiyasini chaqiramiz
-        return await show_anime_info(query, anime)
+        # Tanlangan animeni ko'rsatish (query uzatiladi)
+        return await show_anime_info(query, anime, context)
     
-    await query.answer("❌ Anime topilmadi")
+    await query.message.reply_text("❌ Anime topilmadi")
 
-async def show_anime_info(update_or_query, anime):
-    """Animening rasm, caption va qismlarini chiqaruvchi yagona funksiya"""
+async def show_anime_info(update_or_query, anime, context):
+    """Animening rasm, caption va qismlarini chiqaruvchi asosiy funksiya"""
     conn = get_db()
     cur = conn.cursor(dictionary=True)
     cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
     episodes = cur.fetchall()
     cur.close(); conn.close()
 
+    # Chat ID va eski xabarni aniqlash
+    is_callback = hasattr(update_or_query, 'data')
+    chat_id = update_or_query.message.chat_id if is_callback else update_or_query.message.chat_id
+    orig_msg = update_or_query.message if is_callback else update_or_query.message
+
     if not episodes:
         msg = "⚠️ Bu anime topildi, lekin qismlar hali yuklanmagan."
-        if hasattr(update_or_query, 'message'):
-            await update_or_query.message.reply_text(msg)
-        else:
-            await update_or_query.edit_message_text(msg)
+        await context.bot.send_message(chat_id=chat_id, text=msg)
         return ConversationHandler.END
 
-    # Tugmalar: 3 qator, 4 tadan
+    # Epizod tugmalari (3 qator, 4 tadan)
     keyboard = []
     row = []
     for ep in episodes[:12]:
@@ -1350,20 +1352,6 @@ async def show_anime_info(update_or_query, anime):
     )
 
     try:
-        # Xabarni qayerga yuborishni aniqlaymiz
-        if hasattr(update_or_query, 'callback_query'):
-            # Agar bu CallbackQuery bo'lsa
-            chat_id = update_or_query.callback_query.message.chat_id
-            message_to_delete = update_or_query.callback_query.message
-        elif hasattr(update_or_query, 'message'):
-            # Agar bu oddiy Update xabari bo'lsa
-            chat_id = update_or_query.message.chat_id
-            message_to_delete = None
-        else:
-            # Tanlash ro'yxatidan kelgan callback bo'lsa
-            chat_id = update_or_query.message.chat_id
-            message_to_delete = update_or_query.message
-
         # 1. AVVAL yangi rasmli xabarni yuboramiz
         await context.bot.send_photo(
             chat_id=chat_id,
@@ -1373,43 +1361,36 @@ async def show_anime_info(update_or_query, anime):
             parse_mode="HTML"
         )
 
-        # 2. KEYIN eski tanlash ro'yxatini o'chiramiz (agar mavjud bo'lsa)
-        if message_to_delete:
+        # 2. KEYIN eski xabarni (ro'yxat yoki qidiruv so'zi) o'chiramiz
+        if is_callback:
             try:
-                await message_to_delete.delete()
+                await orig_msg.delete()
             except:
-                pass # Agar xabar allaqachon o'chgan bo'lsa xato bermasligi uchun
-
+                pass
     except Exception as e:
-        print(f"Xatolik: {e}")
-        # Xatolik bo'lsa foydalanuvchiga bildirish
-        target = update_or_query.message if hasattr(update_or_query, 'message') else update_or_query.callback_query.message
-        await target.reply_text("❌ Anime ma'lumotlarini yuklashda texnik xatolik yuz berdi.")
+        print(f"DEBUG: Xato - {e}")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Poster yuklashda xatolik. ID noto'g'ri bo'lishi mumkin.")
     
     return ConversationHandler.END
 
 async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Tanlangan qismni video qilib yuborish"""
     query = update.callback_query
-    # data format: "get_ep_123" -> split qilsak ["get", "ep", "123"]
     data = query.data.split("_") 
     
     if len(data) < 3: return
-    
-    row_id = data[2] # Bazadagi asosiy ID
+    row_id = data[2] 
     
     await query.answer("Video yuklanmoqda...")
     
     conn = get_db()
     cur = conn.cursor(dictionary=True)
-    
-    # Faqat bitta ID orqali hamma ma'lumotni olamiz
     cur.execute("""
         SELECT e.file_id, e.episode, a.name 
         FROM anime_episodes e 
         JOIN anime_list a ON e.anime_id = a.anime_id 
         WHERE e.id = %s
     """, (row_id,))
-    
     res = cur.fetchone()
     cur.close(); conn.close()
 
@@ -1425,20 +1406,16 @@ async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         await query.answer("❌ Video topilmadi!", show_alert=True)
 
 async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Sahifadan sahifaga o'tish (3 qator, 4 tadan)"""
+    """Sahifadan sahifaga o'tish"""
     query = update.callback_query
     parts = query.data.split("_")
-    
-    # Ma'lumotlarni olish
-    aid = parts[1]
-    offset = int(parts[2])
+    aid, offset = parts[1], int(parts[2])
     
     conn = get_db()
     cur = conn.cursor(dictionary=True)
     cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (aid,))
     episodes = cur.fetchall()
-    cur.close()
-    conn.close()
+    cur.close(); conn.close()
 
     keyboard = []
     row = []
@@ -1449,17 +1426,14 @@ async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if len(row) == 4:
             keyboard.append(row)
             row = []
-    if row:
-        keyboard.append(row)
+    if row: keyboard.append(row)
 
     nav_buttons = []
     if offset > 0:
         nav_buttons.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"page_{aid}_{offset-12}"))
     if offset + 12 < len(episodes):
         nav_buttons.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{aid}_{offset+12}"))
-    
-    if nav_buttons:
-        keyboard.append(nav_buttons)
+    if nav_buttons: keyboard.append(nav_buttons)
 
     await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
     await query.answer()
@@ -2262,6 +2236,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
