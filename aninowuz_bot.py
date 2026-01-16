@@ -2212,7 +2212,7 @@ def main():
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list"))
-    app_bot.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_info"))
+    app_bot.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_page_"))
     
     # 2. CONVERSATION HANDLER (TEPADA BO'LISHI SHART)
@@ -2243,6 +2243,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
