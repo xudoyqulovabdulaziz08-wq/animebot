@@ -1229,7 +1229,7 @@ async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Anime nomi yoki ID bo'yicha qidirish mantiqi"""
+    """Anime nomi yoki ID bo'yicha qidirish mantiqi (Ko'p natijali qidiruv)"""
     if not update.message or not update.message.text:
         return
         
@@ -1246,81 +1246,105 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text("❌ Bazaga ulanishda xato.")
         return ConversationHandler.END
 
-    # dictionary=True ishlatilganiga e'tibor bering
     cur = conn.cursor(dictionary=True)
     
+    # ID yoki Nom bo'yicha qidirish (fetchall orqali hamma fasllarni olamiz)
     if text.isdigit():
         cur.execute("SELECT * FROM anime_list WHERE anime_id=%s", (text,))
     else:
         cur.execute("SELECT * FROM anime_list WHERE name LIKE %s", (f"%{text}%",))
     
-    anime = cur.fetchone()
+    results = cur.fetchall()
+    cur.close(); conn.close()
     
-    if not anime:
+    if not results:
         kb = InlineKeyboardMarkup([
             [InlineKeyboardButton("🔙 Orqaga", callback_data="back_to_search_menu")],
             [InlineKeyboardButton("❌ To'xtatish", callback_data="cancel_search")]
         ])
         await update.message.reply_text(
-            f"😔 `{text}` bo'yicha hech narsa topilmadi.\n\nIltimos, qayta tekshirib ko'ring:",
-            reply_markup=kb,
-            parse_mode="Markdown"
+            f"😔 <b>'{text}'</b> bo'yicha hech narsa topilmadi.\n\nIltimos, qayta tekshirib ko'ring:",
+            reply_markup=kb, parse_mode="HTML"
         )
         return 
 
-    # Anime qismlarini olish
+    # AGAR FAQAT BITTA NATIJA CHIQSA - To'g'ridan-to'g'ri ko'rsatamiz
+    if len(results) == 1:
+        return await show_anime_info(update, results[0])
+
+    # AGAR BIR NECHTA NATIJA CHIQSA (Masalan: 1-fasl, 2-fasl)
+    keyboard = []
+    for anime in results:
+        # Har bir fasl uchun alohida tugma
+        keyboard.append([InlineKeyboardButton(f"🎬 {anime['name']}", callback_data=f"show_anime_{anime['anime_id']}")])
+    
+    await update.message.reply_text(
+        f"🔍 <b>'{text}' bo'yicha {len(results)} ta natija topildi:</b>\n\nIltimos, kerakli faslni tanlang:",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
+    # State'ni saqlab qolamiz (ConversationHandler tugallanmaydi)
+
+async def show_anime_info(update_or_query, anime):
+    """Animening rasm, caption va qismlarini chiqaruvchi yagona funksiya"""
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
     cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
-    episodes = cur.fetchall() 
+    episodes = cur.fetchall()
     cur.close(); conn.close()
 
     if not episodes:
-        await update.message.reply_text("⚠️ Bu anime topildi, lekin qismlar hali yuklanmagan.")
+        msg = "⚠️ Bu anime topildi, lekin qismlar hali yuklanmagan."
+        if hasattr(update_or_query, 'message'):
+            await update_or_query.message.reply_text(msg)
+        else:
+            await update_or_query.edit_message_text(msg)
         return ConversationHandler.END
 
-    # 12 ta qism: 3 qator, 4 tadan
+    # Tugmalar (3 qator, 4 tadan)
     keyboard = []
     row = []
-    
     for ep in episodes[:12]:
-        # dictionary=True bo'lgani uchun ep['id'] va ep['episode'] ishlatiladi
         row.append(InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}"))
-        
         if len(row) == 4:
             keyboard.append(row)
             row = []
-    
     if row: keyboard.append(row)
     
     if len(episodes) > 12:
         keyboard.append([InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{anime['anime_id']}_12")])
-    
+
     caption = (
-    f"┏━━━━━━━━━━━━━━━━━━━━━┓\n"
-    f"┃ 🎬 <b>{anime['name']}</b>\n"
-    f"┣━━━━━━━━━━━━━━━━━━━━━┛\n"
-    f"┃ 🌐 <b>Tili:</b> {anime.get('lang', 'Oʻzbekcha')}\n"
-    f"┃ 🎭 <b>Janri:</b> {anime.get('genre', 'Sarguzasht')}\n"
-    f"┃ 📅 <b>Yili:</b> {anime.get('year', 'Noma’lum')}\n"
-    f"┃ 🆔 <b>ID:</b> <code>{anime['anime_id']}</code>\n"
-    f"┣━━━━━━━━━━━━━━━━━━━━━┓\n"
-    f"┃ 📢 <a href='https://t.me/Aninovuz'>@Aninovuz</a>\n"
-    f"┗━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-    f"📥 <b>Qismlardan birini tanlang:</b>"
+        f"┏━━━━━━━━━━━━━━━━━━━━━┓\n"
+        f"┃ 🎬 <b>{anime['name']}</b>\n"
+        f"┣━━━━━━━━━━━━━━━━━━━━━┛\n"
+        f"┃ 🌐 <b>Tili:</b> {anime.get('lang', 'Oʻzbekcha')}\n"
+        f"┃ 🎭 <b>Janri:</b> {anime.get('genre', 'Sarguzasht')}\n"
+        f"┃ 📅 <b>Yili:</b> {anime.get('year', 'Noma’lum')}\n"
+        f"┃ 🆔 <b>ID:</b> <code>{anime['anime_id']}</code>\n"
+        f"┣━━━━━━━━━━━━━━━━━━━━━┓\n"
+        f"┃ 📢 <a href='https://t.me/Aninovuz'>@Aninovuz</a>\n"
+        f"┗━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        f"📥 <b>Qismlardan birini tanlang:</b>"
     )
-    
+
     try:
-        await update.message.reply_photo(
-            photo=anime['poster_id'],
-            caption=caption,
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-    except Exception as e:
-        await update.message.reply_photo(
-            photo=anime['poster_id'],
-            caption=caption.replace("*", ""),
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        # Agar bu yangi xabar bo'lsa
+        if hasattr(update_or_query, 'message'):
+            await update_or_query.message.reply_photo(
+                photo=anime['poster_id'], caption=caption,
+                reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+            )
+        # Agar bu callback (tugma bosilishi) bo'lsa (ro'yxatdan tanlaganda)
+        else:
+            await update_or_query.message.reply_photo(
+                photo=anime['poster_id'], caption=caption,
+                reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
+            )
+            await update_or_query.delete_message() # Ro'yxatni o'chirib tashlaymiz
+    except Exception:
+        # Markdown xatosi bo'lsa oddiy matn
+        await update_or_query.message.reply_text("Xatolik yuz berdi, lekin anime topildi.")
     
     return ConversationHandler.END
 
@@ -2167,6 +2191,7 @@ def main():
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list"))
+    app_bot.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_info"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_page_"))
     
     # 2. CONVERSATION HANDLER (TEPADA BO'LISHI SHART)
@@ -2197,6 +2222,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
