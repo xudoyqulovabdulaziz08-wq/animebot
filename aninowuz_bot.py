@@ -1303,14 +1303,15 @@ async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if anime:
         # 3. show_anime_info funksiyasini chaqirish (context bilan birga)
-        return await show_anime_info(query, anime, context)
+        return await show_anime_details(query, anime, context))
     else:
         await query.message.reply_text("❌ Anime ma'lumotlari topilmadi.")
 
-async def show_anime_info(update_or_query, anime, context):
-    """Animening rasm, caption va qismlarini chiqaruvchi asosiy funksiya"""
+async def show_anime_details(update_or_query, anime, context): # Nomi o'zgardi
+    """Qidiruvdan kelgan animeni ko'rsatish funksiyasi"""
     conn = get_db()
     cur = conn.cursor(dictionary=True)
+    
     cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
     episodes = cur.fetchall()
     cur.close(); conn.close()
@@ -2236,6 +2237,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
