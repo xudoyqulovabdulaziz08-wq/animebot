@@ -2176,15 +2176,23 @@ def main():
                 MessageHandler(filters.VIDEO | filters.Document.VIDEO, handle_ep_uploads),
                 CallbackQueryHandler(handle_callback)
             ],
+           
             A_SEARCH_BY_ID: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
+                # 1. Avval tanlangan animeni ko'rsatishni tekshirsin
                 CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), 
+                # 2. Keyin matn yozilsa qidiruvni davom ettirsin
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
+                # 3. Oxirida boshqa callbacklarni tekshirsin
                 CallbackQueryHandler(handle_callback)
             ],
             A_SEARCH_BY_NAME: [
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
+                # 1. Birinchi navbatda tugma bosilishini ushlasin
                 CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), 
+                # 2. Keyin qidiruv matnini ushlasin
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
+                # 3. Oxirida qolgan callbacklar
                 CallbackQueryHandler(handle_callback)
+            ],
             ],
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
             A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
@@ -2228,6 +2236,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
