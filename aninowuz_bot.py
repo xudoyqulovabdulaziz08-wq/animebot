@@ -1307,39 +1307,47 @@ async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         await query.message.reply_text("❌ Anime ma'lumotlari topilmadi.")
 
-async def show_anime_details(update_or_query, anime, context): # Nomi o'zgardi
+# Faylning eng tepasida bo'lishi shart:
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+async def show_anime_details(update_or_query, anime, context):
     """Qidiruvdan kelgan animeni ko'rsatish funksiyasi"""
     conn = get_db()
     cur = conn.cursor(dictionary=True)
     
+    # Bazadan qismlarni olish
     cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
     episodes = cur.fetchall()
     cur.close(); conn.close()
 
-    # Chat ID va eski xabarni aniqlash (Xavfsiz usul)
+    # Chat ID ni aniqlash
     if hasattr(update_or_query, 'message') and update_or_query.message:
         chat_id = update_or_query.message.chat_id
         orig_msg = update_or_query.message
     else:
-        # CallbackQuery holati uchun
-        chat_id = update_or_query.message.chat_id
-        orig_msg = update_or_query.message
+        # CallbackQuery holati uchun effective_chat dan foydalanish xavfsizroq
+        chat_id = update_or_query.effective_chat.id
+        orig_msg = update_or_query.effective_message
 
     if not episodes:
         msg = "⚠️ Bu anime topildi, lekin qismlar hali yuklanmagan."
         await context.bot.send_message(chat_id=chat_id, text=msg)
         return ConversationHandler.END
 
-    # Tugmalarni yasash (sizning kodingiz)
+    # 1. TUGMALARNI YASASH
     keyboard = []
     row = []
     for ep in episodes[:12]:
-        row.append(InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}"))
+     
+        button = InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}")
+        row.append(button)
         if len(row) == 4:
             keyboard.append(row)
             row = []
-    if row: keyboard.append(row)
+    if row: 
+        keyboard.append(row)
     
+    # Pagination tugmasi
     if len(episodes) > 12:
         keyboard.append([InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{anime['anime_id']}_12")])
 
@@ -1358,36 +1366,48 @@ async def show_anime_details(update_or_query, anime, context): # Nomi o'zgardi
     )
 
     try:
-        # 1. AVVAL yangi rasmni yuboramiz
+        # Rasmni yuborish va reply_markup ni biriktirish
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=anime['poster_id'],
             caption=caption,
-            reply_markup=InlineKeyboardMarkup(keyboard),
+            reply_markup=InlineKeyboardMarkup(keyboard), # Tugmalar shu yerda qo'shiladi
             parse_mode="HTML"
         )
-        # 2. KEYIN agar bu tugma bo'lsa, eski xabarni o'chiramiz
-        if hasattr(update_or_query, 'data'):
+        
+        # Eski matnli xabarni (masalan, "Natijalar:") o'chirib tashlaymiz
+        if hasattr(update_or_query, 'data'): # Agar tugma bosilgan bo'lsa
             try:
                 await orig_msg.delete()
-            except Exception as e:
-                print(f"Xabarni o'chirishda xatolik: {e}")
+            except:
+                pass
             
     except Exception as e:
         print(f"Poster yuborishda xatolik: {e}")
-        await context.bot.send_message(chat_id=chat_id, text="❌ Poster yuklanmadi. Baza bilan bog'liq muammo bo'lishi mumkin.")
+        # Agar rasmda xato bo'lsa, hech bo'lmasa matnni tugmalar bilan yuboramiz
+        await context.bot.send_message(
+            chat_id=chat_id, 
+            text=f"🎬 {anime['name']}\n\n{caption}", 
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
     
     return ConversationHandler.END
+
 
 async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Tanlangan qismni video qilib yuborish"""
     query = update.callback_query
     data = query.data.split("_") 
     
-    if len(data) < 3: return
+    # Agar data 'get_ep_123' bo'lsa, id uchinchi element (index 2) bo'ladi
+    if len(data) < 3: 
+        await query.answer("❌ Ma'lumot formati noto'g'ri")
+        return
+        
     row_id = data[2] 
     
-    await query.answer("Video yuklanmoqda...")
+    await query.answer("Video yuklanmoqda...", show_alert=False)
     
     conn = get_db()
     cur = conn.cursor(dictionary=True)
@@ -1404,17 +1424,21 @@ async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         try:
             await query.message.reply_video(
                 video=res['file_id'],
-                caption=f"🎬 {res['name']}\n🔢 {res['episode']}-qism\n\n✅ @Aninovuz"
+                caption=f"🎬 <b>{res['name']}</b>\n🔢 <b>{res['episode']}-qism</b>\n\n✅ @Aninovuz",
+                parse_mode="HTML"
             )
         except Exception as e:
-            await query.message.reply_text(f"❌ Xatolik: {e}")
+            await query.message.reply_text(f"❌ Video yuborishda xatolik: {e}")
     else:
-        await query.answer("❌ Video topilmadi!", show_alert=True)
+        await query.answer("❌ Video bazadan topilmadi!", show_alert=True)
 
 async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sahifadan sahifaga o'tish"""
     query = update.callback_query
+    # page_aid_offset
     parts = query.data.split("_")
+    if len(parts) < 3: return
+    
     aid, offset = parts[1], int(parts[2])
     
     conn = get_db()
@@ -1423,12 +1447,17 @@ async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
     episodes = cur.fetchall()
     cur.close(); conn.close()
 
+    if not episodes:
+        await query.answer("Epizodlar topilmadi")
+        return
+
     keyboard = []
     row = []
     display_eps = episodes[offset:offset+12]
     
     for ep in display_eps:
-        row.append(InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}"))
+        # MUHIM: get_episode_handler data[2] ni o'qishi uchun callback_data shunday bo'lishi kerak:
+        row.append(InlineKeyboardButton(text=str(ep['episode']), callback_data=f"get_ep_{ep['id']}"))
         if len(row) == 4:
             keyboard.append(row)
             row = []
@@ -1439,11 +1468,17 @@ async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
         nav_buttons.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"page_{aid}_{offset-12}"))
     if offset + 12 < len(episodes):
         nav_buttons.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{aid}_{offset+12}"))
-    if nav_buttons: keyboard.append(nav_buttons)
+    
+    if nav_buttons: 
+        keyboard.append(nav_buttons)
 
-    await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+    # Xabarni tahrirlash (yangi tugmalarni qo'yish)
+    try:
+        await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+    except Exception as e:
+        print(f"Pagination Error: {e}")
+        
     await query.answer()
-   
     
 
     
@@ -2237,6 +2272,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
