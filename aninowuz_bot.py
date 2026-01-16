@@ -1315,17 +1315,21 @@ async def show_anime_info(update_or_query, anime, context):
     episodes = cur.fetchall()
     cur.close(); conn.close()
 
-    # Chat ID va eski xabarni aniqlash
-    is_callback = hasattr(update_or_query, 'data')
-    chat_id = update_or_query.message.chat_id if is_callback else update_or_query.message.chat_id
-    orig_msg = update_or_query.message if is_callback else update_or_query.message
+    # Chat ID va eski xabarni aniqlash (Xavfsiz usul)
+    if hasattr(update_or_query, 'message') and update_or_query.message:
+        chat_id = update_or_query.message.chat_id
+        orig_msg = update_or_query.message
+    else:
+        # CallbackQuery holati uchun
+        chat_id = update_or_query.message.chat_id
+        orig_msg = update_or_query.message
 
     if not episodes:
         msg = "⚠️ Bu anime topildi, lekin qismlar hali yuklanmagan."
         await context.bot.send_message(chat_id=chat_id, text=msg)
         return ConversationHandler.END
 
-    # Epizod tugmalari (3 qator, 4 tadan)
+    # Tugmalarni yasash (sizning kodingiz)
     keyboard = []
     row = []
     for ep in episodes[:12]:
@@ -1352,10 +1356,8 @@ async def show_anime_info(update_or_query, anime, context):
         f"📥 <b>Qismlardan birini tanlang:</b>"
     )
 
-  
-    
     try:
-        # Avval yangi rasmni yuboramiz
+        # 1. AVVAL yangi rasmni yuboramiz
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=anime['poster_id'],
@@ -1363,13 +1365,16 @@ async def show_anime_info(update_or_query, anime, context):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-        # Agar bu tugma orqali kelgan bo'lsa, eski ro'yxatni o'chiramiz
+        # 2. KEYIN agar bu tugma bo'lsa, eski xabarni o'chiramiz
         if hasattr(update_or_query, 'data'):
-            await update_or_query.message.delete()
+            try:
+                await orig_msg.delete()
+            except Exception as e:
+                print(f"Xabarni o'chirishda xatolik: {e}")
             
     except Exception as e:
-        print(f"Xatolik: {e}")
-        await context.bot.send_message(chat_id=chat_id, text="❌ Poster yuklanmadi. ID bazada noto'g'ri bo'lishi mumkin.")
+        print(f"Poster yuborishda xatolik: {e}")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Poster yuklanmadi. Baza bilan bog'liq muammo bo'lishi mumkin.")
     
     return ConversationHandler.END
 
@@ -2236,6 +2241,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
