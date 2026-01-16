@@ -2128,8 +2128,8 @@ def main():
         init_db()
     except Exception as e:
         print(f"🛑 Baza ulanishida xato: {e}")
-
-    # 3. Botni yaratish
+        
+    #3. Botni yaratish
     app_bot = ApplicationBuilder().token(TOKEN).build()
     
     # Menyu filtri
@@ -2251,6 +2251,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
