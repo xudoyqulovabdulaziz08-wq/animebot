@@ -1303,7 +1303,7 @@ async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if anime:
         # 3. show_anime_info funksiyasini chaqirish (context bilan birga)
-        return await show_anime_details(query, anime, context))
+        return await show_anime_details(query, anime, context)
     else:
         await query.message.reply_text("❌ Anime ma'lumotlari topilmadi.")
 
@@ -2237,6 +2237,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
