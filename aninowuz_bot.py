@@ -1288,10 +1288,11 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
 
 async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Qidiruv natijasidagi ro'yxatdan anime tanlanganda ishlaydi"""
     query = update.callback_query
-    await query.answer() # "Loading" holatini to'xtatadi
+    # 1. Tugma bosilganini tasdiqlash (soatni yo'qotadi)
+    await query.answer() 
     
+    # 2. ID ni olish
     anime_id = query.data.replace("show_anime_", "")
     
     conn = get_db()
@@ -1301,10 +1302,10 @@ async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE
     cur.close(); conn.close()
     
     if anime:
-        # Tanlangan animeni ko'rsatish (query uzatiladi)
+        # 3. show_anime_info funksiyasini chaqirish (context bilan birga)
         return await show_anime_info(query, anime, context)
-    
-    await query.message.reply_text("❌ Anime topilmadi")
+    else:
+        await query.message.reply_text("❌ Anime ma'lumotlari topilmadi.")
 
 async def show_anime_info(update_or_query, anime, context):
     """Animening rasm, caption va qismlarini chiqaruvchi asosiy funksiya"""
@@ -1351,8 +1352,10 @@ async def show_anime_info(update_or_query, anime, context):
         f"📥 <b>Qismlardan birini tanlang:</b>"
     )
 
+  
+    
     try:
-        # 1. AVVAL yangi rasmli xabarni yuboramiz
+        # Avval yangi rasmni yuboramiz
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=anime['poster_id'],
@@ -1360,16 +1363,13 @@ async def show_anime_info(update_or_query, anime, context):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-
-        # 2. KEYIN eski xabarni (ro'yxat yoki qidiruv so'zi) o'chiramiz
-        if is_callback:
-            try:
-                await orig_msg.delete()
-            except:
-                pass
+        # Agar bu tugma orqali kelgan bo'lsa, eski ro'yxatni o'chiramiz
+        if hasattr(update_or_query, 'data'):
+            await update_or_query.message.delete()
+            
     except Exception as e:
-        print(f"DEBUG: Xato - {e}")
-        await context.bot.send_message(chat_id=chat_id, text="❌ Poster yuklashda xatolik. ID noto'g'ri bo'lishi mumkin.")
+        print(f"Xatolik: {e}")
+        await context.bot.send_message(chat_id=chat_id, text="❌ Poster yuklanmadi. ID bazada noto'g'ri bo'lishi mumkin.")
     
     return ConversationHandler.END
 
@@ -2236,6 +2236,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
