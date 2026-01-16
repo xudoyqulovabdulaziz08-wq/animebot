@@ -2117,17 +2117,17 @@ async def reset_and_init_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.close()
         conn.close()
         
-# ====================== MAIN FUNKSIYA (TUZATILDI) ======================
-# ====================== MAIN FUNKSIYA (TUZATILDI) ======================
+# ====================== MAIN FUNKSIYA (TUZATILDI) =======================
+
 def main():
-    # 1. Serverni uyg'oq saqlash
-    keep_alive()
-    
-    # 2. Bazani ishga tushirish
-    try:
-        init_db()
-    except Exception as e:
-        print(f"🛑 Baza ulanishida xato: {e}")
+    # 1. Serverni uyg'oq saqlash
+    keep_alive()
+
+    # 2. Bazani ishga tushirish
+    try:
+        init_db()
+    except Exception as e:
+        print(f"🛑 Baza ulanishida xato: {e}")
 
     # 3. Botni yaratish
     app_bot = ApplicationBuilder().token(TOKEN).build()
@@ -2251,6 +2251,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
