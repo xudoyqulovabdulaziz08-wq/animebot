@@ -1285,6 +1285,27 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     )
     # State'ni saqlab qolamiz (ConversationHandler tugallanmaydi)
 
+async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Qidiruv natijasidagi ro'yxatdan anime tanlanganda ishlaydi"""
+    query = update.callback_query
+    # Callback data'dan ID ni ajratib olish
+    anime_id = query.data.replace("show_anime_", "")
+    
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT * FROM anime_list WHERE anime_id=%s", (anime_id,))
+    anime = cur.fetchone()
+    cur.close()
+    conn.close()
+    
+    if anime:
+        # Tanlash ro'yxatini o'chiramiz
+        await query.message.delete()
+        # Animeni poster va caption bilan ko'rsatish funksiyasini chaqiramiz
+        return await show_anime_info(query, anime)
+    
+    await query.answer("❌ Anime topilmadi")
+
 async def show_anime_info(update_or_query, anime):
     """Animening rasm, caption va qismlarini chiqaruvchi yagona funksiya"""
     conn = get_db()
@@ -2222,6 +2243,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
