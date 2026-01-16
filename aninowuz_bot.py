@@ -1350,23 +1350,41 @@ async def show_anime_info(update_or_query, anime):
     )
 
     try:
-        if hasattr(update_or_query, 'message') and not hasattr(update_or_query, 'data'):
-            # Oddiy xabar orqali qidirilganda
-            await update_or_query.message.reply_photo(
-                photo=anime['poster_id'], caption=caption,
-                reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
-            )
+        # Xabarni qayerga yuborishni aniqlaymiz
+        if hasattr(update_or_query, 'callback_query'):
+            # Agar bu CallbackQuery bo'lsa
+            chat_id = update_or_query.callback_query.message.chat_id
+            message_to_delete = update_or_query.callback_query.message
+        elif hasattr(update_or_query, 'message'):
+            # Agar bu oddiy Update xabari bo'lsa
+            chat_id = update_or_query.message.chat_id
+            message_to_delete = None
         else:
-            # Callback (tugma) orqali tanlanganda
-            await update_or_query.message.reply_photo(
-                photo=anime['poster_id'], caption=caption,
-                reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
-            )
-            # Ro'yxat xabarini o'chirib tashlaymiz
-            await update_or_query.message.delete()
+            # Tanlash ro'yxatidan kelgan callback bo'lsa
+            chat_id = update_or_query.message.chat_id
+            message_to_delete = update_or_query.message
+
+        # 1. AVVAL yangi rasmli xabarni yuboramiz
+        await context.bot.send_photo(
+            chat_id=chat_id,
+            photo=anime['poster_id'],
+            caption=caption,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+        # 2. KEYIN eski tanlash ro'yxatini o'chiramiz (agar mavjud bo'lsa)
+        if message_to_delete:
+            try:
+                await message_to_delete.delete()
+            except:
+                pass # Agar xabar allaqachon o'chgan bo'lsa xato bermasligi uchun
+
     except Exception as e:
         print(f"Xatolik: {e}")
-        await (update_or_query.message if hasattr(update_or_query, 'message') else update_or_query).reply_text("Anime yuklashda xatolik yuz berdi.")
+        # Xatolik bo'lsa foydalanuvchiga bildirish
+        target = update_or_query.message if hasattr(update_or_query, 'message') else update_or_query.callback_query.message
+        await target.reply_text("❌ Anime ma'lumotlarini yuklashda texnik xatolik yuz berdi.")
     
     return ConversationHandler.END
 
@@ -2244,6 +2262,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
