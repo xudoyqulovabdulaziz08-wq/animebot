@@ -2193,7 +2193,7 @@ def main():
                 # 3. Oxirida qolgan callbacklar
                 CallbackQueryHandler(handle_callback)
             ],
-            ],
+
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
             A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
             A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_admin)],
@@ -2236,6 +2236,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
