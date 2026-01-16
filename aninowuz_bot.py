@@ -1322,7 +1322,7 @@ async def show_anime_info(update_or_query, anime):
             await update_or_query.edit_message_text(msg)
         return ConversationHandler.END
 
-    # Tugmalar (3 qator, 4 tadan)
+    # Tugmalar: 3 qator, 4 tadan
     keyboard = []
     row = []
     for ep in episodes[:12]:
@@ -1350,22 +1350,23 @@ async def show_anime_info(update_or_query, anime):
     )
 
     try:
-        # Agar bu yangi xabar bo'lsa
-        if hasattr(update_or_query, 'message'):
+        if hasattr(update_or_query, 'message') and not hasattr(update_or_query, 'data'):
+            # Oddiy xabar orqali qidirilganda
             await update_or_query.message.reply_photo(
                 photo=anime['poster_id'], caption=caption,
                 reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
             )
-        # Agar bu callback (tugma bosilishi) bo'lsa (ro'yxatdan tanlaganda)
         else:
+            # Callback (tugma) orqali tanlanganda
             await update_or_query.message.reply_photo(
                 photo=anime['poster_id'], caption=caption,
                 reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML"
             )
-            await update_or_query.delete_message() # Ro'yxatni o'chirib tashlaymiz
-    except Exception:
-        # Markdown xatosi bo'lsa oddiy matn
-        await update_or_query.message.reply_text("Xatolik yuz berdi, lekin anime topildi.")
+            # Ro'yxat xabarini o'chirib tashlaymiz
+            await update_or_query.message.delete()
+    except Exception as e:
+        print(f"Xatolik: {e}")
+        await (update_or_query.message if hasattr(update_or_query, 'message') else update_or_query).reply_text("Anime yuklashda xatolik yuz berdi.")
     
     return ConversationHandler.END
 
@@ -2243,6 +2244,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
