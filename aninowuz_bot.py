@@ -2181,16 +2181,19 @@ def main():
                 MessageHandler(filters.VIDEO | filters.Document.VIDEO, handle_ep_uploads),
                 CallbackQueryHandler(handle_callback)
             ],
-            # QIDIRUV HOLATLARI (TUZATILDI)
+            # Qidiruv holatlari (TUZATILDI)
             A_SEARCH_BY_ID: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
-                CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), # SHU YERDA HAM BO'LISHI SHART
+                # MUHIM: Qidiruv holatida turib anime tanlanganda shu handler javob beradi
+                CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), 
                 CallbackQueryHandler(handle_callback)
             ],
             A_SEARCH_BY_NAME: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
-                CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), # SHU YERDA HAM BO'LISHI SHART
+                # MUHIM: Qidiruv holatida turib anime tanlanganda shu handler javob beradi
+                CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), 
                 CallbackQueryHandler(handle_callback)
+            ],
             # Admin boshqa holatlari
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
             A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
@@ -2215,8 +2218,9 @@ def main():
     # 1. MAXSUS CALLBACKLAR (Faqat aniq patternlar)
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
+    app_bot.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list"))
-    app_bot.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
+    
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_page_"))
     
     # 2. CONVERSATION HANDLER (TEPADA BO'LISHI SHART)
@@ -2247,6 +2251,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
