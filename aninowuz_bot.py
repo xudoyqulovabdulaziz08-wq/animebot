@@ -2181,9 +2181,15 @@ def main():
                 CallbackQueryHandler(handle_callback)
             ],
 
-            # Qidiruv holatlari
-            A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
-            A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic)],
+            A_SEARCH_BY_ID: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
+                CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), # SHU YERDA HAM BO'LISHI SHART
+                CallbackQueryHandler(handle_callback)
+            ],
+            A_SEARCH_BY_NAME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
+                CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), # SHU YERDA HAM BO'LISHI SHART
+                CallbackQueryHandler(handle_callback)
             
             # Admin boshqa holatlari
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
@@ -2241,6 +2247,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
