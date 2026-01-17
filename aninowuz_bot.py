@@ -1313,17 +1313,33 @@ async def admin_panel_text_handler(update: Update, context: ContextTypes.DEFAULT
   
 # ===================================================================================       
 
-async def post_new_anime_to_channel(context, anime_data):
-    """Yangi anime qo'shilganda kanalga rasm va link yuborish"""
+async def post_new_anime_to_channel(context, anime_id):
+    """Qismlar yuklanib bo'lingach, kanalga post yuborish"""
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
     
+    # 1. Anime ma'lumotlarini bazadan olish
+    cur.execute("SELECT * FROM anime_list WHERE anime_id=%s", (anime_id,))
+    anime_data = cur.fetchone()
+    
+    # 2. Haqiqiy qismlar sonini o'sha zahoti sanash
+    cur.execute("SELECT COUNT(id) as total FROM anime_episodes WHERE anime_id=%s", (anime_id,))
+    total_episodes = cur.fetchone()['total']
+    
+    cur.close()
+    conn.close()
+
+    if not anime_data:
+        print(f"Xato: ID {anime_id} bo'yicha anime topilmadi")
+        return
+
     CHANNEL_ID = "@Aninovuz" 
-    # Bot username'ini @ belgisiz, to'g'ri yozilganiga yana bir bor ishonch hosil qiling
     BOT_USERNAME = "Aninovuz_bot" 
 
     # Link yaratish
-    bot_link = f"https://t.me/{BOT_USERNAME}?start=ani_{anime_data['anime_id']}"
+    bot_link = f"https://t.me/{BOT_USERNAME}?start=ani_{anime_id}"
 
-    # CAPTION qismi (anime_data ishlatilishi shart)
+    # CAPTION qismi
     caption = (
         f"┏━━━━━━━━━━━━━━━━━━━━━┓\n"
         f"┃ 🎬 <b>{anime_data['name']}</b>\n"
@@ -1332,11 +1348,11 @@ async def post_new_anime_to_channel(context, anime_data):
         f"┃ 🌐 <b>Tili:</b> {anime_data.get('lang', 'Oʻzbekcha')}\n"
         f"┃ 🎭 <b>Janri:</b> {anime_data.get('genre', 'Sarguzasht')}\n"
         f"┃ 📅 <b>Yili:</b> {anime_data.get('year', 'Noma’lum')}\n"
-        f"┃ 🆔 <b>ID:</b> <code>{anime_data['anime_id']}</code>\n"
+        f"┃ 🆔 <b>ID:</b> <code>{anime_id}</code>\n"
         f"┣━━━━━━━━━━━━━━━━━━━━━┓\n"
         f"┃ 📢 <a href='https://t.me/Aninovuz'>@Aninovuz</a>\n"
         f"┗━━━━━━━━━━━━━━━━━━━━━┛\n\n"
-        f"📥 <b>Ko'rish uchun pastdagi tugmani bosing:</b>"
+        f"📥 <b>Hozir ko'rish uchun pastdagi tugmani bosing:</b>"
     )
 
     keyboard = InlineKeyboardMarkup([
@@ -2523,6 +2539,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
