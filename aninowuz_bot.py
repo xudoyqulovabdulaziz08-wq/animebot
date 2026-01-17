@@ -1328,6 +1328,7 @@ async def post_new_anime_to_channel(context, anime_data):
         f"┏━━━━━━━━━━━━━━━━━━━━━┓\n"
         f"┃ 🎬 <b>{anime_data['name']}</b>\n"
         f"┣━━━━━━━━━━━━━━━━━━━━━┛\n"
+        f"┃ 🎥 <b>Qismlar soni:</b> {total_episodes} ta\n"
         f"┃ 🌐 <b>Tili:</b> {anime_data.get('lang', 'Oʻzbekcha')}\n"
         f"┃ 🎭 <b>Janri:</b> {anime_data.get('genre', 'Sarguzasht')}\n"
         f"┃ 📅 <b>Yili:</b> {anime_data.get('year', 'Noma’lum')}\n"
@@ -1463,9 +1464,14 @@ async def show_anime_details(update_or_query, anime, context):
     conn = get_db()
     cur = conn.cursor(dictionary=True)
     
-    # Bazadan qismlarni olish
+    # 1. Avval jami qismlar sonini hisoblaymiz (COUNT yordamida)
+    cur.execute("SELECT COUNT(id) as total FROM anime_episodes WHERE anime_id=%s", (anime['anime_id'],))
+    total_episodes = cur.fetchone()['total']
+
+    # 2. Keyin qismlarning o'zini olamiz (tugmalar uchun)
     cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
     episodes = cur.fetchall()
+    
     cur.close(); conn.close()
 
     # Chat ID ni aniqlash
@@ -1503,6 +1509,7 @@ async def show_anime_details(update_or_query, anime, context):
         f"┏━━━━━━━━━━━━━━━━━━━━━┓\n"
         f"┃ 🎬 <b>{anime['name']}</b>\n"
         f"┣━━━━━━━━━━━━━━━━━━━━━┛\n"
+        f"┃ 🎥 <b>Qismlar soni:</b> {total_episodes} ta\n"
         f"┃ 🌐 <b>Tili:</b> {anime.get('lang', 'Oʻzbekcha')}\n"
         f"┃ 🎭 <b>Janri:</b> {anime.get('genre', 'Sarguzasht')}\n"
         f"┃ 📅 <b>Yili:</b> {anime.get('year', 'Noma’lum')}\n"
@@ -2520,6 +2527,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
