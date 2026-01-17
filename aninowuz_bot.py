@@ -1823,7 +1823,9 @@ async def handle_ep_uploads(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.commit()
         
         # 5. Javob qaytarish (Tugmalar bilan)
-        kb = [[InlineKeyboardButton("🏁 Jarayonni tugatish", callback_data="add_ani_menu")]]
+        kb = [[InlineKeyboardButton("🏁 Jarayonni tugatish", callback_data="add_ani_menu")],
+             [InlineKeyboardButton("📢 Kanalga e'lon qilish", callback_data=f"post_to_chan_{ani_id}")]
+        ]
         await update.message.reply_text(
             f"✅ **{ani_name}**\n🎬 **{new_ep}-qism** muvaffaqiyatli qo'shildi!\n\n"
             f"ℹ️ *Video ostidagi eski matnlar (caption) avtomatik olib tashlandi.* \n\n"
@@ -2521,6 +2523,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
