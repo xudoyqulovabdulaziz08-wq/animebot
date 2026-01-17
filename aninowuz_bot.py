@@ -1258,8 +1258,42 @@ async def admin_panel_text_handler(update: Update, context: ContextTypes.DEFAULT
         
 
   
-        
+# ===================================================================================       
 
+async def post_new_anime_to_channel(context, anime_data):
+    """Yangi anime qo'shilganda kanalga rasm va link yuborish"""
+    # Kanalingiz ID sini shu yerga yozing (masalan: -100123456789 yoki @kanal_nomi)
+    CHANNEL_ID = "@Aninovuz" 
+    # Botingiz username'i (link uchun)
+    BOT_USERNAME = "Aninowuz_bot" 
+
+    # Botga o'tish linki (ID orqali qidiruvni ishga tushiradi)
+    # Foydalanuvchi linkni bossa, botga o'tib 'start' tugmasini bosadi va anime chiqadi
+    bot_link = f"https://t.me/{BOT_USERNAME}?start=ani_{anime_data['anime_id']}"
+
+    caption = (
+        f"🌟 <b>YANGI ANIME JOYLANDI!</b>\n\n"
+        f"🎬 <b>Nomi:</b> {anime_data['name']}\n"
+        f"🎭 <b>Janri:</b> {anime_data['genre']}\n"
+        f"📅 <b>Yili:</b> {anime_data['year']}\n"
+        f"🌐 <b>Tili:</b> {anime_data['lang']}\n\n"
+        f"📥 <b>Hoziroq ko'rish uchun pastdagi tugmani bosing:</b>"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("📺 Ko'rish", url=bot_link)]
+    ])
+
+    try:
+        await context.bot.send_photo(
+            chat_id=CHANNEL_ID,
+            photo=anime_data['poster_id'],
+            caption=caption,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        print(f"Kanalga post yuborishda xato: {e}")
     
 # ====================== ANIME QIDIRISH VA PAGINATION (TO'LIQ) ======================
 
@@ -2409,6 +2443,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
