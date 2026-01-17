@@ -125,6 +125,10 @@ def get_db():
         logger.error(f"❌ Ma'lumotlar bazasiga ulanishda xato: {err}")
         return None
 
+
+# ===================================================================================
+
+
 def init_db():
     """Ma'lumotlar bazasi jadvallarini yangilangan talablar asosida yaratish va sozlash"""
     conn = get_db()
@@ -185,6 +189,10 @@ def init_db():
         cur.close()
         conn.close()
 
+
+# ===================================================================================
+
+
 async def get_all_channels():
     """Bazadan barcha kanallarni ro'yxat shaklida olish"""
     conn = get_db()
@@ -196,6 +204,10 @@ async def get_all_channels():
         return cur.fetchall()
     finally:
         cur.close(); conn.close()
+
+
+# ===================================================================================
+
 
 async def delete_channel_by_id(ch_username):
     """Kanalni username orqali bazadan o'chirish"""
@@ -237,6 +249,10 @@ async def get_user_status(uid):
     finally:
         cur.close()
         conn.close()
+
+
+
+# ===================================================================================
 
 
 async def check_sub(uid, bot):
@@ -302,6 +318,10 @@ def get_main_kb(status):
 
 
 
+# ===================================================================================
+
+
+
 def get_admin_kb(is_main=False):
     """Admin panel ichidagi inline tugmalar"""
     buttons = [
@@ -324,6 +344,10 @@ def get_admin_kb(is_main=False):
         buttons.append([InlineKeyboardButton("👮 Adminlarni boshqarish", callback_data="manage_admins")])
         
     return InlineKeyboardMarkup(buttons)
+
+
+
+# ===================================================================================
 
 
 
@@ -399,6 +423,10 @@ async def exec_add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.close(); conn.close()
     return ConversationHandler.END
 
+
+# ===================================================================================
+
+
 async def exec_rem_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Kanalni o'chirish ijrosi"""
     text = update.message.text.strip()
@@ -416,6 +444,10 @@ async def exec_rem_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     finally:
         cur.close(); conn.close()
     return ConversationHandler.END
+
+
+# ===================================================================================
+
 
 async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Admin qo'shishdan oldin tasdiqlash so'rash"""
@@ -448,6 +480,10 @@ async def exec_add_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Eslatma: Bu yerda END qaytarmaymiz, callback_handler yakunlab qo'yadi
     return None 
 
+
+# ===================================================================================
+
+
 async def admin_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
@@ -465,6 +501,10 @@ async def admin_control(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return ConversationHandler.END # <--- Jarayonni butunlay tugatish
         
+
+# ===================================================================================
+
+
 async def show_vip_removal_list(update: Update, context: ContextTypes.DEFAULT_TYPE, page=0):
     query = update.callback_query
     limit = 10
@@ -1168,6 +1208,10 @@ async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
     st = res['status'] if res else "user"
     await update.message.reply_text(f"💰 Ballaringiz: {val}\n⭐ Status: {st.upper()}")
 
+
+# ===================================================================================
+
+
 async def show_guide(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "📖 **Qo‘llanma**\n\n"
@@ -1193,6 +1237,10 @@ async def vip_pass_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.message.reply_text(text, parse_mode="Markdown")
     else:
         await update.message.reply_text(text, parse_mode="Markdown")
+
+
+# ===================================================================================
+
 
 async def admin_panel_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
@@ -1232,8 +1280,12 @@ async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
+
+# ===================================================================================
+
+
 async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Anime nomi yoki ID bo'yicha qidirish mantiqi (Ko'p natijali qidiruv)"""
+    """Anime nomi yoki ID bo'yicha qidirish mantiqi"""
     if not update.message or not update.message.text:
         return
         
@@ -1267,32 +1319,36 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
             [InlineKeyboardButton("❌ To'xtatish", callback_data="cancel_search")]
         ])
         await update.message.reply_text(
-            f"😔 <b>'{text}'</b> bo'yicha hech narsa topilmadi.\n\nIltimos, qayta tekshirib ko'ring:",
+            f"😔 <b>'{text}'</b> bo'yicha hech narsa topilmadi.",
             reply_markup=kb, parse_mode="HTML"
         )
         return 
 
-    # FAQAT BITTA NATIJA CHIQSA
+    # FAQAT BITTA NATIJA CHIQSA (ID bo'yicha qidirilganda ham shu ishlaydi)
     if len(results) == 1:
-        return await show_anime_info(update, results[0], context)
+        # DIQQAT: Funksiya nomi show_anime_details bo'lishi shart!
+        return await show_anime_details(update, results[0], context)
 
     # BIR NECHTA NATIJA CHIQSA
     keyboard = []
-    for anime in results:
+    # Natijalar juda ko'p bo'lsa (masalan 50 ta), xabar yuborib bo'lmaydi, shuning uchun 20 ta bilan cheklaymiz
+    for anime in results[:20]:
         keyboard.append([InlineKeyboardButton(f"🎬 {anime['name']}", callback_data=f"show_anime_{anime['anime_id']}")])
     
     await update.message.reply_text(
-        f"🔍 <b>'{text}' bo'yicha {len(results)} ta natija topildi:</b>\n\nIltimos,  tanlang:👇",
+        f"🔍 <b>'{text}' bo'yicha {len(results)} ta natija topildi:</b>\n\nIltimos, tanlang:👇",
         reply_markup=InlineKeyboardMarkup(keyboard),
         parse_mode="HTML"
     )
 
+
+# ===================================================================================
+
+
 async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    # 1. Tugma bosilganini tasdiqlash (soatni yo'qotadi)
     await query.answer() 
     
-    # 2. ID ni olish
     anime_id = query.data.replace("show_anime_", "")
     
     conn = get_db()
@@ -1302,13 +1358,13 @@ async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE
     cur.close(); conn.close()
     
     if anime:
-        # 3. show_anime_info funksiyasini chaqirish (context bilan birga)
+        # Bu yerda ham show_anime_details nomini ishlating!
         return await show_anime_details(query, anime, context)
     else:
-        await query.message.reply_text("❌ Anime ma'lumotlari topilmadi.")
+        await query.edit_message_text("❌ Anime ma'lumotlari topilmadi.")
 
-# Faylning eng tepasida bo'lishi shart:
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+# ===================================================================================
+
 
 async def show_anime_details(update_or_query, anime, context):
     """Qidiruvdan kelgan animeni ko'rsatish funksiyasi"""
@@ -1395,6 +1451,10 @@ async def show_anime_details(update_or_query, anime, context):
     return ConversationHandler.END
 
 
+# ===================================================================================
+
+
+
 async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Tanlangan qismni video qilib yuborish"""
     query = update.callback_query
@@ -1431,6 +1491,11 @@ async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             await query.message.reply_text(f"❌ Video yuborishda xatolik: {e}")
     else:
         await query.answer("❌ Video bazadan topilmadi!", show_alert=True)
+
+
+# ===================================================================================
+
+
 
 async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sahifadan sahifaga o'tish"""
@@ -1523,6 +1588,10 @@ async def anime_control_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     return A_ANI_CONTROL
 
+
+# ===================================================================================
+
+
 # Add Anime Panel (Yangi anime yoki qism)
 async def add_anime_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1535,6 +1604,10 @@ async def add_anime_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
     return A_ADD_MENU
 
+
+# ===================================================================================
+
+
 # 1-qadam: Poster so'rash
 async def start_new_ani(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1542,6 +1615,10 @@ async def start_new_ani(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("1️⃣ Anime uchun **POSTER** (rasm) yuboring:", 
                                   reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
     return A_GET_POSTER
+
+
+# ===================================================================================
+
 
 # 2-qadam: Ma'lumotlarni so'rash
 async def get_poster_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1555,7 +1632,11 @@ async def get_poster_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "📝 Anime ma'lumotlarini tashlang:\nFormat: `Nomi | Tili | Janri | Yili`",
         reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown"
     )
-    return A_GET_DATA
+    
+
+# ===================================================================================
+
+return A_GET_DATA
 
 # 3-qadam: Bazaga saqlash va Video kutish
 async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1586,6 +1667,10 @@ async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await update.message.reply_text(f"❌ Xatolik: {e}")
         return A_GET_DATA
+
+
+# ===================================================================================
+
 
 async def handle_ep_uploads(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 1. Videoni aniqlash (oddiy video yoki hujjat sifatidagi video)
@@ -1645,6 +1730,10 @@ async def handle_ep_uploads(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     return A_ADD_EP_FILES
 
+
+# ===================================================================================
+
+
 async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_ani_", extra_callback=""):
     conn = get_db()
     cur = conn.cursor()
@@ -1683,6 +1772,10 @@ async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_a
     
     return InlineKeyboardMarkup(buttons)
 
+
+# ===================================================================================
+
+
 # Mavjud animega qism qo'shish uchun ro'yxatni ko'rsatish
 async def select_ani_for_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -1692,6 +1785,10 @@ async def select_ani_for_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     markup = await get_pagination_keyboard("anime_list", page=0, prefix="addepto_")
     await query.edit_message_text("📼 Qaysi animega yangi qism qo'shmoqchisiz?", reply_markup=markup)
     return A_SELECT_ANI_EP
+
+
+# ===================================================================================
+
 
 # Tanlangan anime uchun video kutish
 async def select_ani_for_ep_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1727,6 +1824,10 @@ async def select_ani_for_ep_callback(update: Update, context: ContextTypes.DEFAU
     else:
         await query.edit_message_text("❌ Anime topilmadi!")
         return A_SELECT_ANI_EP
+
+
+
+# ===================================================================================
 
 
 async def list_episodes_for_delete(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1772,6 +1873,10 @@ async def list_animes_view(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_text("📜 **Anime ro'yxati:**\nBatafsil ma'lumot uchun tanlang:", reply_markup=kb, parse_mode="Markdown")
     return A_LIST_VIEW
 
+
+# ===================================================================================
+
+
 async def show_anime_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     ani_id = query.data.split('_')[-1]
@@ -1802,6 +1907,10 @@ async def show_anime_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.message.reply_photo(photo=ani[2], caption=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
     await query.message.delete()
     return A_LIST_VIEW
+
+
+# ===================================================================================
+
 
 async def select_ani_for_new_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -1879,6 +1988,10 @@ async def select_ani_for_rem_ep(update: Update, context: ContextTypes.DEFAULT_TY
         
     return A_REM_EP_ANI_LIST
 
+
+# ===================================================================================
+
+
 async def remove_menu_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Bu yerda query yoki message ekanligini tekshiramiz
     query = update.callback_query
@@ -1953,6 +2066,10 @@ async def background_ads_task(bot, admin_id, users, msg_id, from_chat_id):
         parse_mode="Markdown"
     )
 
+
+# ===================================================================================
+
+
 # --- 2. PAROLNI TEKSHIRISH ---
 async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == ADVERTISING_PASSWORD:
@@ -1977,6 +2094,10 @@ async def check_ads_pass(update: Update, context: ContextTypes.DEFAULT_TYPE):
         status = await get_user_status(uid)
         await update.message.reply_text("❌ Parol noto'g'ri!", reply_markup=get_main_kb(status))
         return ConversationHandler.END
+
+
+# ===================================================================================
+
 
 # --- 3. REKLAMANI YAKUNLASH VA YUBORISHNI BOSHLASH ---
 async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2030,6 +2151,10 @@ async def ads_send_finish(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     return ConversationHandler.END
 
+
+# ===================================================================================
+
+
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Barcha jarayonlarni to'xtatadi va asosiy menyuga qaytaradi"""
     uid = update.effective_user.id
@@ -2040,6 +2165,10 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_main_kb(status) # Sizdagi asosiy menyu funksiyasi
     )
     return ConversationHandler.END # MANA SHU QATOR SIZNI LABIRINTDAN CHIQARADI!
+
+
+# ===================================================================================
+
 
 async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Barcha animelar ro'yxatini JSON fayl qilib yuborish"""
@@ -2075,6 +2204,10 @@ async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         await msg.reply_text(f"❌ Eksportda xatolik: {e}")
 
+
+# ===================================================================================
+
+
 async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """VIP qo'shishdan oldin tasdiqlash so'rash"""
     text = update.message.text.strip()
@@ -2093,6 +2226,10 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
     return None
+
+
+# ===================================================================================
+
 
 async def reset_and_init_db(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Faqat asosiy admin ishlata olishi uchun
@@ -2272,6 +2409,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
