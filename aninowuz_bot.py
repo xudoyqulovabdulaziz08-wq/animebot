@@ -412,7 +412,49 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
     
+# =============================================================================================
+
+async def recheck_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    uid = query.from_user.id
     
+    not_joined = await check_sub(uid, context.bot)
+    
+    if not not_joined: # Agar ro'yxat bo'sh bo'lsa (hamma kanalga a'zo)
+        await query.message.delete()
+        
+        # Xotirada anime bormi?
+        if 'pending_anime' in context.user_data:
+            ani_id = context.user_data.pop('pending_anime')
+            return await show_specific_anime_by_id(query, context, ani_id)
+        
+        # Agar yo'q bo'lsa, shunchaki asosiy menyu
+        status = await get_user_status(uid)
+        await query.message.reply_text("✅ Rahmat! Obuna tasdiqlandi.", reply_markup=get_main_kb(status))
+    else:
+        await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
+
+
+    
+# =============================================================================================
+
+async def show_specific_anime_by_id(update_or_query, context, ani_id):
+    """ID bo'yicha bazadan animeni topib, tafsilotlarini chiqaradi"""
+    conn = get_db()
+    cur = conn.cursor(dictionary=True)
+    cur.execute("SELECT * FROM anime_list WHERE anime_id=%s", (ani_id,))
+    anime = cur.fetchone()
+    cur.close(); conn.close()
+    
+    if anime:
+        # Avvalgi darslarda yaratgan funksiyamiz
+        return await show_anime_details(update_or_query, anime, context)
+    else:
+        # Agar anime bazadan o'chib ketgan bo'lsa
+        if hasattr(update_or_query, 'message'):
+            await update_or_query.message.reply_text("❌ Kechirasiz, bu anime topilmadi.")
+        else:
+            await update_or_query.edit_message_text("❌ Kechirasiz, bu anime topilmadi.")
 
 # ====================== ADMIN VA QO'SHIMCHA ISHLOVCHILAR (TO'G'RILANDI) ======================
 
@@ -2433,6 +2475,7 @@ def main():
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
+    app_bot.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_page_"))
     
@@ -2454,6 +2497,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
