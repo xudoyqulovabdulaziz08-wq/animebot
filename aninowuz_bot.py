@@ -361,10 +361,15 @@ def get_cancel_kb():
 # ====================== ASOSIY ISHLOVCHILAR (TUZATILGAN VA TO'LIQ) ======================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Botni ishga tushirish va foydalanuvchini ro'yxatga olish"""
+    """Botni ishga tushirish, obunani tekshirish va Deep Linkni qayta ishlash"""
     uid = update.effective_user.id
     
-    # 1. Bazaga foydalanuvchini qo'shish (Xatolikdan himoyalangan)
+    # --- 1. DEEP LINK TEKSHIRISH (Kanal orqali kelgan bo'lsa) ---
+    if context.args and context.args[0].startswith("ani_"):
+        anime_id = context.args[0].replace("ani_", "")
+        context.user_data['pending_anime'] = anime_id  # Obuna bo'lguncha eslab qolamiz
+
+    # --- 2. BAZAGA FOYDALANUVCHINI QO'SHISH ---
     conn = get_db()
     if conn:
         try:
@@ -372,33 +377,39 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cur.execute("INSERT IGNORE INTO users (user_id, joined_at, status) VALUES (%s, %s, 'user')", 
                         (uid, datetime.datetime.now()))
             conn.commit()
-            cur.close()
-            conn.close()
+            cur.close(); conn.close()
         except Exception as e:
             print(f"Baza xatosi (user add): {e}")
 
-    # 2. Statusni aniqlash
-    status = await get_user_status(uid)
-    
-    # 3. Obunani tekshirish
+    # --- 3. OBUNANI TEKSHIRISH ---
     not_joined = await check_sub(uid, context.bot)
     if not_joined:
         btn = [[InlineKeyboardButton(f"Obuna bo'lish ➕", url=f"https://t.me/{c.replace('@','')}") ] for c in not_joined]
         btn.append([InlineKeyboardButton("Tekshirish ✅", callback_data="recheck")])
+        
+        msg = "👋 Botdan foydalanish uchun kanallarga a'zo bo'ling:"
+        if 'pending_anime' in context.user_data:
+            msg = "🎬 <b>Siz tanlagan animeni ko'rish uchun</b> avval kanallarga a'zo bo'lishingiz kerak:"
+
         return await update.message.reply_text(
-            "👋 Botdan foydalanish uchun kanallarga a'zo bo'ling:", 
-            reply_markup=InlineKeyboardMarkup(btn)
+            msg, 
+            reply_markup=InlineKeyboardMarkup(btn),
+            parse_mode="HTML"
         )
     
-    # 4. Asosiy menyuni chiqarish
+    # --- 4. OBUNA BO'LGAN BO'LSA VA ANIME KUTAYOTGAN BO'LSA ---
+    if 'pending_anime' in context.user_data:
+        ani_id = context.user_data.pop('pending_anime')
+        return await show_specific_anime_by_id(update, context, ani_id)
+
+    # --- 5. ASOSIY MENYU ---
+    status = await get_user_status(uid)
     await update.message.reply_text(
-        "✨ Xush kelibsiz! Anime olamiga marhamat.", 
+        "✨ Xush kelibsiz botimizga! Anime olamiga marhamat.", 
         reply_markup=get_main_kb(status)
     )
     
-    # ConversationHandler ichida bo'lsa, jarayonni yakunlash uchun kerak
     return ConversationHandler.END
-
 
     
     
@@ -2443,6 +2454,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
