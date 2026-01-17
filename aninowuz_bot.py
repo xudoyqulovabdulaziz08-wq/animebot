@@ -627,7 +627,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
         return None
-
+        
+# ===================================================================================
+    
     # 1. Qidiruv turlari tanlanganda
     if data == "search_type_id":
         await query.edit_message_text(
@@ -1745,8 +1747,6 @@ async def get_poster_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 # ===================================================================================
 
-
-# 3-qadam: Bazaga saqlash va Video kutish
 async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     if "|" not in text:
@@ -1754,45 +1754,45 @@ async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_GET_DATA
     
     try:
+        # Ma'lumotlarni ajratib olamiz
         n, l, g, y = [i.strip() for i in text.split("|")]
-        poster_id = context.user_data['tmp_poster']
+        poster_id = context.user_data.get('tmp_poster')
         
+        if not poster_id:
+            await update.message.reply_text("❌ Poster topilmadi. Iltimos, avval rasm yuboring.")
+            return A_GET_DATA
+
         conn = get_db()
         cur = conn.cursor()
-        cur.execute("INSERT INTO anime_list (name, poster_id, lang, genre, year) VALUES (%s, %s, %s, %s, %s)",
-                    (n, poster_id, l, g, y))
+        cur.execute(
+            "INSERT INTO anime_list (name, poster_id, lang, genre, year) VALUES (%s, %s, %s, %s, %s)",
+            (n, poster_id, l, g, y)
+        )
         new_id = cur.lastrowid
         conn.commit()
         cur.close()
         conn.close()
 
+        # Keyingi bosqichda ishlatish uchun sessiyaga saqlaymiz
         context.user_data['cur_ani_id'] = new_id
         context.user_data['cur_ani_name'] = n
 
-        # --- KANALGA AVTOMATIK POST YUBORISH ---
-        # Anime ma'lumotlarini lug'at ko'rinishida tayyorlaymiz
-        anime_info = {
-            'anime_id': new_id,
-            'name': n,
-            'lang': l,
-            'genre': g,
-            'year': y,
-            'poster_id': poster_id
-        }
-        # Avvalroq yaratgan funksiyamizni chaqiramiz
-        await post_new_anime_to_channel(context, anime_info)
-        # ---------------------------------------
+        # DIQQAT: Kanalga avtomatik yuborish qismi bu yerdan olib tashlandi.
+        # Endi faqat admin videolarni yuklab bo'lgach o'zi yuboradi.
 
         await update.message.reply_text(
-            f"✅ **{n}** bazaga qo'shildi va kanalga e'lon qilindi! (ID: {new_id})\n\n"
-            f"Endi anime qismlarini (video) ketma-ket yuboring:",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="add_ani_menu")]])
+            f"✅ <b>{n}</b> bazaga muvaffaqiyatli qo'shildi! (ID: {new_id})\n\n"
+            f"📥 Endi anime qismlarini (video fayllarni) ketma-ket yuboring.\n"
+            f"🏁 Hammasini yuklab bo'lgach, 'Kanalga e'lon qilish' tugmasini bosishingiz mumkin.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Bekor qilish", callback_data="add_ani_menu")]]),
+            parse_mode="HTML"
         )
         return A_ADD_EP_FILES
         
     except Exception as e:
-        await update.message.reply_text(f"❌ Xatolik: {e}")
+        await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
         return A_GET_DATA
+
 
 
 
@@ -2564,6 +2564,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
