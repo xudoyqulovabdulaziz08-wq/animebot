@@ -1315,22 +1315,27 @@ async def admin_panel_text_handler(update: Update, context: ContextTypes.DEFAULT
 
 async def post_new_anime_to_channel(context, anime_data):
     """Yangi anime qo'shilganda kanalga rasm va link yuborish"""
-    # Kanalingiz ID sini shu yerga yozing (masalan: -100123456789 yoki @kanal_nomi)
+    
     CHANNEL_ID = "@Aninovuz" 
-    # Botingiz username'i (link uchun)
-    BOT_USERNAME = "Aninowuz_bot" 
+    # Bot username'ini @ belgisiz, to'g'ri yozilganiga yana bir bor ishonch hosil qiling
+    BOT_USERNAME = "Aninovuz_bot" 
 
-    # Botga o'tish linki (ID orqali qidiruvni ishga tushiradi)
-    # Foydalanuvchi linkni bossa, botga o'tib 'start' tugmasini bosadi va anime chiqadi
+    # Link yaratish
     bot_link = f"https://t.me/{BOT_USERNAME}?start=ani_{anime_data['anime_id']}"
 
+    # CAPTION qismi (anime_data ishlatilishi shart)
     caption = (
-        f"🌟 <b>YANGI ANIME JOYLANDI!</b>\n\n"
-        f"🎬 <b>Nomi:</b> {anime_data['name']}\n"
-        f"🎭 <b>Janri:</b> {anime_data['genre']}\n"
-        f"📅 <b>Yili:</b> {anime_data['year']}\n"
-        f"🌐 <b>Tili:</b> {anime_data['lang']}\n\n"
-        f"📥 <b>Hoziroq ko'rish uchun pastdagi tugmani bosing:</b>"
+        f"┏━━━━━━━━━━━━━━━━━━━━━┓\n"
+        f"┃ 🎬 <b>{anime_data['name']}</b>\n"
+        f"┣━━━━━━━━━━━━━━━━━━━━━┛\n"
+        f"┃ 🌐 <b>Tili:</b> {anime_data.get('lang', 'Oʻzbekcha')}\n"
+        f"┃ 🎭 <b>Janri:</b> {anime_data.get('genre', 'Sarguzasht')}\n"
+        f"┃ 📅 <b>Yili:</b> {anime_data.get('year', 'Noma’lum')}\n"
+        f"┃ 🆔 <b>ID:</b> <code>{anime_data['anime_id']}</code>\n"
+        f"┣━━━━━━━━━━━━━━━━━━━━━┓\n"
+        f"┃ 📢 <a href='https://t.me/Aninovuz'>@Aninovuz</a>\n"
+        f"┗━━━━━━━━━━━━━━━━━━━━━┛\n\n"
+        f"📥 <b>Ko'rish uchun pastdagi tugmani bosing:</b>"
     )
 
     keyboard = InlineKeyboardMarkup([
@@ -2515,6 +2520,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
