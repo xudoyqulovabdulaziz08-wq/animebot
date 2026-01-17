@@ -1632,11 +1632,11 @@ async def get_poster_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
         "📝 Anime ma'lumotlarini tashlang:\nFormat: `Nomi | Tili | Janri | Yili`",
         reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown"
     )
-    
+    return A_GET_DATA
 
 # ===================================================================================
 
-return A_GET_DATA
+
 
 # 3-qadam: Bazaga saqlash va Video kutish
 async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2409,6 +2409,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
