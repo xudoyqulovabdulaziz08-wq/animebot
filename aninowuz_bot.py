@@ -2542,6 +2542,7 @@ def main():
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
     app_bot.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
+    app_bot.add_handler(CallbackQueryHandler(post_to_channel_button_handler, pattern="^post_to_chan_"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list"))
     app_bot.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_page_"))
     
