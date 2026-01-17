@@ -1724,7 +1724,6 @@ async def get_poster_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # ===================================================================================
 
 
-
 # 3-qadam: Bazaga saqlash va Video kutish
 async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -1734,10 +1733,12 @@ async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     try:
         n, l, g, y = [i.strip() for i in text.split("|")]
+        poster_id = context.user_data['tmp_poster']
+        
         conn = get_db()
         cur = conn.cursor()
         cur.execute("INSERT INTO anime_list (name, poster_id, lang, genre, year) VALUES (%s, %s, %s, %s, %s)",
-                    (n, context.user_data['tmp_poster'], l, g, y))
+                    (n, poster_id, l, g, y))
         new_id = cur.lastrowid
         conn.commit()
         cur.close()
@@ -1746,14 +1747,31 @@ async def save_ani_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['cur_ani_id'] = new_id
         context.user_data['cur_ani_name'] = n
 
+        # --- KANALGA AVTOMATIK POST YUBORISH ---
+        # Anime ma'lumotlarini lug'at ko'rinishida tayyorlaymiz
+        anime_info = {
+            'anime_id': new_id,
+            'name': n,
+            'lang': l,
+            'genre': g,
+            'year': y,
+            'poster_id': poster_id
+        }
+        # Avvalroq yaratgan funksiyamizni chaqiramiz
+        await post_new_anime_to_channel(context, anime_info)
+        # ---------------------------------------
+
         await update.message.reply_text(
-            f"✅ **{n}** bazaga qo'shildi! (ID: {new_id})\n\nEndi anime qismlarini (video) ketma-ket yuboring:",
+            f"✅ **{n}** bazaga qo'shildi va kanalga e'lon qilindi! (ID: {new_id})\n\n"
+            f"Endi anime qismlarini (video) ketma-ket yuboring:",
             reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Orqaga", callback_data="add_ani_menu")]])
         )
         return A_ADD_EP_FILES
+        
     except Exception as e:
         await update.message.reply_text(f"❌ Xatolik: {e}")
         return A_GET_DATA
+
 
 
 # ===================================================================================
@@ -2497,6 +2515,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
