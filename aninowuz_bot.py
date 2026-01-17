@@ -1464,52 +1464,29 @@ async def show_anime_details(update_or_query, anime, context):
     conn = get_db()
     cur = conn.cursor(dictionary=True)
     
-    # 1. Avval jami qismlar sonini hisoblaymiz (COUNT yordamida)
-    cur.execute("SELECT COUNT(id) as total FROM anime_episodes WHERE anime_id=%s", (anime['anime_id'],))
-    total_episodes = cur.fetchone()['total']
-
-    # 2. Keyin qismlarning o'zini olamiz (tugmalar uchun)
+    # 1. Epizodlar ro'yxatini olish (SQlni faqat 1 marta ishlatamiz)
     cur.execute("SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", (anime['anime_id'],))
     episodes = cur.fetchall()
-    
     cur.close(); conn.close()
 
-    # Chat ID ni aniqlash
+    # Chat ID va xabarni aniqlash
     if hasattr(update_or_query, 'message') and update_or_query.message:
         chat_id = update_or_query.message.chat_id
         orig_msg = update_or_query.message
     else:
-        # CallbackQuery holati uchun effective_chat dan foydalanish xavfsizroq
         chat_id = update_or_query.effective_chat.id
         orig_msg = update_or_query.effective_message
 
-    if not episodes:
-        msg = "⚠️ Bu anime topildi, lekin qismlar hali yuklanmagan."
-        await context.bot.send_message(chat_id=chat_id, text=msg)
-        return ConversationHandler.END
+    # 2. Epizodlarni sanash va status
+    total_episodes = len(episodes)
+    status_text = f"{total_episodes} ta" if total_episodes > 0 else "Tez kunda... ⏳"
 
-    # 1. TUGMALARNI YASASH
-    keyboard = []
-    row = []
-    for ep in episodes[:12]:
-     
-        button = InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}")
-        row.append(button)
-        if len(row) == 4:
-            keyboard.append(row)
-            row = []
-    if row: 
-        keyboard.append(row)
-    
-    # Pagination tugmasi
-    if len(episodes) > 12:
-        keyboard.append([InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{anime['anime_id']}_12")])
-
+    # 3. Caption yasash
     caption = (
         f"┏━━━━━━━━━━━━━━━━━━━━━┓\n"
         f"┃ 🎬 <b>{anime['name']}</b>\n"
         f"┣━━━━━━━━━━━━━━━━━━━━━┛\n"
-        f"┃ 🎥 <b>Qismlar soni:</b> {total_episodes} ta\n"
+        f"┃ 🎥 <b>Qismlar soni:</b> {status_text}\n"
         f"┃ 🌐 <b>Tili:</b> {anime.get('lang', 'Oʻzbekcha')}\n"
         f"┃ 🎭 <b>Janri:</b> {anime.get('genre', 'Sarguzasht')}\n"
         f"┃ 📅 <b>Yili:</b> {anime.get('year', 'Noma’lum')}\n"
@@ -1520,33 +1497,50 @@ async def show_anime_details(update_or_query, anime, context):
         f"📥 <b>Qismlardan birini tanlang:</b>"
     )
 
+    # 4. TUGMALARNI YASASH
+    keyboard = []
+    if episodes:
+        row = []
+        for ep in episodes[:12]:
+            button = InlineKeyboardButton(str(ep['episode']), callback_data=f"get_ep_{ep['id']}")
+            row.append(button)
+            if len(row) == 4:
+                keyboard.append(row)
+                row = []
+        if row: 
+            keyboard.append(row)
+        
+        if len(episodes) > 12:
+            keyboard.append([InlineKeyboardButton("Keyingi ➡️", callback_data=f"page_{anime['anime_id']}_12")])
+
+    # 5. YUBORISH VA XATOLIKNI BOSHQARISH
     try:
-        # Rasmni yuborish va reply_markup ni biriktirish
+        # Rasm va ma'lumotni yuborish
         await context.bot.send_photo(
             chat_id=chat_id,
             photo=anime['poster_id'],
-            caption=caption,
-            reply_markup=InlineKeyboardMarkup(keyboard), # Tugmalar shu yerda qo'shiladi
+            caption=caption if episodes else caption + "\n\n⚠️ <i>Ushbu animening qismlari tez kunda yuklanadi.</i>",
+            reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
             parse_mode="HTML"
         )
         
-        # Eski matnli xabarni (masalan, "Natijalar:") o'chirib tashlaymiz
-        if hasattr(update_or_query, 'data'): # Agar tugma bosilgan bo'lsa
+        # Agar bu callback (tugma bosish) bo'lsa, eski "Natijalar" xabarini o'chiramiz
+        if hasattr(update_or_query, 'data'):
             try:
                 await orig_msg.delete()
             except:
                 pass
-            
+
     except Exception as e:
         print(f"Poster yuborishda xatolik: {e}")
-        # Agar rasmda xato bo'lsa, hech bo'lmasa matnni tugmalar bilan yuboramiz
+        # Rasm yuborib bo'lmasa, shunchaki matn yuboramiz
         await context.bot.send_message(
-            chat_id=chat_id, 
-            text=f"🎬 {anime['name']}\n\n{caption}", 
-            reply_markup=InlineKeyboardMarkup(keyboard),
+            chat_id=chat_id,
+            text=f"🎬 {anime['name']}\n\n{caption}",
+            reply_markup=InlineKeyboardMarkup(keyboard) if keyboard else None,
             parse_mode="HTML"
         )
-    
+
     return ConversationHandler.END
 
 
@@ -2527,6 +2521,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
