@@ -1858,6 +1858,30 @@ async def handle_ep_uploads(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.close()
 
     return A_ADD_EP_FILES
+    
+
+# ===================================================================================
+
+async def post_to_channel_button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer() # Soat belgisini yo'qotish uchun
+    
+    # callback_data dan ID ni ajratib olamiz: "post_to_chan_12" -> "12"
+    anime_id = query.data.split("_")[-1]
+    
+    try:
+        # Kanalga yuborish funksiyasini chaqiramiz
+        await post_new_anime_to_channel(context, anime_id)
+        
+        # Admin xabarini tahrirlaymiz
+        await query.edit_message_text(
+            text=f"✅ Anime (ID: {anime_id}) kanalga muvaffaqiyatli e'lon qilindi!",
+            reply_markup=InlineKeyboardMarkup([[
+                InlineKeyboardButton("🏠 Asosiy Menyu", callback_data="add_ani_menu")
+            ]])
+        )
+    except Exception as e:
+        await query.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
 
 
 # ===================================================================================
@@ -2539,6 +2563,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
