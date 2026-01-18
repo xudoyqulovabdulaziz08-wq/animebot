@@ -1930,6 +1930,33 @@ async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="selan
 
 # ===================================================================================
 
+async def pagination_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    # Data formati: pg_addepto_1 -> ['pg', 'addepto', '1']
+    data_parts = query.data.split('_')
+    
+    # Ma'lumotlarni ajratamiz
+    # Eslatma: agard prefixda "_" bo'lsa, indekslar o'zgarishi mumkin
+    target_prefix = data_parts[1] + "_" # Masalan: "addepto_"
+    new_page = int(data_parts[-1])      # Masalan: 1
+    
+    # Qayerga qaytish tugmasini aniqlash
+    extra = "add_ani_menu" if "addepto" in target_prefix else "back_to_ctrl"
+    if "remep" in target_prefix: extra = "rem_ani_menu"
+
+    # Yangi klaviaturani yasaymiz
+    kb = await get_pagination_keyboard("anime_list", page=new_page, prefix=target_prefix, extra_callback=extra)
+    
+    await query.edit_message_text(
+        text=f"📜 **Ro'yxat (Sahifa: {new_page + 1})**\nTanlash uchun bosing:",
+        reply_markup=kb,
+        parse_mode="Markdown"
+    )
+
+# ===================================================================================
+
 
 # Mavjud animega qism qo'shish uchun ro'yxatni ko'rsatish
 async def select_ani_for_ep(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2541,6 +2568,7 @@ def main():
 
     # 5. HANDLERLARNI RO'YXATGA OLISH
     app_bot.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
+    app_bot.add_handler(CallbackQueryHandler(pagination_handler, pattern="^pg_"))
     app_bot.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     app_bot.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
     app_bot.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
@@ -2566,6 +2594,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
