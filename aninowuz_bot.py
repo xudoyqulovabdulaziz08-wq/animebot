@@ -1887,14 +1887,12 @@ async def post_to_channel_button_handler(update: Update, context: ContextTypes.D
 # ===================================================================================
 
 
-async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_ani_", extra_callback=""):
+async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="selani_", extra_callback=""):
     conn = get_db()
     cur = conn.cursor()
     
-    # ID ustuni nomi anime_id ekanini ko'rsatamiz
-    id_col = "anime_id"
-    
-    cur.execute(f"SELECT {id_col}, name FROM {table_name} ORDER BY {id_col} DESC")
+    # Ma'lumotlarni bazadan olish
+    cur.execute(f"SELECT anime_id, name FROM {table_name} ORDER BY anime_id DESC")
     all_data = cur.fetchall()
     cur.close(); conn.close()
 
@@ -1903,19 +1901,23 @@ async def get_pagination_keyboard(table_name, page=0, per_page=15, prefix="sel_a
     current_items = all_data[start:end]
 
     buttons = []
-    clean_prefix = prefix.rstrip('_')
-    final_prefix = f"{clean_prefix}_" 
+    # Prefix oxirida bitta "_" bo'lishini ta'minlaymiz
+    base_prefix = prefix.rstrip('_') + "_"
 
     for item in current_items:
         # item[0] -> anime_id, item[1] -> name
         btn_text = f"{item[1]} [ID: {item[0]}]"
-        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"{final_prefix}{item[0]}")])
+        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"{base_prefix}{item[0]}")])
 
+    # Navigatsiya tugmalari
     nav_buttons = []
     if page > 0:
-        nav_buttons.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"pg_{final_prefix}{page-1}"))
+        # Format: pg_[prefix]_[page] -> Masalan: pg_addepto_0
+        nav_buttons.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"pg_{base_prefix}{page-1}"))
+    
     if end < len(all_data):
-        nav_buttons.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"pg_{final_prefix}{page+1}"))
+        # Format: pg_[prefix]_[page] -> Masalan: pg_addepto_2
+        nav_buttons.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"pg_{base_prefix}{page+1}"))
     
     if nav_buttons:
         buttons.append(nav_buttons)
@@ -2564,6 +2566,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
