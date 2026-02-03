@@ -43,7 +43,7 @@ def home():
 
         cursor = db.cursor(dictionary=True)
         # Jadval nomi anime_list, ustun esa poster_id
-        cursor.execute("SELECT id, name, poster_id FROM anime_list ORDER BY id DESC")
+        cursor.execute("SELECT anime_id as id, name, poster_id FROM anime_list ORDER BY id DESC")
         animes = cursor.fetchall()
         cursor.close()
         
@@ -2647,6 +2647,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
