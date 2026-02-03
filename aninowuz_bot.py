@@ -22,20 +22,23 @@ app = Flask('')
 def home():
     db = None
     try:
-        db = get_db_connection()
+        # Funksiya nomini get_db() deb chaqiramiz
+        db = get_db() 
+        if db is None:
+            return "Ma'lumotlar bazasiga ulanib bo'lmadi. Sozlamalarni tekshiring."
+
         cursor = db.cursor(dictionary=True)
         cursor.execute("SELECT id, name, poster FROM animes ORDER BY id DESC")
         animes = cursor.fetchall()
         cursor.close()
+        
         return render_template('aninovuz.html', animes=animes)
     except Exception as e:
-        return f"Xatolik: {e}"
+        logger.error(f"Saytda xatolik: {e}")
+        return f"Xatolik yuz berdi: {e}"
     finally:
-        if db:
+        if db and db.is_connected():
             db.close()
-            logger.info("Database connection closed.")
-            
-   
 def run():
     # Render avtomatik beradigan PORT-ni oladi, bo'lmasa 8080 ishlatadi
     port = int(os.environ.get("PORT", 8080))
@@ -129,8 +132,7 @@ def get_db():
             user=os.getenv("DB_USER"),
             password=os.getenv("DB_PASS"),
             database=os.getenv("DB_NAME"),
-            # 'ssl_mode' xatosini oldini olish uchun uni 'ssl_disabled' ga almashtiramiz 
-            # yoki butunlay olib tashlaymiz. Aksariyat bulutli bazalar buni avtomatik hal qiladi.
+           
             autocommit=True,
             connection_timeout=30
         )
@@ -2608,6 +2610,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
