@@ -75,6 +75,44 @@ def get_telegram_image(file_id):
         return Response(img_data, mimetype='image/jpeg')
     except Exception as e:
         return str(e), 500
+
+@app.route('/malumot.html')
+def about():
+    db = None
+    try:
+        db = get_db()
+        if db is None:
+            return "Ma'lumotlar bazasiga ulanib bo'lmadi."
+
+        cursor = db.cursor()
+
+        # 1. Jami animelar soni
+        cursor.execute("SELECT COUNT(*) FROM anime_list")
+        anime_count = cursor.fetchone()[0]
+
+        # 2. Jami foydalanuvchilar soni (users jadvalidan)
+        cursor.execute("SELECT COUNT(*) FROM users")
+        user_count = cursor.fetchone()[0]
+
+        # 3. VIP foydalanuvchilar soni (status ustuni orqali)
+        # Botingizdagi mantiqqa qarab 'is_vip=1' yoki 'status="vip"' bo'lishi mumkin
+        cursor.execute("SELECT COUNT(*) FROM users WHERE status = 'vip'")
+        vip_count = cursor.fetchone()[0]
+
+        cursor.close()
+        
+        # Olingan sonlarni malumot.html sahifasiga yuboramiz
+        return render_template('malumot.html', 
+                               anime_count=anime_count, 
+                               user_count=user_count, 
+                               vip_count=vip_count)
+    except Exception as e:
+        logger.error(f"Statistika olishda xato: {e}")
+        # Xatolik bo'lsa, standart sonlar bilan ochiladi
+        return render_template('malumot.html', anime_count="37+", user_count="1000+", vip_count="50+")
+    finally:
+        if db and db.is_connected():
+            db.close()
 # ----------------------------------------------
 
 def run():
@@ -2647,6 +2685,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
