@@ -1,11 +1,16 @@
 import os
+import requests
 import logging
 import mysql.connector
 import asyncio
 import datetime
 import json
-from flask import Flask
 from threading import Thread
+
+# Flask qismi
+from flask import Flask, render_template, Response
+
+# Telegram Bot qismi
 from telegram import (
     Update, InlineKeyboardButton, InlineKeyboardMarkup,
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
@@ -15,32 +20,64 @@ from telegram.ext import (
     CallbackQueryHandler, ConversationHandler, filters, ContextTypes
 )
 
+# Logging sozlamalari (xatolarni ko'rib turish uchun muhim)
+logging.basicConfig(
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
 # ====================== WEB SERVICE (RENDER UCHUN) ======================
 app = Flask('')
+
+# Bot tokenini Render Environment Variables'dan oladi
+BOT_TOKEN = os.getenv("BOT_TOKEN") 
 
 @app.route('/')
 def home():
     db = None
     try:
-        # Funksiya nomini get_db() deb chaqiramiz
         db = get_db() 
         if db is None:
             return "Ma'lumotlar bazasiga ulanib bo'lmadi. Sozlamalarni tekshiring."
 
         cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT id, name, poster FROM animes ORDER BY id DESC")
+        # Jadval nomi anime_list, ustun esa poster_id
+        cursor.execute("SELECT id, name, poster_id FROM anime_list ORDER BY id DESC")
         animes = cursor.fetchall()
         cursor.close()
         
         return render_template('aninovuz.html', animes=animes)
     except Exception as e:
-        logger.error(f"Saytda xatolik: {e}")
+        if 'logger' in globals():
+            logger.error(f"Saytda xatolik: {e}")
         return f"Xatolik yuz berdi: {e}"
     finally:
         if db and db.is_connected():
             db.close()
+
+# --- YANGI QO'SHILGAN RASM PROXY FUNKSIYASI ---
+@app.route('/image/<file_id>')
+def get_telegram_image(file_id):
+    try:
+        # 1. Telegram API orqali fayl yo'lini topamiz
+        file_info = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getFile?file_id={file_id}").json()
+        
+        if not file_info.get('ok'):
+            return "Fayl topilmadi", 404
+            
+        file_path = file_info['result']['file_path']
+        # 2. Haqiqiy rasm faylini yuklab olamiz
+        img_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
+        img_data = requests.get(img_url).content
+        
+        # 3. Rasmni brauzerga rasm formatida qaytaramiz
+        return Response(img_data, mimetype='image/jpeg')
+    except Exception as e:
+        return str(e), 500
+# ----------------------------------------------
+
 def run():
-    # Render avtomatik beradigan PORT-ni oladi, bo'lmasa 8080 ishlatadi
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
@@ -2610,6 +2647,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
