@@ -20,8 +20,22 @@ app = Flask('')
 
 @app.route('/')
 def home():
-    return "Bot is running..."
-
+    db = None
+    try:
+        db = get_db_connection()
+        cursor = db.cursor(dictionary=True)
+        cursor.execute("SELECT id, name, poster FROM animes ORDER BY id DESC")
+        animes = cursor.fetchall()
+        cursor.close()
+        return render_template('aninovuz.html', animes=animes)
+    except Exception as e:
+        return f"Xatolik: {e}"
+    finally:
+        if db:
+            db.close()
+            logger.info("Database connection closed.")
+            
+   
 def run():
     # Render avtomatik beradigan PORT-ni oladi, bo'lmasa 8080 ishlatadi
     port = int(os.environ.get("PORT", 8080))
@@ -2594,6 +2608,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
