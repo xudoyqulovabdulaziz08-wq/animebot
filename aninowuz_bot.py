@@ -77,7 +77,16 @@ def get_telegram_image(file_id):
         return Response(img_res.content, mimetype='image/jpeg')
     except Exception as e:
         return str(e), 500
-        
+@app.route('/services.html')
+def services():
+    # Bu erda anime list uchun bazadan ma'lumot olishingiz ham mumkin
+    return render_template('services.html')
+
+@app.route('/contact.html')
+def contact():
+    # Tarix yoki aloqa sahifasi
+    return render_template('contact.html')
+
 @app.route('/malumot.html')
 def about():
     db = None
@@ -2687,6 +2696,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
