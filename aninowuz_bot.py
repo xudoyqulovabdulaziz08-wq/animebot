@@ -93,11 +93,6 @@ def services():
     finally:
         if db and db.is_connected():
             db.close()
-
-@app.route('/contact.html')
-def contact():
-    # Tarix sahifasi asosan JavaScript orqali ishlaydi, shuning uchun shunchaki render qilamiz
-    return render_template('contact.html')
     
 @app.route('/contact.html')
 def contact():
@@ -2713,6 +2708,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
