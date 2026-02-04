@@ -60,22 +60,24 @@ def home():
 @app.route('/image/<file_id>')
 def get_telegram_image(file_id):
     try:
-        # 1. Telegram API orqali fayl yo'lini topamiz
-        file_info = requests.get(f"https://api.telegram.org/bot{BOT_TOKEN}/getFile?file_id={file_id}").json()
+        # 1. Telegram API orqali fayl yo'lini topish (TOKEN o'zgaruvchisi bilan)
+        file_info_url = f"https://api.telegram.org/bot{TOKEN}/getFile?file_id={file_id}"
+        file_info = requests.get(file_info_url).json()
         
         if not file_info.get('ok'):
             return "Fayl topilmadi", 404
             
         file_path = file_info['result']['file_path']
-        # 2. Haqiqiy rasm faylini yuklab olamiz
-        img_url = f"https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}"
-        img_data = requests.get(img_url).content
         
-        # 3. Rasmni brauzerga rasm formatida qaytaramiz
-        return Response(img_data, mimetype='image/jpeg')
+        # 2. Haqiqiy rasm faylini yuklab olish
+        img_url = f"https://api.telegram.org/file/bot{TOKEN}/{file_path}"
+        img_res = requests.get(img_url)
+        
+        # 3. Rasmni brauzerga qaytarish
+        return Response(img_res.content, mimetype='image/jpeg')
     except Exception as e:
         return str(e), 500
-
+        
 @app.route('/malumot.html')
 def about():
     db = None
@@ -2685,6 +2687,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
