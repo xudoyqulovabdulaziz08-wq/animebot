@@ -338,15 +338,23 @@ body {
     }
 
     /* Anime grid 2 column */
-    .anime-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 15px;
+   .anime-grid {
+        display: grid !important; 
+        grid-template-columns: repeat(2, 1fr) !important; 
+        grid-auto-flow: row !important; 
+        gap: 12px !important;
+        overflow-x: hidden !important;
     }
 
-    .anime-card img {
-        height: 200px;
+    .anime-card {
+        width: 100% !important; /* Card kengligini grid ustuniga moslash */
+        margin: 0 !important;
     }
-
+.anime-card img {
+        height: 220px !important; /* Rasm balandligini biroz oshirdik */
+        object-fit: cover;
+    }
+}
     .anime-card h3 {
         font-size: 14px;
         text-align: center;
@@ -763,4 +771,5 @@ body {
     text-decoration: none;
     border-radius: 30px;
     font-weight: bold;
+
 }
