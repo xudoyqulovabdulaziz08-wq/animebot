@@ -1,53 +1,72 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="uz">
 <head>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" />
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aninovuz - Anime Platformasi</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" />
+    
     <link rel="stylesheet" href="{{ url_for('static', filename='css/aninovuz.css') }}">
-    <title>Aninovuz</title>
+    
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
-    <div class="navbar">
+
+    <nav class="navbar">
         <div class="hamburger" id="hamburger">
             <i class="fa-solid fa-bars"></i>
         </div>  
+        
         <div class="logo">
             <a href="/"><h2><span>Aninovuz</span></h2></a>
         </div>
-        
+
         <div class="search">
-            <input type="text" placeholder="Qidiruv..." id="searchInput" data-lang-placeholder="search">
+            <input type="text" id="searchInput" placeholder="Qidiruv..." data-lang-placeholder="search">
             <button id="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
         </div>
         
         <div class="til">
             <select id="language" onchange="changeLanguage()">
-                <option value="uz">O'zbekcha</option>
-                <option value="ru">Русский</option>
+                <option value="uz">Uzbek</option>
+                <option value="ru">Russian</option>
                 <option value="en">English</option>
             </select>
         </div>
 
         <div class="login" id="userProfileBlock" style="display: none;">
-            <div class="profile-trigger" onclick="toggleProfile()">
+            <div class="profile-trigger" id="profileTrigger">
                 <img src="" id="userAvatar" class="user-avatar" alt="Avatar">
                 <span id="userName">User</span>
             </div>
+    
             <div class="profile-dropdown" id="profileDropdown">
                 <p><strong data-lang="id">ID:</strong> <span id="userId">---</span></p>
                 <p><strong data-lang="name">Ism:</strong> <span id="userFullName">---</span></p>
                 <p><strong data-lang="status">Status:</strong> <span id="userStatus" class="status-badge">User</span></p>
             </div>
         </div>
-    </div>
+    </nav>
 
     <div class="navbar2">
         <a href="/" data-lang="home">Bosh sahifa</a>
         <a href="/malumot.html" data-lang="about">Ma'lumot</a>
         <a href="/services.html" data-lang="services">Anime list</a>
         <a href="/contact.html" data-lang="contact">Tarix</a>
+    </div>
+
+    <div class="mobile-menu" id="mobileMenu" style="display: none;">
+        <a href="/" data-lang="home">Bosh sahifa</a>
+        <a href="/malumot.html" data-lang="about">Ma'lumot</a>
+        <div class="mobile-til">
+            <h3 data-lang="lang">Til</h3>
+            <select id="mobileLanguage" onchange="syncLanguage(this)">
+                <option value="uz">Uzbek</option>
+                <option value="ru">Russian</option>
+                <option value="en">English</option>
+            </select>
+        </div>
     </div>
 
     <div class="main-container">
@@ -58,32 +77,49 @@
                 <h3 data-lang="genres">Janrlar</h3>
                 <select id="turi" onchange="changeturi()">
                     <option value="none" data-lang="none">Hech biri</option>
-                    <option value="action" data-lang="action">Akshen</option>
-                    <option value="adventure" data-lang="adventure">Sarguzasht</option>
-                    <option value="comedy" data-lang="comedy">Komediya</option>
+                    <option value="action" data-lang="action">Action</option>
+                    <option value="adventure" data-lang="adventure">Adventure</option>
+                    <option value="comedy" data-lang="comedy">Comedy</option>
                     <option value="drama" data-lang="drama">Drama</option>
-                    <option value="fantasy" data-lang="fantasy">Fantastika</option>
+                    <option value="fantasy" data-lang="fantasy">Fantasy</option>
                 </select>
             </div>
         </aside>
 
         <main class="content">
             <h2 data-lang="new">Yangi animelar</h2>
+            
             <div class="anime-grid" id="newAnimeGrid">
-                {% for anime in animes %}
-                <div class="anime-card">
-                    <img src="/image/{{ anime.poster_id }}" alt="{{ anime.name }}">
-                    <h3>{{ anime.name }}</h3>
-                    <a href="https://t.me/aninovuz_bot?start=ani_{{ anime.id }}" class="watch-btn" target="_blank">
-                        <span data-lang="watch_bot">Botda ko'rish</span> <i class="fa-brands fa-telegram"></i>
-                    </a>
-                </div>
-                {% endfor %}
+                {% if animes %}
+                    {% for anime in animes %}
+                    <div class="anime-card">
+                        <img src="/image/{{ anime.poster_id }}" alt="{{ anime.name }}">
+                        <h3>{{ anime.name }}</h3>
+                        <a href="https://t.me/aninovuz_bot?start=ani_{{ anime.id }}" class="watch-btn" target="_blank">
+                            <span data-lang="watch_bot">Botda ko'rish</span> 
+                            <i class="fa-brands fa-telegram"></i>
+                        </a>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p>Hozircha animelar yuklanmadi.</p>
+                {% endif %}
             </div>
         </main>
     </div>
 
     <script src="{{ url_for('static', filename='js/aninovuz.js') }}"></script>
+    
+    <script>
+        const trigger = document.getElementById('profileTrigger');
+        const dropdown = document.getElementById('profileDropdown');
+        if(trigger) {
+            trigger.addEventListener('click', () => {
+                dropdown.classList.toggle('active');
+            });
+        }
+    </script>
 </body>
 </html>
+
 
