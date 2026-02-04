@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/aninovuz.css') }}">
-    <link rel="stylesheet" href="/aninovuz.css">
+    
     <title>malumot</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
@@ -58,8 +58,8 @@
     <div class="navbar2">
         <a href="{{ url_for('home') }}" data-lang="home">Bosh sahifa</a>
         <a href="/malumot.html" data-lang="about">Ma'lumot</a>
-        <a href="services.html" data-lang="services">Anime list</a>
-        <a href="contact.html" data-lang="contact">Tarix</a>
+        <a href="/services.html" data-lang="services">Anime list</a>
+        <a href="/contact.html" data-lang="contact">Tarix</a>
     </div>
     <div class="menu">
         <a href="#" data-lang="popular">Eng mashhur</a>
@@ -211,7 +211,8 @@
     </div>
 </div>
 </div>
-    <script src="./aninovuz.js"></script>
+    
     <script src="{{ url_for('static', filename='js/malumot.js') }}"></script>
 </body>
+
 </html>
