@@ -79,9 +79,26 @@ def get_telegram_image(file_id):
         return str(e), 500
 @app.route('/services.html')
 def services():
-    # Bu erda anime list uchun bazadan ma'lumot olishingiz ham mumkin
-    return render_template('services.html')
+    db = None
+    try:
+        db = get_db()
+        cursor = db.cursor(dictionary=True)
+        # Barcha animelarni bazadan olish
+        cursor.execute("SELECT anime_id as id, name, poster_id FROM anime_list ORDER BY name ASC")
+        all_animes = cursor.fetchall()
+        cursor.close()
+        return render_template('services.html', animes=all_animes)
+    except Exception as e:
+        return f"Xato: {e}"
+    finally:
+        if db and db.is_connected():
+            db.close()
 
+@app.route('/contact.html')
+def contact():
+    # Tarix sahifasi asosan JavaScript orqali ishlaydi, shuning uchun shunchaki render qilamiz
+    return render_template('contact.html')
+    
 @app.route('/contact.html')
 def contact():
     # Tarix yoki aloqa sahifasi
@@ -2696,6 +2713,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
 
 
 
