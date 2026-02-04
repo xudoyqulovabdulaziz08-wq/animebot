@@ -363,54 +363,52 @@ body {
 
 
 
-/* 📱➡️💻 PLANSHET (769px – 1024px) */
-@media (min-width: 769px) and (max-width: 1024px) {
-
-    body {
-        padding-top: 100px;
-    }
-
-    .navbar {
-        padding: 15px;
-    }
-
-    .search input {
-        width: 250px;
-    }
-
-    .menu {
-        width: 200px;
-        display: flex;
-    }
-
-    .content {
-        margin-left: 200px;
-        padding: 20px;
-    }
-
+/* 📱➡️💻 PLANSHET VA DESKTOP (Hammasi uchun umumiy gorizontal mantiq) */
+@media (min-width: 769px) {
     .anime-grid {
-        grid-template-columns: repeat(3, 1fr);
+        display: flex !important;           /* Grid o'rniga Flex */
+        flex-wrap: nowrap !important;       /* Elementlarni keyingi qatorga tushirmaslik */
+        overflow-x: auto !important;        /* Gorizontal skrolni yoqish */
+        overflow-y: hidden;
         gap: 20px;
+        padding: 10px 5px 20px 5px;
+        scroll-behavior: smooth;            /* Yumshoq skrol */
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Skrolbar ko'rinishini chiroyli qilish */
+    .anime-grid::-webkit-scrollbar {
+        height: 6px;
+    }
+    .anime-grid::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 10px;
+    }
+    .anime-grid::-webkit-scrollbar-thumb:hover {
+        background: var(--primary-color, #007bff);
+    }
+
+    /* Kartochka o'lchamlari ekran kengligiga qarab */
+    .anime-card {
+        flex: 0 0 200px !important;         /* Qisqarib ketmasligi uchun majburiy kenglik */
+        max-width: 200px;
+        white-space: normal;                /* Matnni pastga tushirish */
     }
 }
 
-
-/* 🖥️ DESKTOP (min-width: 1200px) */
+/* 🖥️ DESKTOP (1200px +) uchun kartochkalarni biroz kattalashtiramiz */
 @media (min-width: 1200px) {
-
-    .anime-grid {
-        grid-template-columns: repeat(5, 1fr);
-        gap: 25px;
+    .anime-card {
+        flex: 0 0 230px !important;
+        max-width: 230px;
     }
 }
 
-
-/* 🎥 ULTRA WIDE (min-width: 1600px) */
+/* 🎥 ULTRA WIDE (1600px +) */
 @media (min-width: 1600px) {
-
-    .anime-grid {
-        grid-template-columns: repeat(6, 1fr);
-        gap: 30px;
+    .anime-card {
+        flex: 0 0 260px !important;
+        max-width: 260px;
     }
 }
 /* Дополнительные стили для кнопок гамбургера и иконки поиска */
@@ -773,3 +771,4 @@ body {
     font-weight: bold;
 
 }
+
