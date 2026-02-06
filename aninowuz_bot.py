@@ -54,27 +54,23 @@ app = Flask('')
 BOT_TOKEN = os.getenv("BOT_TOKEN") 
 
 @app.route('/')
-def home():
-    db = None
+@app.route('/')
+async def home(): # 'async' qo'shildi
+    conn = None
     try:
-        db = get_db() 
-        if db is None:
-            return "Ma'lumotlar bazasiga ulanib bo'lmadi. Sozlamalarni tekshiring."
-
-        cursor = db.cursor(dictionary=True)
-        # Jadval nomi anime_list, ustun esa poster_id
-        cursor.execute("SELECT anime_id as id, name, poster_id FROM anime_list ORDER BY id DESC")
-        animes = cursor.fetchall()
-        cursor.close()
-        
-        return render_template('aninovuz.html', animes=animes)
+        # get_db() asinxron bo'lishi kerak
+        conn = await get_db() 
+        async with conn.cursor(aiomysql.DictCursor) as cursor:
+            await cursor.execute("SELECT anime_id as id, name, poster_id FROM anime_list ORDER BY id DESC")
+            animes = await cursor.fetchall()
+            return render_template('aninovuz.html', animes=animes)
     except Exception as e:
-        if 'logger' in globals():
-            logger.error(f"Saytda xatolik: {e}")
-        return f"Xatolik yuz berdi: {e}"
+        logger.error(f"Saytda xatolik: {e}")
+        return f"Xatolik: {e}"
     finally:
-        if db and db.is_connected():
-            db.close()
+        if conn:
+            # aiomysql pool ishlatganda db.close() o'rniga pool.release(conn) ishlatiladi
+            db_pool.release(conn)
 
 # --- YANGI QO'SHILGAN RASM PROXY FUNKSIYASI ---
 @app.route('/image/<file_id>')
@@ -5329,6 +5325,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
