@@ -283,19 +283,21 @@ async def init_db_pool():
         loop = asyncio.get_running_loop()
         
         # SSL sozlamasi (Render va boshqa cloud DBlar uchun)
-        # Agar ulanishda SSL xatosi chiqsa, ssl=True qilib ko'ring
-        db_pool = await aiomysql.create_pool(
-            host=DB_CONFIG['host'],
-            port=DB_CONFIG['port'],
-            user=DB_CONFIG['user'],
-            password=DB_CONFIG['password'],
-            db=DB_CONFIG['database'], # 'db' emas 'database' ekanligiga ishonch hosil qiling
-            autocommit=True,
-            charset='utf8mb4',
-            cursorclass=aiomysql.DictCursor,
-            loop=loop, # MUHIM: Poolni joriy loopga bog'laymiz
-            ssl=True if os.environ.get('RENDER') else None # Renderda bo'lsa SSL yoqamiz
-        )
+        # init_db_pool ichidagi create_pool qismi
+       db_pool = await aiomysql.create_pool(
+           host=DB_CONFIG['host'],
+           port=DB_CONFIG['port'],
+           user=DB_CONFIG['user'],
+           password=DB_CONFIG['password'],
+           db=DB_CONFIG['database'],
+           autocommit=True,
+           charset='utf8mb4',
+           cursorclass=aiomysql.DictCursor,
+           loop=loop,
+    # Aiven majburiy SSL talab qilsa, ushbu parametr yordam beradi:
+          ssl={'fake_verification': True} 
+      )
+
         
         # Jadvallarni yaratish (Asinxron rejimda)
         async with db_pool.acquire() as conn:
@@ -5350,6 +5352,7 @@ if __name__ == '__main__':
     finally:
         loop.close()
         
+
 
 
 
