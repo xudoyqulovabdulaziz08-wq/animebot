@@ -54,7 +54,6 @@ app = Flask('')
 BOT_TOKEN = os.getenv("BOT_TOKEN") 
 
 @app.route('/')
-@app.route('/')
 async def home(): # 'async' qo'shildi
     conn = None
     try:
@@ -94,21 +93,31 @@ def get_telegram_image(file_id):
     except Exception as e:
         return str(e), 500
 @app.route('/services.html')
-def services():
-    db = None
+async def services():
+    conn = None
     try:
-        db = get_db()
-        cursor = db.cursor(dictionary=True)
-        # Barcha animelarni bazadan olish
-        cursor.execute("SELECT anime_id as id, name, poster_id FROM anime_list ORDER BY name ASC")
-        all_animes = cursor.fetchall()
-        cursor.close()
-        return render_template('services.html', animes=all_animes)
+        # 1. Asinxron ulanish olish
+        conn = await get_db()
+        
+        # 2. 'async with' orqali kursorni ochish (aiomysql uchun shart)
+        async with conn.cursor(aiomysql.DictCursor) as cursor:
+            # 3. 'await' bilan so'rovni bajarish
+            await cursor.execute("SELECT anime_id as id, name, poster_id FROM anime_list ORDER BY name ASC")
+            
+            # 4. 'await' bilan natijani olish
+            all_animes = await cursor.fetchall()
+            
+            # Kursorni yopish async with ichida avtomatik bajariladi
+            return render_template('services.html', animes=all_animes)
+            
     except Exception as e:
+        logger.error(f"Services sahifasida xato: {e}")
         return f"Xato: {e}"
     finally:
-        if db and db.is_connected():
-            db.close()
+        # 5. aiomysql pool bilan ishlashda db.close() ishlatilmaydi
+        # Uning o'rniga ulanishni poolga qaytarish kerak
+        if conn:
+            await db_pool.release(conn)
     
 @app.route('/contact.html')
 def contact():
@@ -116,42 +125,36 @@ def contact():
     return render_template('contact.html')
 
 @app.route('/malumot.html')
-def about():
-    db = None
+async def about():
+    conn = None
     try:
-        db = get_db()
-        if db is None:
-            return "Ma'lumotlar bazasiga ulanib bo'lmadi."
+        conn = await get_db()
+        async with conn.cursor() as cursor:
+            # 1. Jami animelar
+            await cursor.execute("SELECT COUNT(*) FROM anime_list")
+            res = await cursor.fetchone()
+            anime_count = res[0] if res else 0
 
-        cursor = db.cursor()
+            # 2. Jami foydalanuvchilar
+            await cursor.execute("SELECT COUNT(*) FROM users")
+            res = await cursor.fetchone()
+            user_count = res[0] if res else 0
 
-        # 1. Jami animelar soni
-        cursor.execute("SELECT COUNT(*) FROM anime_list")
-        anime_count = cursor.fetchone()[0]
+            # 3. VIP foydalanuvchilar
+            await cursor.execute("SELECT COUNT(*) FROM users WHERE status = 'vip'")
+            res = await cursor.fetchone()
+            vip_count = res[0] if res else 0
 
-        # 2. Jami foydalanuvchilar soni (users jadvalidan)
-        cursor.execute("SELECT COUNT(*) FROM users")
-        user_count = cursor.fetchone()[0]
-
-        # 3. VIP foydalanuvchilar soni (status ustuni orqali)
-        # Botingizdagi mantiqqa qarab 'is_vip=1' yoki 'status="vip"' bo'lishi mumkin
-        cursor.execute("SELECT COUNT(*) FROM users WHERE status = 'vip'")
-        vip_count = cursor.fetchone()[0]
-
-        cursor.close()
-        
-        # Olingan sonlarni malumot.html sahifasiga yuboramiz
-        return render_template('malumot.html', 
-                               anime_count=anime_count, 
-                               user_count=user_count, 
-                               vip_count=vip_count)
+            return render_template('malumot.html', 
+                                   anime_count=anime_count, 
+                                   user_count=user_count, 
+                                   vip_count=vip_count)
     except Exception as e:
-        logger.error(f"Statistika olishda xato: {e}")
-        # Xatolik bo'lsa, standart sonlar bilan ochiladi
-        return render_template('malumot.html', anime_count="37+", user_count="1000+", vip_count="50+")
+        logger.error(f"Statistika xatosi: {e}")
+        return render_template('malumot.html', anime_count="0", user_count="0", vip_count="0")
     finally:
-        if db and db.is_connected():
-            db.close()
+        if conn:
+            await db_pool.release(conn)
 # ----------------------------------------------
 
 def run():
@@ -5294,16 +5297,18 @@ async def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
 
     # 8. BOTNI ISHGA TUSHIRISH
-    logger.info("🚀 Bot polling rejimida ishga tushdi...")
+    logger.info("🚀 Bot ishga tushdi...")
     
-    # 3. Botni ishga tushirish
+    # initialize va start o'rniga to'g'ridan-to'g'ri run_polling tavsiya etiladi
+    # Lekin sizning hozirgi uslubingizda qolishi uchun:
     await application.initialize()
     await application.start()
-    await application.updater.start_polling()
     
-    # Bot to'xtab qolmasligi uchun cheksiz kutish
-    while True:
-        await asyncio.sleep(1)
+    # Pollingni boshlash va uni kutish
+    await application.updater.start_polling(drop_pending_updates=True)
+    
+    # 'while True' o'rniga application'ni to'xtaguncha ushlab turish:
+    await asyncio.Event().wait()
 
 if __name__ == '__main__':
     # 1. Render talab qiladigan portni aniqlash
@@ -5325,6 +5330,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
