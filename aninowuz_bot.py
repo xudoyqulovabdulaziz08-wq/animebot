@@ -5145,13 +5145,13 @@ async def toggle_health_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def main():
     # 1. Serverni uyg'oq saqlash (Agar Replit kabi servisda bo'lsangiz)
-    # keep_alive() 
+     keep_alive() 
 
     # 2. Ma'lumotlar bazasini asinxron ishga tushirish (Global pool yaratish)
     try:
         # Avvalgi darslarda yozgan create_db_pool funksiyamiz
         global db_pool
-        db_pool = await create_db_pool() 
+        db_pool = await init_db_pool() 
         logger.info("✅ Ma'lumotlar bazasi asinxron ulandi.")
     except Exception as e:
         logger.error(f"🛑 Baza ulanishida xato: {e}")
@@ -5297,4 +5297,5 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("🛑 Bot to'xtatildi.")
+
 
