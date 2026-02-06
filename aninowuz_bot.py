@@ -5297,32 +5297,39 @@ async def main():
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
 
     # 8. BOTNI ISHGA TUSHIRISH
-    logger.info("🚀 Bot ishga tushdi...")
+    logger.info("🚀 Bot polling rejimida ishga tushdi...")
     
-    # initialize va start o'rniga to'g'ridan-to'g'ri run_polling tavsiya etiladi
-    # Lekin sizning hozirgi uslubingizda qolishi uchun:
-    await application.initialize()
-    await application.start()
-    
-    # Pollingni boshlash va uni kutish
-    await application.updater.start_polling(drop_pending_updates=True)
-    
-    # 'while True' o'rniga application'ni to'xtaguncha ushlab turish:
-    await asyncio.Event().wait()
-
-async with application:
+    # ASYNC WITH blokini funksiya ICHIGA oldik:
+    async with application:
         await application.initialize()
         await application.start()
+        # drop_pending_updates=True eski yig'ilib qolgan xabarlarni o'chirib, 
+        # botni hozirgi vaqtdan boshlab ishlatadi
         await application.updater.start_polling(drop_pending_updates=True)
-        logger.info("🚀 Bot polling rejimida ishga tushdi...")
+        
+        # Bot to'xtab qolmasligi uchun cheksiz kutish
         await asyncio.Event().wait()
 
 if __name__ == '__main__':
-    # Lokal test qilish uchun (Renderda buni gunicorn boshqaradi)
+    # 1. Render portini aniqlash
+    port = int(os.environ.get("PORT", 10000))
+    
+    # 2. Flaskni alohida oqimda ishga tushirish
+    from threading import Thread
+    def run_flask():
+        # Debug va reloader o'chiq bo'lishi shart
+        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+    
+    flask_thread = Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    logger.info(f"🌐 Flask web server {port}-portda ishga tushdi.")
+
+    # 3. Asosiy bot funksiyasini yurgizish
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        pass
+        logger.info("👋 Bot to'xtatildi.")
+
 
 
 
