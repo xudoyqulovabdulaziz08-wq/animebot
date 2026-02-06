@@ -5330,24 +5330,27 @@ async def main():
         await asyncio.Event().wait()
 
 if __name__ == '__main__':
-    # 1. Render portini aniqlash
+    # 1. Flask serverni alohida Thread'da boshlash (o'zgarmaydi)
     port = int(os.environ.get("PORT", 10000))
-    
-    # 2. Flaskni alohida oqimda ishga tushirish
     from threading import Thread
     def run_flask():
-        # Debug va reloader o'chiq bo'lishi shart
         app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
     
     flask_thread = Thread(target=run_flask, daemon=True)
     flask_thread.start()
     logger.info(f"🌐 Flask web server {port}-portda ishga tushdi.")
 
-    # 3. Asosiy bot funksiyasini yurgizish
+    # 2. BOTNI ISHGA TUSHIRISH (Loop yopilib qolmasligi uchun)
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
-        asyncio.run(main())
+        loop.run_until_complete(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+    finally:
+        loop.close()
+        
+
 
 
 
