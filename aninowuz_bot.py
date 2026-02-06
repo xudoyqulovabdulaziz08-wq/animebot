@@ -276,25 +276,25 @@ logger = logging.getLogger(__name__)
 
 
 async def init_db_pool():
-    """Asinxron ma'lumotlar bazasi poolini yaratish va jadvallarni tekshirish"""
+    """Asinxron ma'lumotlar bazasi poolini yaratish"""
     global db_pool
     try:
-        # SSL kontekstini yaratish (Xatolikni oldini olish uchun)
-        ctx = ssl.create_default_context(cafile="/etc/ssl/certs/ca-certificates.crt")
-        ctx.check_hostname = False
-        ctx.verify_mode = ssl.CERT_NONE # Ba'zi cloud bazalar uchun shart
-
+        # Hozirgi ishlayotgan loopni olamiz
+        loop = asyncio.get_running_loop()
+        
+        # SSL sozlamasi (Render va boshqa cloud DBlar uchun)
+        # Agar ulanishda SSL xatosi chiqsa, ssl=True qilib ko'ring
         db_pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
-            db=DB_CONFIG['database'],
+            db=DB_CONFIG['database'], # 'db' emas 'database' ekanligiga ishonch hosil qiling
             autocommit=True,
             charset='utf8mb4',
             cursorclass=aiomysql.DictCursor,
-            # MUHIM: SSLni quyidagicha o'zgartiring
-            ssl=ctx if os.name == 'posix' else None 
+            loop=loop, # MUHIM: Poolni joriy loopga bog'laymiz
+            ssl=True if os.environ.get('RENDER') else None # Renderda bo'lsa SSL yoqamiz
         )
         
         # Jadvallarni yaratish (Asinxron rejimda)
@@ -5350,6 +5350,7 @@ if __name__ == '__main__':
     finally:
         loop.close()
         
+
 
 
 
