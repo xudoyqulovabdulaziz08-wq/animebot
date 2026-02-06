@@ -1670,8 +1670,6 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=kb,
             parse_mode="HTML"
         )
-
-        )
         return A_SEND_ADS_MSG
 
     # 5. BEKOR QILISH
@@ -5336,6 +5334,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
