@@ -1659,9 +1659,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ])
         
         await query.edit_message_text(
-            text=f"🎯 Tanlangan guruh: <b>{group_names.get(target_group, 'Noma'lum')}</b>\n\n"
-                 "Endi ushbu guruhga yubormoqchi bo'lgan <b>reklama xabaringizni</b> yuboring (Matn, Rasm, Video yoki Forward):\n\n"
-                 "<i>Eslatma: Xabar yuborishni boshlashdan oldin uni yaxshilab tekshiring!</i>",
+            text = f"🎯 Tanlangan guruh: <b>{group_names.get(target_group, \"Noma'lum\")}</b>\n\n" \
+               "Endi ushbu guruhga yubormoqchi bo'lgan <b>reklama xabaringizni</b> yuboring (Matn, Rasm, Video yoki Forward):\n\n" \
+               "<i>Eslatma: Xabar yuborishni boshlashdan oldin uni yaxshilab tekshiring!</i>"
             reply_markup=kb,
             parse_mode="HTML"
         )
@@ -5329,6 +5329,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
