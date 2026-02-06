@@ -5293,8 +5293,8 @@ async def main():
 
     # 7.5. Eng umumiy (Fallback) handlerlar
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(handle_callback)) # Qolgan barcha callbacklar uchun
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
+    application.add_handler(CallbackQueryHandler(handle_callback)) # Qolgan barcha callbacklar uchun
 
     # 8. BOTNI ISHGA TUSHIRISH
     logger.info("🚀 Bot polling rejimida ishga tushdi...")
@@ -5329,6 +5329,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
