@@ -5300,21 +5300,25 @@ async def main():
         await asyncio.sleep(1)
 
 if __name__ == '__main__':
-    # Render portini sozlash
+    # 1. Render talab qiladigan portni aniqlash
+    # Muhim: Render o'zgaruvchilari orasida PORT bo'lishi kerak, bo'lmasa 10000 ishlatiladi
     port = int(os.environ.get("PORT", 10000))
     
-    # Flaskni alohida oqimda yurgizish
+    # 2. Flaskni alohida "oqim"da ishga tushirish (Render portini yopib qo'ymaslik uchun)
     from threading import Thread
     def run_flask():
-        app.run(host='0.0.0.0', port=port)
+        # host='0.0.0.0' bo'lishi shart, aks holda Render ulanolmaydi
+        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
     
-    Thread(target=run_flask, daemon=True).start()
+    flask_thread = Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    logger.info(f"🌐 Flask web server {port}-portda ishga tushdi.")
 
-    # Asosiy botni ishga tushirish
+    # 3. Botni asinxron ishga tushirish
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        pass
+        logger.info("👋 Bot to'xtatildi.")
 
 
 
