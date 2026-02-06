@@ -52,6 +52,9 @@ app = Flask('')
 
 # Bot tokenini Render Environment Variables'dan oladi
 BOT_TOKEN = os.getenv("BOT_TOKEN") 
+# Siz bergan guruh ID raqami
+ADMIN_GROUP_ID = -5128040712 
+
 
 @app.route('/')
 async def home(): # 'async' qo'shildi
@@ -170,7 +173,8 @@ def keep_alive():
 
 # Ularni Render Dashboard -> Settings -> Environment Variables qismiga qo'shing.
 
-TOKEN = os.getenv("TOKEN") 
+TOKEN = os.getenv("TOKEN")
+ADMIN_GROUP_ID = -5128040712 
 MAIN_ADMIN_ID = int(os.getenv("ADMIN_ID", 8244870375))
 ADVERTISING_PASSWORD = os.getenv("ADS_PASS", "2009")
 
@@ -5348,6 +5352,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
