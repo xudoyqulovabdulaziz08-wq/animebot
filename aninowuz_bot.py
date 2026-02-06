@@ -5144,12 +5144,11 @@ async def toggle_health_handler(update: Update, context: ContextTypes.DEFAULT_TY
 # ====================== MAIN FUNKSIYA (TUZATILDI) =======================
 
 async def main():
-    # 1. Serverni uyg'oq saqlash (Agar Replit kabi servisda bo'lsangiz)
-     keep_alive() 
+    # 1. Serverni uyg'oq saqlash
+    keep_alive() # Agar funksiya kodingizda bo'lsa yoqing
 
-    # 2. Ma'lumotlar bazasini asinxron ishga tushirish (Global pool yaratish)
+    # 2. Ma'lumotlar bazasini asinxron ishga tushirish
     try:
-        # Avvalgi darslarda yozgan create_db_pool funksiyamiz
         global db_pool
         db_pool = await init_db_pool() 
         logger.info("✅ Ma'lumotlar bazasi asinxron ulandi.")
@@ -5157,7 +5156,7 @@ async def main():
         logger.error(f"🛑 Baza ulanishida xato: {e}")
         return
 
-    # 3. Applicationni qurish (Faqat bitta ob'ekt bo'lishi shart)
+    # 3. Applicationni qurish
     application = ApplicationBuilder().token(BOT_TOKEN).build()
 
     # 4. Menyu filtri (Regex)
@@ -5297,5 +5296,6 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("🛑 Bot to'xtatildi.")
+
 
 
