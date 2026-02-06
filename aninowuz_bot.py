@@ -491,49 +491,45 @@ async def get_user_status(uid: int):
 
 # ===================================================================================
 
-
 async def check_sub(uid: int, bot):
-    """
-    Majburiy obunani asinxron tekshirish.
-    28-band: Kanal boshqaruvi va xatoliklarni filtrlash optimallashtirildi.
-    """
-    # 1. Adminlar uchun tekshiruvni chetlab o'tish (Qulaylik uchun)
-    # status = await get_user_status(uid)
-    # if status in ['main_admin', 'admin']: return []
-
     not_joined = []
     
+    # 1. Kanallarni bazadan olishni try-except ichiga olamiz
+    channels = []
     try:
-        async with db_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                # Kanallarni bazadan olish
-                await cur.execute("SELECT username FROM channels")
-                channels = await cur.fetchall() # DictCursor sababli [{'username': '...'}, ...] qaytadi
+        # Timeout qo'shamizki, baza qotib qolsa bot o'lib qolmasin
+        async with asyncio.timeout(5): 
+            async with db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("SELECT username FROM channels")
+                    channels = await cur.fetchall()
     except Exception as e:
-        logger.error(f"⚠️ Kanallarni bazadan olishda xato: {e}")
-        return []
+        logger.error(f"⚠️ Kanal bazasida xato: {e}")
+        return [] # Xato bo'lsa tekshirmasdan o'tkazib yuboramiz
 
     for row in channels:
-        ch = row['username']
+        # DictCursor yoki oddiy Cursor ekanligiga qarab username ni olamiz
+        ch = row['username'] if isinstance(row, dict) else row[0]
+        
         try:
             target = str(ch).strip()
-            # Username formatini to'g'rilash
             if not target.startswith('@') and not target.startswith('-'):
                 target = f"@{target}"
-                
-            member = await bot.get_chat_member(target, uid)
             
-            # Foydalanuvchi statusini tekshirish
-            # 'member', 'creator', 'administrator' bo'lsa - a'zo hisoblanadi
-            if member.status in ['left', 'kicked']:
-                not_joined.append(ch)
-                
+            # 2. Har bir kanalni tekshirishga 3 soniya vaqt beramiz
+            async with asyncio.timeout(3):
+                member = await bot.get_chat_member(target, uid)
+                if member.status in ['left', 'kicked']:
+                    not_joined.append(ch)
+                    
         except Exception as e:
-            # Bot admin bo'lmagan yoki o'chgan kanallarni foydalanuvchiga ko'rsatmaymiz
-            logger.warning(f"❗ Kanal tekshiruvida xato (Bot adminmi?): {ch} -> {e}")
+            # 3. KANAL TOPILMASA YOKI BOT ADMIN BO'LMASA - TASHLAB KETAMIZ
+            logger.warning(f"❗ Kanal tashlab ketildi: {ch}. Sabab: {e}")
             continue 
             
     return not_joined
+    
+
 
 
 
@@ -5352,6 +5348,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
