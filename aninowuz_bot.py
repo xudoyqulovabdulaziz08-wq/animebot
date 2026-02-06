@@ -5260,8 +5260,9 @@ async def main():
         },
         fallbacks=[
             CommandHandler("start", start),
-            MessageHandler(filters.Regex(r"Orqaga|Bekor qilish|Bosh menyu"), start),
+            MessageHandler(filters.Regex(r"Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish|🎙 Fandablar|❤️ Sevimlilar"), start),
         ],
+        
         allow_reentry=True,
         name="aninow_v103_persistent",
         persistent=False # Agar botni o'chirib yoqqanda holatlar saqlanishi kerak bo'lsa True qiling
@@ -5352,6 +5353,7 @@ if __name__ == '__main__':
     finally:
         loop.close()
         
+
 
 
 
