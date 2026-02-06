@@ -268,15 +268,19 @@ logger = logging.getLogger(__name__)
 
 # ====================== MA'LUMOTLAR BAZASI (TUZATILGAN VA OPTIMAL) ======================
 
-import aiomysql
 
-# Global pool o'zgaruvchisi
-db_pool = None
+
+
 
 async def init_db_pool():
     """Asinxron ma'lumotlar bazasi poolini yaratish va jadvallarni tekshirish"""
     global db_pool
     try:
+        # SSL kontekstini yaratish (Xatolikni oldini olish uchun)
+        ctx = ssl.create_default_context(cafile="/etc/ssl/certs/ca-certificates.crt")
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE # Ba'zi cloud bazalar uchun shart
+
         db_pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
@@ -286,8 +290,8 @@ async def init_db_pool():
             autocommit=True,
             charset='utf8mb4',
             cursorclass=aiomysql.DictCursor,
-            # Render/Cloud uchun SSL ulanish muhim
-            ssl={"ca": "/etc/ssl/certs/ca-certificates.crt"} if os.name == 'posix' else None 
+            # MUHIM: SSLni quyidagicha o'zgartiring
+            ssl=ctx if os.name == 'posix' else None 
         )
         
         # Jadvallarni yaratish (Asinxron rejimda)
@@ -418,6 +422,12 @@ async def init_db_pool():
         print("✅ Asinxron DB Pool yaratildi va jadvallar tayyor!")
     except Exception as e:
         logger.error(f"❌ DB Pool Error: {e}")
+
+async def get_db():
+    global db_pool
+    if db_pool is None:
+        await init_db_pool()
+    return await db_pool.acquire()
 
 # Barcha SQL so'rovlar uchun yordamchi helper
 async def execute_query(query, params=None, fetch="none"):
@@ -5319,6 +5329,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
