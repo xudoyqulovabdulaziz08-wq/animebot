@@ -5310,26 +5310,20 @@ async def main():
     # 'while True' o'rniga application'ni to'xtaguncha ushlab turish:
     await asyncio.Event().wait()
 
-if __name__ == '__main__':
-    # 1. Render talab qiladigan portni aniqlash
-    # Muhim: Render o'zgaruvchilari orasida PORT bo'lishi kerak, bo'lmasa 10000 ishlatiladi
-    port = int(os.environ.get("PORT", 10000))
-    
-    # 2. Flaskni alohida "oqim"da ishga tushirish (Render portini yopib qo'ymaslik uchun)
-    from threading import Thread
-    def run_flask():
-        # host='0.0.0.0' bo'lishi shart, aks holda Render ulanolmaydi
-        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
-    
-    flask_thread = Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-    logger.info(f"🌐 Flask web server {port}-portda ishga tushdi.")
+async with application:
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling(drop_pending_updates=True)
+        logger.info("🚀 Bot polling rejimida ishga tushdi...")
+        await asyncio.Event().wait()
 
-    # 3. Botni asinxron ishga tushirish
+if __name__ == '__main__':
+    # Lokal test qilish uchun (Renderda buni gunicorn boshqaradi)
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        logger.info("👋 Bot to'xtatildi.")
+        pass
+
 
 
 
