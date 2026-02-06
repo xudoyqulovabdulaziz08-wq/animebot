@@ -4435,13 +4435,19 @@ async def find_random_friend(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Statusga qarab maxsus emojilar qo'shamiz
         status_emoji = "💎" if friend['status'] == 'vip' else "👤"
         
+        # 1. Oldindan tayyorlab olamiz
+        fav_anime = friend['favorite_anime'] or 'Sirligicha qolgan'
+        about_text = friend['about'] or "Ma'lumot berilmagan"
+        status_cap = friend['status'].capitalize()
+
+        # 2. Keyin f-string ichiga qo'yamiz
         text = (
             f"🌟 <b>ANIME MUXLISI PROFILI</b>\n"
             f"━━━━━━━━━━━━━━━━━━\n\n"
             f"🏷 <b>Nik:</b> {friend['nickname']}\n"
-            f"{status_emoji} <b>Maqomi:</b> {friend['status'].capitalize()}\n"
-            f"❤️ <b>Sevimli animesi:</b> <i>{friend['favorite_anime'] or 'Sirligicha qolgan'}</i>\n"
-            f"📝 <b>Fikri:</b> <code>{friend['about'] or 'Ma\'lumot berilmagan'}</code>\n"
+            f"{status_emoji} <b>Maqomi:</b> {status_cap}\n"
+            f"❤️ <b>Sevimli animesi:</b> <i>{fav_anime}</i>\n"
+            f"📝 <b>Fikri:</b> <code>{about_text}</code>\n"
         )
 
         # 3. Tugmalar
@@ -5342,6 +5348,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
