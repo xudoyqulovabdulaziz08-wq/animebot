@@ -5179,7 +5179,7 @@ async def main():
     global db_pool
     try:
         global db_pool
-        db_pool = await init_db_pool() 
+        db_pool = await init_db_pool()
         logger.info("✅ Ma'lumotlar bazasi asinxron ulandi.")
     except Exception as e:
         logger.error(f"🛑 Baza ulanishida xato: {e}")
@@ -5283,7 +5283,7 @@ async def main():
     application.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
     application.add_handler(CallbackQueryHandler(post_to_channel_button_handler, pattern="^post_to_chan_"))
     application.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list|^rem_vip_page_"))
-    application.add_handler(CallbackQueryHandler(finish_anime_handler, pattern="^finish_")) 
+ 
     application.add_handler(CallbackQueryHandler(add_favorite_handler, pattern="^fav_"))   
     application.add_handler(CallbackQueryHandler(view_comments_handler, pattern="^view_comm_"))
     application.add_handler(CallbackQueryHandler(rate_anime_menu, pattern="^rate_start_"))
@@ -5348,6 +5348,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
