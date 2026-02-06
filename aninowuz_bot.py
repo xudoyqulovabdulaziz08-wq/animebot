@@ -284,16 +284,16 @@ async def init_db_pool():
         
         # SSL sozlamasi (Render va boshqa cloud DBlar uchun)
         # init_db_pool ichidagi create_pool qismi
-       db_pool = await aiomysql.create_pool(
-           host=DB_CONFIG['host'],
-           port=DB_CONFIG['port'],
-           user=DB_CONFIG['user'],
-           password=DB_CONFIG['password'],
-           db=DB_CONFIG['database'],
-           autocommit=True,
-           charset='utf8mb4',
-           cursorclass=aiomysql.DictCursor,
-           loop=loop,
+        db_pool = await aiomysql.create_pool(
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            user=DB_CONFIG['user'],
+            password=DB_CONFIG['password'],
+            db=DB_CONFIG['database'],
+            autocommit=True,
+            charset='utf8mb4',
+            cursorclass=aiomysql.DictCursor,
+            loop=loop,
     # Aiven majburiy SSL talab qilsa, ushbu parametr yordam beradi:
           ssl={'fake_verification': True} 
       )
@@ -5352,6 +5352,7 @@ if __name__ == '__main__':
     finally:
         loop.close()
         
+
 
 
 
