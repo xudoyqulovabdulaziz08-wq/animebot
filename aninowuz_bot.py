@@ -2311,22 +2311,30 @@ async def show_anime_details(update_or_query, anime, context):
         # 3. Caption yasash (14-band dizayni)
         total_episodes = len(episodes)
         status_text = f"✅ {total_episodes} ta qism" if total_episodes > 0 else "⏳ Tez kunda..."
-        
+
+        # 1. Ma'lumotlarni tayyorlash (Xavfsiz usul)
+        desc = anime.get("description", "Ma'lumot berilmagan.")[:200]
+        fandub = anime.get('fandub', 'Aninovuz')
+        lang = anime.get('lang', 'Oʻzbekcha')
+        genre = anime.get('genre', 'Sarguzasht')
+        year = anime.get('year', 'Noma’lum')
+
+        # 2. Captionni shakllantirish
         caption = (
             f"🎬 <b>{anime['name']}</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n"
             f"📊 <b>Reyting:</b> {rating_val}\n"
             f"🎥 <b>Status:</b> {status_text}\n"
-            f"🎙 <b>Fandub:</b> {anime.get('fandub', 'Aninovuz')}\n"
-            f"🌐 <b>Tili:</b> {anime.get('lang', 'Oʻzbekcha')}\n"
-            f"🎭 <b>Janri:</b> {anime.get('genre', 'Sarguzasht')}\n"
-            f"📅 <b>Yili:</b> {anime.get('year', 'Noma’lum')}\n"
+            f"🎙 <b>Fandub:</b> {fandub}\n"
+            f"🌐 <b>Tili:</b> {lang}\n"
+            f"🎭 <b>Janri:</b> {genre}\n"
+            f"📅 <b>Yili:</b> {year}\n"
             f"👁 <b>Ko'rilgan:</b> {anime.get('total_views', 0)} marta\n"
             f"🆔 <b>ID:</b> <code>{anime_id}</code>\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n"
-            f"📝 <b>Tavsif:</b> {anime.get('description', 'Ma\'lumot berilmagan.')[:200]}...\n\n"
+            f"📝 <b>Tavsif:</b> {desc}...\n\n"
             f"📥 <b>Ko'rish uchun qismni tanlang:</b>"
-        )
+        ) # Bu qavs ochilgan caption qavsini yopadi
 
         # 4. TUGMALAR (PAGINATION - 10-band)
         keyboard = []
@@ -5334,6 +5342,7 @@ if __name__ == '__main__':
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
+
 
 
 
