@@ -5148,6 +5148,7 @@ async def main():
     keep_alive() # Agar funksiya kodingizda bo'lsa yoqing
 
     # 2. Ma'lumotlar bazasini asinxron ishga tushirish
+    global db_pool
     try:
         global db_pool
         db_pool = await init_db_pool() 
@@ -5158,6 +5159,7 @@ async def main():
 
     # 3. Applicationni qurish
     application = ApplicationBuilder().token(BOT_TOKEN).build()
+    
 
     # 4. Menyu filtri (Regex)
     menu_filter = filters.Regex(
@@ -5288,14 +5290,32 @@ async def main():
     # 8. BOTNI ISHGA TUSHIRISH
     logger.info("🚀 Bot polling rejimida ishga tushdi...")
     
-    # run_polling() o'zi ichida loopni boshqaradi
-    await application.run_polling()
+    # 3. Botni ishga tushirish
+    await application.initialize()
+    await application.start()
+    await application.updater.start_polling()
+    
+    # Bot to'xtab qolmasligi uchun cheksiz kutish
+    while True:
+        await asyncio.sleep(1)
 
 if __name__ == '__main__':
+    # Render portini sozlash
+    port = int(os.environ.get("PORT", 10000))
+    
+    # Flaskni alohida oqimda yurgizish
+    from threading import Thread
+    def run_flask():
+        app.run(host='0.0.0.0', port=port)
+    
+    Thread(target=run_flask, daemon=True).start()
+
+    # Asosiy botni ishga tushirish
     try:
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        logger.info("🛑 Bot to'xtatildi.")
+        pass
+
 
 
 
