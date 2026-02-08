@@ -2181,67 +2181,74 @@ async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ===================================================================================
 
 async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # 1. CALLBACK QUERY (Tugma bosilganda ishlash qismi)
+    # 1. CALLBACK QUERY (Inline tugmalar bosilganda)
     query = update.callback_query
+    uid = update.effective_user.id
+    status = await get_user_status(uid)
+
     if query:
         await query.answer()
         data = query.data
         
-        # Foydalanuvchi qidiruv usulini tanlaganda
+        # Qidiruv rejimini tanlash
         if data == "search_type_name":
             context.user_data["search_mode"] = "name"
-            await query.edit_message_text("🔍 Anime <b>nomini</b> kiriting:", parse_mode="HTML")
+            await query.message.reply_text("🔍 Anime <b>nomini</b> kiriting:", parse_mode="HTML", reply_markup=get_cancel_kb())
             return A_SEARCH_BY_NAME
             
         elif data == "search_type_id":
             context.user_data["search_mode"] = "id"
-            await query.edit_message_text("🆔 Anime <b>ID raqamini</b> kiriting:", parse_mode="HTML")
+            await query.message.reply_text("🆔 Anime <b>ID raqamini</b> kiriting:", parse_mode="HTML", reply_markup=get_cancel_kb())
             return A_SEARCH_BY_ID
             
         elif data == "search_type_character":
             context.user_data["search_mode"] = "character"
-            await query.edit_message_text("👤 <b>Personaj</b> nomini yoki anime tavsifini kiriting:", parse_mode="HTML")
-            return A_SEARCH_BY_NAME # Matn kiritishga yuboramiz
-
-        
-
-        elif data == "search_type_genre":
-            # Bu yerda janrlar ro'yxatini chiqarish funksiyasini chaqirishingiz mumkin
-            await query.edit_message_text("🎭 Janr bo'yicha qidiruv hozircha matn orqali: Janr nomini yozing:")
-            context.user_data["search_mode"] = "character" # LIKE bilan qidiradi
+            await query.message.reply_text("👤 <b>Personaj</b> yoki tavsif kiriting:", parse_mode="HTML", reply_markup=get_cancel_kb())
             return A_SEARCH_BY_NAME
+
+        elif data == "search_type_fandub":
+            # Skeletingizdagi show_fandub_list funksiyasini chaqiramiz
+            return await show_fandub_list(update, context)
+
+        elif data == "search_type_random":
+            # Tasodifiy anime topish
+            async with db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    await cur.execute("SELECT anime_id FROM anime_list ORDER BY RAND() LIMIT 1")
+                    res = await cur.fetchone()
+                    if res:
+                        return await show_selected_anime(update, context, res['anime_id'])
+            return A_MAIN
 
         return A_MAIN
 
-    # 2. MESSAGE (Matn yozilganda ishlash qismi)
-    if not update.message or not update.message.text:
+    # 2. MESSAGE (Matn yozilganda yoki Reply tugmalar bosilganda)
+    if not update.message:
         return
         
-    text = update.message.text.strip()
-    uid = update.effective_user.id
-    status = await get_user_status(uid)
-    
+    text = update.message.text.strip() if update.message.text else ""
+
+    # "Bekor qilish" yoki "Orqaga" tugmalari bosilganda
+    if text in ["❌ Bekor qilish", "⬅️ Orqaga", "Bekor qilish"]:
+        await update.message.reply_text("🏠 Asosiy menyu", reply_markup=get_main_kb(status))
+        return ConversationHandler.END
+
+    if not text:
+        return
+
     # Qidiruv rejimi
     search_type = context.user_data.get("search_mode", "name")
-
-    if text == "⬅️ Orqaga" or text == "Bekor qilish":
-        await update.message.reply_text("Bosh menyu", reply_markup=get_main_kb(status))
-        return ConversationHandler.END
 
     try:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                # DINAMIK SQL SO'ROVI
                 if text.isdigit() or search_type == "id":
-                    # ID orqali qidiruv
                     query_sql = "SELECT * FROM anime_list WHERE anime_id=%s"
                     params = (int(text) if text.isdigit() else 0,)
                 elif search_type == "character":
-                    # Personaj yoki Tavsif orqali
                     query_sql = "SELECT * FROM anime_list WHERE description LIKE %s OR genre LIKE %s LIMIT 21"
                     params = (f"%{text}%", f"%{text}%")
                 else:
-                    # Nomi bo'yicha qidiruv (Asosiy)
                     query_sql = "SELECT * FROM anime_list WHERE name LIKE %s OR original_name LIKE %s LIMIT 21"
                     params = (f"%{text}%", f"%{text}%")
                 
@@ -2254,40 +2261,32 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 [InlineKeyboardButton("❌ To'xtatish", callback_data="cancel_search")]
             ])
             await update.message.reply_text(
-                f"😔 <b>'{text}'</b> bo'yicha hech narsa topilmadi.\n\n"
-                f"<i>💡 Maslahat: Anime nomini o'zbek yoki ingliz tilida yozib ko'ring.</i>",
+                f"😔 <b>'{text}'</b> bo'yicha hech narsa topilmadi.",
                 reply_markup=kb, parse_mode="HTML"
             )
             return 
 
-        # BITTA NATIJA TOPILSA
         if len(results) == 1:
             return await show_selected_anime(update, context, results[0]['anime_id'])
 
-        # BIR NECHTA NATIJA
+        # Natijalar ro'yxati
         keyboard = []
         for anime in results[:20]:
-            r_sum = anime.get('rating_sum', 0)
-            r_count = anime.get('rating_count', 0)
+            r_sum = anime.get('rating_sum', 0); r_count = anime.get('rating_count', 0)
             rating = round(r_sum / r_count, 1) if r_count > 0 else "N/A"
-            
-            year = anime.get('year', '...')
-            btn_text = f"🎬 {anime['name']} ({year}) ⭐ {rating}"
+            btn_text = f"🎬 {anime['name']} ⭐ {rating}"
             keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"show_anime_{anime['anime_id']}")])
         
-        note = ""
-        if len(results) > 20:
-            note = f"\n\n⚠️ <i>Natijalar juda ko'p. Aniqroq nom yozishingizni so'raymiz.</i>"
-
         await update.message.reply_text(
-            f"🔍 <b>'{text}' bo'yicha topilgan animelar:</b>{note}",
+            f"🔍 <b>'{text}' bo'yicha natijalar:</b>",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
 
     except Exception as e:
         logger.error(f"Search error: {e}")
-        await update.message.reply_text("❌ Qidiruv jarayonida texnik xatolik yuz berdi.")
+        await update.message.reply_text("❌ Xatolik yuz berdi.")
+
 # ===================================================================================
 
 async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -5436,6 +5435,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
