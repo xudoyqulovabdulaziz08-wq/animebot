@@ -5194,7 +5194,27 @@ async def main():
 
     # 2. Ma'lumotlar bazasini ishga tushirish
     # DIQQAT: Funksiya ichida global db_pool ishlatilgani uchun 
-    # shunchaki awa    # 5. CONVERSATION HANDLER (To'g'rilangan variant)
+    # shunchaki await qilish kifoya, o'zgaruvchiga tenglash shart emas.
+    try:
+        await init_db_pool() 
+        if db_pool is None:
+            logger.error("ðŸ›‘ Baza ulanmadi (pool is None)!")
+            return
+        logger.info("âœ… Ma'lumotlar bazasi asinxron ulandi.")
+    except Exception as e:
+        logger.error(f"ðŸ›‘ Baza ulanishida xato: {e}")
+        return
+
+    # 3. Applicationni qurish
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+
+    # 4. Menyu filtri (Regex)
+    menu_filter = filters.Regex(
+        "Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish|"
+        "ðŸŽ™ Fandablar|â¤ï¸ Sevimlilar|ðŸ¤ Do'st orttirish|Rasm orqali qidirish"
+    )
+    
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
@@ -5396,6 +5416,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
