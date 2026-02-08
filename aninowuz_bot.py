@@ -291,7 +291,7 @@ async def init_db_pool():
             port=DB_CONFIG['port'],
             user=DB_CONFIG['user'],
             password=DB_CONFIG['password'],
-            db=DB_CONFIG['database'],
+            db=DB_CONFIG['db'],
             autocommit=True,
             charset='utf8mb4',
             cursorclass=aiomysql.DictCursor,
@@ -5355,6 +5355,7 @@ if __name__ == '__main__':
     finally:
         loop.close()
         
+
 
 
 
