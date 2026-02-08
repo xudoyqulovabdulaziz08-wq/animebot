@@ -5194,29 +5194,7 @@ async def main():
 
     # 2. Ma'lumotlar bazasini ishga tushirish
     # DIQQAT: Funksiya ichida global db_pool ishlatilgani uchun 
-    # shunchaki await qilish kifoya, o'zgaruvchiga tenglash shart emas.
-    try:
-        await init_db_pool() 
-        if db_pool is None:
-            logger.error("🛑 Baza ulanmadi (pool is None)!")
-            return
-        logger.info("✅ Ma'lumotlar bazasi asinxron ulandi.")
-    except Exception as e:
-        logger.error(f"🛑 Baza ulanishida xato: {e}")
-        return
-
-    # 3. Applicationni qurish
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-    
-    # 4. Menyu filtri (Regex)
-    menu_filter = filters.Regex(
-        "Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish|"
-        "🎙 Fandablar|❤️ Sevimlilar|🤝 Do'st orttirish|Rasm orqali qidirish"
-    )
-
-    # 5. CONVERSATION HANDLER (Asosiy mantiqiy zanjirlar)
-    # Eslatma: fallbacks parametridan MessageHandler olib tashlandi, 
-    # shunda u tugmalarni "yutib" yubormaydi.
+    # shunchaki awa    # 5. CONVERSATION HANDLER (To'g'rilangan variant)
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
@@ -5226,8 +5204,12 @@ async def main():
             CallbackQueryHandler(add_comment_callback, pattern="^comment_"),
         ],
         states={
+            # Qidiruv menyusi ochilganda bot foydalanuvchini holatga kiritishi kerak
+            # search_menu_cmd funksiyasi oxirida 'return A_MAIN' bo'lishi shart!
             A_MAIN: [
                 MessageHandler(filters.Regex("Anime boshqaruvi"), anime_control_panel),
+                # Qidiruv turlari uchun callback handlerlar
+                CallbackQueryHandler(search_anime_logic, pattern="^search_type_"),
                 CallbackQueryHandler(handle_callback),
             ],
             A_ANI_CONTROL: [
@@ -5257,6 +5239,7 @@ async def main():
                 MessageHandler(filters.VIDEO | filters.Document.VIDEO, handle_ep_uploads),
                 CallbackQueryHandler(handle_callback)
             ],
+            # Qidiruv holatlari
             A_SEARCH_BY_ID: [
                 CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), 
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
@@ -5279,12 +5262,34 @@ async def main():
         },
         fallbacks=[
             CommandHandler("start", start),
-            MessageHandler(filters.Regex("^Bekor qilish$"), start)
+            MessageHandler(filters.Regex("^Bekor qilish$"), start),
+            CallbackQueryHandler(start, pattern="^cancel_search$") # Bekor qilish tugmasi uchun
         ],
         allow_reentry=True,
         name="aninow_v103_persistent",
         persistent=False
     )
+    it qilish kifoya, o'zgaruvchiga tenglash shart emas.
+    try:
+        await init_db_pool() 
+        if db_pool is None:
+            logger.error("🛑 Baza ulanmadi (pool is None)!")
+            return
+        logger.info("✅ Ma'lumotlar bazasi asinxron ulandi.")
+    except Exception as e:
+        logger.error(f"🛑 Baza ulanishida xato: {e}")
+        return
+
+    # 3. Applicationni qurish
+    application = ApplicationBuilder().token(BOT_TOKEN).build()
+    
+    # 4. Menyu filtri (Regex)
+    menu_filter = filters.Regex(
+        "Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish|"
+        "🎙 Fandablar|❤️ Sevimlilar|🤝 Do'st orttirish|Rasm orqali qidirish"
+    )
+
+    
 
     # 6. TAYMERNI (SCHEDULER) SOZLASH
     scheduler = AsyncIOScheduler()
@@ -5391,6 +5396,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
