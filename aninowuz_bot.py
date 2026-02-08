@@ -186,8 +186,8 @@ DB_CONFIG = {
     "db": os.getenv("DB_NAME"), # <--- "database" edi, "db" bo'lishi shart!
     "autocommit": True,
     # Quyidagi ikki qator aiomysql uchun standart emas, ularni olib tashlasangiz ham bo'ladi
-    # "ssl_disabled": False, 
-    # "ssl_mode": "REQUIRED" 
+    "ssl_disabled": False, 
+    "ssl_mode": "REQUIRED" 
 }
 
 
@@ -5355,6 +5355,7 @@ if __name__ == '__main__':
     finally:
         loop.close()
         
+
 
 
 
