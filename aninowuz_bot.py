@@ -5209,7 +5209,7 @@ async def main():
     # 4. Menyu filtri (Regex)
     menu_filter = filters.Regex(
         "Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish|"
-        "ðŸŽ™ Fandablar|â¤ï¸ Sevimlilar|ðŸ¤ Do'st orttirish|Rasm orqali qidirish"
+        "🎙 Fandablar|❤️ Sevimlilar|🤝 Do'st orttirish|Rasm orqali qidirish"
     )
     
     conv_handler = ConversationHandler(
@@ -5299,12 +5299,7 @@ async def main():
 
     # 3. Applicationni qurish
     application = ApplicationBuilder().token(BOT_TOKEN).build()
-    
-    # 4. Menyu filtri (Regex)
-    menu_filter = filters.Regex(
-        "Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish|"
-        "🎙 Fandablar|❤️ Sevimlilar|🤝 Do'st orttirish|Rasm orqali qidirish"
-    )
+
 
     
 
@@ -5413,6 +5408,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
