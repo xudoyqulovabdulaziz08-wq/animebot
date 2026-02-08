@@ -5335,26 +5335,34 @@ async def main():
         await asyncio.Event().wait()
 
 if __name__ == '__main__':
-    # 1. Flask serverni alohida Thread'da boshlash (o'zgarmaydi)
+    # 1. Flask server uchun portni olish
     port = int(os.environ.get("PORT", 10000))
+    
+    # 2. Flaskni alohida oqimda ishga tushirish funksiyasi
     from threading import Thread
     def run_flask():
-        app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
-    
+        try:
+            # use_reloader=False bo'lishi shart, aks holda port ikki marta band qilinadi
+            app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
+        except Exception as e:
+            logger.error(f"Flask xatosi: {e}")
+
+    # 3. Faqat bir marta Threadni boshlash
     flask_thread = Thread(target=run_flask, daemon=True)
     flask_thread.start()
     logger.info(f"🌐 Flask web server {port}-portda ishga tushdi.")
 
-    # 2. BOTNI ISHGA TUSHIRISH (Loop yopilib qolmasligi uchun)
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
+    # 4. BOTNI ISHGA TUSHIRISH (Eng barqaror usul)
     try:
-        loop.run_until_complete(main())
+        # asyncio.run ishlatish loop yopilib qolishini oldini oladi
+        asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         logger.info("👋 Bot to'xtatildi.")
-    finally:
-        loop.close()
+    except Exception as e:
+        logger.error(f"Kutilmagan xato: {e}")
         
+        
+
 
 
 
