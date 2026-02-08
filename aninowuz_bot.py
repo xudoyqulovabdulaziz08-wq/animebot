@@ -5269,7 +5269,7 @@ async def main():
         name="aninow_v103_persistent",
         persistent=False
     )
-    it qilish kifoya, o'zgaruvchiga tenglash shart emas.
+ 
     try:
         await init_db_pool() 
         if db_pool is None:
@@ -5396,6 +5396,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
