@@ -5292,52 +5292,58 @@ async def main():
     scheduler.add_job(delete_expired_ads, 'interval', minutes=15, args=[application])
     scheduler.start()
 
-        # 7. HANDLERLARNI RO'YXATGA OLISH (TARTIB O'TA MUHIM!)
+
+        # 7. HANDLERLARNI RO'YXATGA OLISH (SKELET ASOSIDA)
     
-    # 7.1. Maxsus Callbacklar (Inline tugmalar uchun)
+    # 7.1. Maxsus Callbacklar
     application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
     application.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     application.add_handler(CallbackQueryHandler(pagination_handler, pattern="^pg_"))
     application.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     application.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
-    # ... qolgan barcha CallbackQueryHandlerlar shu yerda tursin ...
+    application.add_handler(CallbackQueryHandler(add_comment_callback, pattern="^comment_"))
+    application.add_handler(CallbackQueryHandler(view_comments_handler, pattern="^view_comm_"))
+    application.add_handler(CallbackQueryHandler(add_favorite_handler, pattern="^fav_"))
+    application.add_handler(CallbackQueryHandler(process_redeem, pattern="^redeem_"))
 
-        # 7.2. MATNLI TUGMALAR (Keyboard Buttons)
-    # Skrinshotdagi matnlarga 100% moslangan:
+    # 7.2. MATNLI TUGMALAR (Keyboard Buttons)
+    # Regex ichidagi matnlarni Telegram tugmalari bilan bir xil ekanligini tekshiring
     
-    # 👤 Shaxsiy Kabinet (Skrinshotda "Shaxsy" emas "Shaxsiy" deb yozilgan)
-    application.add_handler(MessageHandler(filters.Regex(r"Shaxsiy Kabinet"), shaxsiy_kabinet_funksiyasi))
+    # Shaxsiy kabinet (Skeletda: show_user_cabinet)
+    application.add_handler(MessageHandler(filters.Regex(r"Shaxsiy Kabinet"), show_user_cabinet))
     
-    # 🤝 Muxlislar Klubi
-    application.add_handler(MessageHandler(filters.Regex(r"Muxlislar Klubi"), muxlislar_klubi_funksiyasi))
+    # Muxlislar Klubi (Skeletda: start_profile_creation yoki maxsus funksiya bo'lishi mumkin)
+    # Agar bu tugma do'st orttirish bo'lsa:
+    application.add_handler(MessageHandler(filters.Regex(r"Muxlislar Klubi"), start_profile_creation))
     
-    # ✍️ Murojaat & Shikoyat
+    # Murojaat & Shikoyat (Skeletda: feedback_start)
     application.add_handler(MessageHandler(filters.Regex(r"Murojaat & Shikoyat"), feedback_start))
     
-    # 🎁 Ballar & VIP (Skrinshotda "Ballar & VIP" deb turibdi)
+    # Ballar & VIP (Skeletda: show_bonus)
     application.add_handler(MessageHandler(filters.Regex(r"Ballar & VIP"), show_bonus))
     
-    # 📁 Barcha animelar
+    # Barcha animelar (Skeletda: export_all_anime)
     application.add_handler(MessageHandler(filters.Regex(r"Barcha animelar"), export_all_anime))
     
-    # 🔥 Trenddagilar
-    application.add_handler(MessageHandler(filters.Regex(r"Trenddagilar"), show_trending))
-    
-    # 📖 Qo'llanma
+    # Qo'llanma (Skeletda: show_guide)
     application.add_handler(MessageHandler(filters.Regex(r"Qo'llanma"), show_guide))
     
-    # 7.3. CONVERSATION HANDLER (Qidiruv va Admin Panel uchun)
-    # Bu yerda tursa, yuqoridagi tugmalarga xalaqit bermaydi
+    # VIP PASS (Skeletda: vip_pass_info)
+    application.add_handler(MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info))
+
+    # 7.3. CONVERSATION HANDLER (Qidiruv va Admin Panel)
     application.add_handler(conv_handler)
 
-    # 7.4. MEDIA VA BOSHQA MAXSUS HANDLERLAR
+    # 7.4. MEDIA VA ADMIN REPLY
     application.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, search_anime_by_photo))
     application.add_handler(MessageHandler(filters.Chat(ADMIN_GROUP_ID) & filters.REPLY, admin_reply_handler))
 
-    # 7.5. ENG OXIRIDA - UMUMIY START VA FALLBACK
+    # 7.5. FALLBACKLAR
     application.add_handler(CommandHandler("start", start))
-    # Hech qaysi handlerga tushmagan matnlar uchun:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
+    
+
+
     
 
     # 8. BOTNI ISHGA TUSHIRISH
@@ -5385,6 +5391,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
