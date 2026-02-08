@@ -2241,7 +2241,8 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     try:
         async with db_pool.acquire() as conn:
-            async with conn.cursor() as cur:
+            async with conn.cursor(aiomysql.DictCursor) as cur: # DictCursor juda muhim!
+                # Dinamik SQL
                 if text.isdigit() or search_type == "id":
                     query_sql = "SELECT * FROM anime_list WHERE anime_id=%s"
                     params = (int(text) if text.isdigit() else 0,)
@@ -2266,26 +2267,34 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             return 
 
+        # 🎯 MUHIM QISM: Bitta natija chiqsa
         if len(results) == 1:
-            return await show_selected_anime(update, context, results[0]['anime_id'])
+            anime_id = results[0]['anime_id']
+            # show_selected_anime funksiyasini chaqirishda xatolik bo'lmasligi uchun
+            # argumentlarni tekshiring. Odatda (update, context) kifoya qiladi.
+            # Agar funksiyangiz anime_id ni ham talab qilsa:
+            return await show_selected_anime(update, context, anime_id)
 
-        # Natijalar ro'yxati
+        # 📋 Bir nechta natija chiqsa
         keyboard = []
         for anime in results[:20]:
-            r_sum = anime.get('rating_sum', 0); r_count = anime.get('rating_count', 0)
+            # Reytingni hisoblashda xato bermasligi uchun default qiymatlar
+            r_sum = anime.get('rating_sum') or 0
+            r_count = anime.get('rating_count') or 0
             rating = round(r_sum / r_count, 1) if r_count > 0 else "N/A"
+            
             btn_text = f"🎬 {anime['name']} ⭐ {rating}"
             keyboard.append([InlineKeyboardButton(btn_text, callback_data=f"show_anime_{anime['anime_id']}")])
         
         await update.message.reply_text(
-            f"🔍 <b>'{text}' bo'yicha natijalar:</b>",
+            f"🔍 <b>'{text}' bo'yicha topilganlar:</b>",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
 
     except Exception as e:
-        logger.error(f"Search error: {e}")
-        await update.message.reply_text("❌ Xatolik yuz berdi.")
+        logger.error(f"Search error detailed: {e}") # Konsolda aniq xatoni ko'rasiz
+        await update.message.reply_text(f"❌ Xatolik: {e}") # Test vaqtida xatoni ko'rish uchun
 
 # ===================================================================================
 
@@ -5435,6 +5444,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
