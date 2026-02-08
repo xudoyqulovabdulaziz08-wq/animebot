@@ -5208,18 +5208,15 @@ async def main():
     # 3. Applicationni qurish
     application = ApplicationBuilder().token(BOT_TOKEN).build()
     
-
     # 4. Menyu filtri (Regex)
     menu_filter = filters.Regex(
         "Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish|"
         "🎙 Fandablar|❤️ Sevimlilar|🤝 Do'st orttirish|Rasm orqali qidirish"
     )
-    fallbacks=[
-            CommandHandler("start", start),
-            
-        ],
 
     # 5. CONVERSATION HANDLER (Asosiy mantiqiy zanjirlar)
+    # Eslatma: fallbacks parametridan MessageHandler olib tashlandi, 
+    # shunda u tugmalarni "yutib" yubormaydi.
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
@@ -5280,24 +5277,24 @@ async def main():
             A_SELECT_ADS_TARGET: [CallbackQueryHandler(handle_callback)],
             A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
         },
-        
-        
+        fallbacks=[
+            CommandHandler("start", start),
+            MessageHandler(filters.Regex("^Bekor qilish$"), start)
+        ],
         allow_reentry=True,
         name="aninow_v103_persistent",
-        persistent=False # Agar botni o'chirib yoqqanda holatlar saqlanishi kerak bo'lsa True qiling
+        persistent=False
     )
 
     # 6. TAYMERNI (SCHEDULER) SOZLASH
     scheduler = AsyncIOScheduler()
-    # Har kuni soat 10:00 da VIP va ballarni tekshiradi
     scheduler.add_job(auto_check_notifications, 'cron', hour=10, minute=0, args=[application])
-    # Har 15 daqiqada muddati bitgan reklamalarni o'chiradi
     scheduler.add_job(delete_expired_ads, 'interval', minutes=15, args=[application])
     scheduler.start()
 
-    # 7. HANDLERLARNI RO'YXATGA OLISH (TARTIB MUHIM!)
+    # 7. HANDLERLARNI RO'YXATGA OLISH (TO'G'RI TARTIB)
     
-    # 7.1. Maxsus Callbacklar (Pattern asosida)
+    # 7.1. Maxsus Callbacklar
     application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
     application.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     application.add_handler(CallbackQueryHandler(pagination_handler, pattern="^pg_"))
@@ -5305,7 +5302,6 @@ async def main():
     application.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
     application.add_handler(CallbackQueryHandler(post_to_channel_button_handler, pattern="^post_to_chan_"))
     application.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list|^rem_vip_page_"))
- 
     application.add_handler(CallbackQueryHandler(add_favorite_handler, pattern="^fav_"))   
     application.add_handler(CallbackQueryHandler(view_comments_handler, pattern="^view_comm_"))
     application.add_handler(CallbackQueryHandler(rate_anime_menu, pattern="^rate_start_"))
@@ -5315,10 +5311,8 @@ async def main():
     application.add_handler(CallbackQueryHandler(send_message_to_friend, pattern="^send_msg_"))
     application.add_handler(CallbackQueryHandler(process_redeem, pattern="^redeem_"))
 
-    # 7.2. Conversation Handler (O'rta daraja)
-    application.add_handler(conv_handler)
-
-    # 7.3. Matnli Buyruqlar (Keyboard Buttons)
+    # 7.2. Matnli Buyruqlar (Keyboard Buttons) - TEPAGA CHIQARILDI
+    # Shunda ular ConversationHandler tomonidan yutilib ketmaydi
     application.add_handler(MessageHandler(filters.Regex("^Bonus ballarim$"), show_bonus))
     application.add_handler(MessageHandler(filters.Regex("^Qo'llanma$"), show_guide))
     application.add_handler(MessageHandler(filters.Regex("^VIP PASS$"), vip_pass_info))
@@ -5327,18 +5321,24 @@ async def main():
     application.add_handler(MessageHandler(filters.Regex("^❤️ Sevimlilar$"), show_favorites))
     application.add_handler(MessageHandler(filters.Regex("^Rasm orqali qidirish$"), 
         lambda u, c: u.message.reply_text("📸 Menga anime kadrini (rasm) yuboring, men uni AI orqali topib beraman!")))
+
+    # 7.3. Conversation Handler (O'rta daraja)
+    application.add_handler(conv_handler)
     
     # 7.4. Media va Admin Reply
     application.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, search_anime_by_photo))
     application.add_handler(MessageHandler(filters.Chat(ADMIN_GROUP_ID) & filters.REPLY, admin_reply_handler))
 
-    # 7.5. Eng umumiy (Fallback) handlerlar
+    # 7.5. Eng umumiy (Fallback) handlerlar - DOIM OXIRIDA
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
-    application.add_handler(CallbackQueryHandler(handle_callback)) # Qolgan barcha callbacklar uchun
+    application.add_handler(CallbackQueryHandler(handle_callback)) 
 
     # 8. BOTNI ISHGA TUSHIRISH
     logger.info("🚀 Bot polling rejimida ishga tushdi...")
+    
+
+    
     
     # ASYNC WITH blokini funksiya ICHIGA oldik:
     async with application:
@@ -5379,6 +5379,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
