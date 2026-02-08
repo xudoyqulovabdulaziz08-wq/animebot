@@ -2156,7 +2156,6 @@ async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")]
     ]
     
-    # Callback yoki Message ekanligini aniqlash
     is_callback = bool(update.callback_query)
     msg_obj = update.callback_query.message if is_callback else update.message
 
@@ -2167,19 +2166,17 @@ async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if is_callback:
-        # Menyu ustiga tahrirlash (Chat tozaligi uchun)
         await update.callback_query.edit_message_text(
-            text=text,
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode="HTML"
+            text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML"
         )
     else:
-        # Yangi xabar yuborish
         await msg_obj.reply_text(
-            text=text,
-            reply_markup=InlineKeyboardMarkup(kb),
-            parse_mode="HTML"
+            text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML"
         )
+    
+    # 🔥 MANA BU QATOR JUDA MUHIM:
+    return A_MAIN 
+    
 
 # ===================================================================================
 
@@ -5416,6 +5413,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
