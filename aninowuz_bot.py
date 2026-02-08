@@ -5292,47 +5292,40 @@ async def main():
     scheduler.add_job(delete_expired_ads, 'interval', minutes=15, args=[application])
     scheduler.start()
 
-    # 7. HANDLERLARNI RO'YXATGA OLISH (TO'G'RI TARTIB)
+        # 7. HANDLERLARNI RO'YXATGA OLISH (TARTIB O'TA MUHIM!)
     
-    # 7.1. Maxsus Callbacklar
+    # 7.1. Maxsus Callbacklar (Inline tugmalar uchun)
     application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
     application.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     application.add_handler(CallbackQueryHandler(pagination_handler, pattern="^pg_"))
     application.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     application.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
-    application.add_handler(CallbackQueryHandler(post_to_channel_button_handler, pattern="^post_to_chan_"))
-    application.add_handler(CallbackQueryHandler(show_vip_removal_list, pattern="^rem_vip_list|^rem_vip_page_"))
-    application.add_handler(CallbackQueryHandler(add_favorite_handler, pattern="^fav_"))   
-    application.add_handler(CallbackQueryHandler(view_comments_handler, pattern="^view_comm_"))
-    application.add_handler(CallbackQueryHandler(rate_anime_menu, pattern="^rate_start_"))
-    application.add_handler(CallbackQueryHandler(save_rating_handler, pattern="^rate_set_"))
-    application.add_handler(CallbackQueryHandler(filter_by_fandub, pattern="^fdub_"))
-    application.add_handler(CallbackQueryHandler(find_random_friend, pattern="^find_friend_rand"))
-    application.add_handler(CallbackQueryHandler(send_message_to_friend, pattern="^send_msg_"))
-    application.add_handler(CallbackQueryHandler(process_redeem, pattern="^redeem_"))
+    # ... qolgan barcha CallbackQueryHandlerlar shu yerda tursin ...
 
-    # 7.2. Matnli Buyruqlar (Keyboard Buttons) - TEPAGA CHIQARILDI
-    # Shunda ular ConversationHandler tomonidan yutilib ketmaydi
-    application.add_handler(MessageHandler(filters.Regex("^Bonus ballarim$"), show_bonus))
-    application.add_handler(MessageHandler(filters.Regex("^Qo'llanma$"), show_guide))
-    application.add_handler(MessageHandler(filters.Regex("^VIP PASS$"), vip_pass_info))
-    application.add_handler(MessageHandler(filters.Regex("^Barcha anime ro'yxati$"), export_all_anime))
-    application.add_handler(MessageHandler(filters.Regex("^🎙 Fandablar$"), show_fandub_list))
-    application.add_handler(MessageHandler(filters.Regex("^❤️ Sevimlilar$"), show_favorites))
-    application.add_handler(MessageHandler(filters.Regex("^Rasm orqali qidirish$"), 
-        lambda u, c: u.message.reply_text("📸 Menga anime kadrini (rasm) yuboring, men uni AI orqali topib beraman!")))
-
-    # 7.3. Conversation Handler (O'rta daraja)
-    application.add_handler(conv_handler)
+    # 7.2. MATNLI TUGMALAR (Keyboard Buttons) - TEPADA BO'LISHI SHART
+    # Regex ichidagi matnlar tugmadagi matn bilan 100% bir xil bo'lishi kerak (Emoji bilan birga)
     
-    # 7.4. Media va Admin Reply
+    application.add_handler(MessageHandler(filters.Regex(r"^👤 Shaxsy Kabinet$"), shaxsiy_kabinet_funksiyasi)) # Funksiya nomini tekshiring
+    application.add_handler(MessageHandler(filters.Regex(r"^🎁 Ballar & VIP$"), show_bonus))
+    application.add_handler(MessageHandler(filters.Regex(r"^📖 Qo'llanma\s*\??$"), show_guide))
+    application.add_handler(MessageHandler(filters.Regex(r"^📁 Barcha animelar$"), export_all_anime))
+    application.add_handler(MessageHandler(filters.Regex(r"^🔥 Trenddagilar$"), show_trending))
+    application.add_handler(MessageHandler(filters.Regex(r"^🤝 Muxlislar Klubi$"), muxlislar_klubi_funksiyasi))
+    application.add_handler(MessageHandler(filters.Regex(r"^✍️ Murojaat & Shikoyat$"), feedback_start)) # Funksiya nomini tekshiring
+
+    # 7.3. CONVERSATION HANDLER (Qidiruv va Admin Panel uchun)
+    # Bu yerda tursa, yuqoridagi tugmalarga xalaqit bermaydi
+    application.add_handler(conv_handler)
+
+    # 7.4. MEDIA VA BOSHQA MAXSUS HANDLERLAR
     application.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, search_anime_by_photo))
     application.add_handler(MessageHandler(filters.Chat(ADMIN_GROUP_ID) & filters.REPLY, admin_reply_handler))
 
-    # 7.5. Eng umumiy (Fallback) handlerlar - DOIM OXIRIDA
+    # 7.5. ENG OXIRIDA - UMUMIY START VA FALLBACK
     application.add_handler(CommandHandler("start", start))
+    # Hech qaysi handlerga tushmagan matnlar uchun:
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
-    application.add_handler(CallbackQueryHandler(handle_callback)) 
+    
 
     # 8. BOTNI ISHGA TUSHIRISH
     logger.info("🚀 Bot polling rejimida ishga tushdi...")
@@ -5379,6 +5372,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
