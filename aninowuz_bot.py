@@ -159,15 +159,16 @@ async def about():
         if conn:
             await db_pool.release(conn)
 # ----------------------------------------------
-
 def run():
-    port = int(os.environ.get("PORT", 8080))
-    app.run(host='0.0.0.0', port=port)
+    # Render'da portni o'zi beradi, topilmasa 10000 ni oladi
+    port = int(os.environ.get("PORT", 10000))
+    # use_reloader=False - bu juda muhim!
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
 
 def keep_alive():
-    t = Thread(target=run)
-    t.daemon = True
+    t = Thread(target=run, daemon=True)
     t.start()
+    
 
 # ====================== XAVFSIZ KONFIGURATSIYA ======================
 
@@ -283,6 +284,10 @@ async def init_db_pool():
     try:
         # Hozirgi ishlayotgan loopni olamiz
         loop = asyncio.get_running_loop()
+        SSL konteksti
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
         
         # SSL sozlamasi (Render va boshqa cloud DBlar uchun)
         # init_db_pool ichidagi create_pool qismi
@@ -297,7 +302,7 @@ async def init_db_pool():
             cursorclass=aiomysql.DictCursor,
             loop=loop,
     # Aiven majburiy SSL talab qilsa, ushbu parametr yordam beradi:
-          ssl={'fake_verification': True} 
+            ssl=ctx
       )
 
         
@@ -5362,6 +5367,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
