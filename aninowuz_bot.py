@@ -5302,17 +5302,30 @@ async def main():
     application.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
     # ... qolgan barcha CallbackQueryHandlerlar shu yerda tursin ...
 
-    # 7.2. MATNLI TUGMALAR (Keyboard Buttons) - TEPADA BO'LISHI SHART
-    # Regex ichidagi matnlar tugmadagi matn bilan 100% bir xil bo'lishi kerak (Emoji bilan birga)
+        # 7.2. MATNLI TUGMALAR (Keyboard Buttons)
+    # Skrinshotdagi matnlarga 100% moslangan:
     
-    application.add_handler(MessageHandler(filters.Regex(r"^👤 Shaxsy Kabinet$"), shaxsiy_kabinet_funksiyasi)) # Funksiya nomini tekshiring
-    application.add_handler(MessageHandler(filters.Regex(r"^🎁 Ballar & VIP$"), show_bonus))
-    application.add_handler(MessageHandler(filters.Regex(r"^📖 Qo'llanma\s*\??$"), show_guide))
-    application.add_handler(MessageHandler(filters.Regex(r"^📁 Barcha animelar$"), export_all_anime))
-    application.add_handler(MessageHandler(filters.Regex(r"^🔥 Trenddagilar$"), show_trending))
-    application.add_handler(MessageHandler(filters.Regex(r"^🤝 Muxlislar Klubi$"), muxlislar_klubi_funksiyasi))
-    application.add_handler(MessageHandler(filters.Regex(r"^✍️ Murojaat & Shikoyat$"), feedback_start)) # Funksiya nomini tekshiring
-
+    # 👤 Shaxsiy Kabinet (Skrinshotda "Shaxsy" emas "Shaxsiy" deb yozilgan)
+    application.add_handler(MessageHandler(filters.Regex(r"Shaxsiy Kabinet"), shaxsiy_kabinet_funksiyasi))
+    
+    # 🤝 Muxlislar Klubi
+    application.add_handler(MessageHandler(filters.Regex(r"Muxlislar Klubi"), muxlislar_klubi_funksiyasi))
+    
+    # ✍️ Murojaat & Shikoyat
+    application.add_handler(MessageHandler(filters.Regex(r"Murojaat & Shikoyat"), feedback_start))
+    
+    # 🎁 Ballar & VIP (Skrinshotda "Ballar & VIP" deb turibdi)
+    application.add_handler(MessageHandler(filters.Regex(r"Ballar & VIP"), show_bonus))
+    
+    # 📁 Barcha animelar
+    application.add_handler(MessageHandler(filters.Regex(r"Barcha animelar"), export_all_anime))
+    
+    # 🔥 Trenddagilar
+    application.add_handler(MessageHandler(filters.Regex(r"Trenddagilar"), show_trending))
+    
+    # 📖 Qo'llanma
+    application.add_handler(MessageHandler(filters.Regex(r"Qo'llanma"), show_guide))
+    
     # 7.3. CONVERSATION HANDLER (Qidiruv va Admin Panel uchun)
     # Bu yerda tursa, yuqoridagi tugmalarga xalaqit bermaydi
     application.add_handler(conv_handler)
@@ -5372,6 +5385,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
