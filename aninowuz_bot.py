@@ -5214,6 +5214,10 @@ async def main():
         "Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish|"
         "🎙 Fandablar|❤️ Sevimlilar|🤝 Do'st orttirish|Rasm orqali qidirish"
     )
+    fallbacks=[
+            CommandHandler("start", start),
+            
+        ],
 
     # 5. CONVERSATION HANDLER (Asosiy mantiqiy zanjirlar)
     conv_handler = ConversationHandler(
@@ -5276,10 +5280,7 @@ async def main():
             A_SELECT_ADS_TARGET: [CallbackQueryHandler(handle_callback)],
             A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
         },
-        fallbacks=[
-            CommandHandler("start", start),
-            
-        ],
+        
         
         allow_reentry=True,
         name="aninow_v103_persistent",
@@ -5378,6 +5379,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
