@@ -282,9 +282,7 @@ async def init_db_pool():
     """Asinxron ma'lumotlar bazasi poolini yaratish"""
     global db_pool
     try:
-        # Hozirgi ishlayotgan loopni olamiz
         loop = asyncio.get_running_loop()
-        SSL konteksti
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
@@ -5367,6 +5365,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
