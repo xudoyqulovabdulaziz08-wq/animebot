@@ -282,7 +282,7 @@ async def init_db_pool():
     """Asinxron ma'lumotlar bazasi poolini yaratish"""
     global db_pool
     try:
-        loop = asyncio.get_running_loop()
+        
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
@@ -298,7 +298,6 @@ async def init_db_pool():
             autocommit=True,
             charset='utf8mb4',
             cursorclass=aiomysql.DictCursor,
-            loop=loop,
     # Aiven majburiy SSL talab qilsa, ushbu parametr yordam beradi:
             ssl=ctx
       )
@@ -439,17 +438,28 @@ async def get_db():
         await init_db_pool()
     return await db_pool.acquire()
 
-# Barcha SQL so'rovlar uchun yordamchi helper
+
 async def execute_query(query, params=None, fetch="none"):
-    """Bazaga so'rov yuborish uchun markaziy funksiya"""
-    async with db_pool.acquire() as conn:
-        async with conn.cursor() as cur:
-            await cur.execute(query, params or ())
-            if fetch == "one":
-                return await cur.fetchone()
-            elif fetch == "all":
-                return await cur.fetchall()
-            return cur.lastrowid
+    """Bazaga so'rov yuborish uchun xavfsiz helper funksiya"""
+    global db_pool
+    # Pool mavjudligini tekshirish
+    if db_pool is None:
+        await init_db_pool()
+        if db_pool is None:
+            raise Exception("Ma'lumotlar bazasiga ulanib bo'lmadi!")
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, params or ())
+                if fetch == "one":
+                    return await cur.fetchone()
+                elif fetch == "all":
+                    return await cur.fetchall()
+                return cur.rowcount 
+    except Exception as e:
+        logger.error(f"❌ SQL Xatolik: {e} | Query: {query}")
+        return None
 # ====================== YORDAMCHI FUNKSIYALAR (TUZATILDI) ======================
 
 
@@ -5180,13 +5190,16 @@ async def toggle_health_handler(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def main():
     # 1. Serverni uyg'oq saqlash
-    keep_alive() # Agar funksiya kodingizda bo'lsa yoqing
+    keep_alive() 
 
-    # 2. Ma'lumotlar bazasini asinxron ishga tushirish
-    global db_pool
+    # 2. Ma'lumotlar bazasini ishga tushirish
+    # DIQQAT: Funksiya ichida global db_pool ishlatilgani uchun 
+    # shunchaki await qilish kifoya, o'zgaruvchiga tenglash shart emas.
     try:
-        global db_pool
-        db_pool = await init_db_pool()
+        await init_db_pool() 
+        if db_pool is None:
+            logger.error("🛑 Baza ulanmadi (pool is None)!")
+            return
         logger.info("✅ Ma'lumotlar bazasi asinxron ulandi.")
     except Exception as e:
         logger.error(f"🛑 Baza ulanishida xato: {e}")
@@ -5365,6 +5378,7 @@ if __name__ == '__main__':
         logger.error(f"Kutilmagan xato: {e}")
         
         
+
 
 
 
