@@ -279,16 +279,13 @@ logger = logging.getLogger(__name__)
 
 
 async def init_db_pool():
-    """Asinxron ma'lumotlar bazasi poolini yaratish"""
     global db_pool
     try:
-        
+        # SSL sozlamalari
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         
-        # SSL sozlamasi (Render va boshqa cloud DBlar uchun)
-        # init_db_pool ichidagi create_pool qismi
         db_pool = await aiomysql.create_pool(
             host=DB_CONFIG['host'],
             port=DB_CONFIG['port'],
@@ -296,11 +293,13 @@ async def init_db_pool():
             password=DB_CONFIG['password'],
             db=DB_CONFIG['db'],
             autocommit=True,
+            minsize=1,    
+            maxsize=15,    
+            echo=False,
             charset='utf8mb4',
             cursorclass=aiomysql.DictCursor,
-    # Aiven majburiy SSL talab qilsa, ushbu parametr yordam beradi:
             ssl=ctx
-      )
+        )
 
         
         # Jadvallarni yaratish (Asinxron rejimda)
@@ -5413,6 +5412,7 @@ if __name__ == '__main__':
 
 
         
+
 
 
 
