@@ -606,6 +606,32 @@ def get_admin_kb(is_main=False):
 
 # ===================================================================================
 
+async def admin_panel_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    
+    # Admin ekanligini tekshirish (ADMINS ro'yxatingiz bo'lishi kerak)
+    if uid not in ADMINS and uid != MAIN_ADMIN_ID:
+        # Admin bo'lmaganlarga javob bermaslik yoki xabar yuborish
+        return 
+
+    # Eski holatlarni tozalash
+    if context.user_data:
+        context.user_data.clear()
+
+    is_main = (uid == MAIN_ADMIN_ID)
+    
+    await update.message.reply_text(
+        "🛠 **ADMIN BOSHQARUV PANELI**\n\n"
+        "Kerakli bo'limni tanlang:",
+        reply_markup=get_admin_kb(is_main=is_main),
+        parse_mode="Markdown"
+    )
+    # MUHIM: Bu return A_MAIN bo'lsa, conv_handler ichida A_MAIN stateda 
+    # adm_ bilan boshlanadigan patternlarni tutadigan CallbackQueryHandler bo'lishi shart!
+    return A_MAIN
+
+# ===================================================================================
+
 
 
 def get_cancel_kb():
@@ -5406,6 +5432,7 @@ if __name__ == '__main__':
 
 
         
+
 
 
 
