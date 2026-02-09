@@ -821,6 +821,31 @@ async def show_specific_anime_by_id(update_or_query, context, ani_id):
 
 # ====================== ADMIN VA QO'SHIMCHA ISHLOVCHILAR (TO'G'RILANDI) ======================
 
+async def admin_channels_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    # Bazadan kanallarni olamiz
+    channels = await get_all_channels()
+    
+    text = "📢 <b>Majburiy obuna kanallari:</b>\n\n"
+    if not channels:
+        text += "<i>Hozircha kanallar qo'shilmagan.</i>"
+    else:
+        for ch in channels:
+            text += f"🔹 {ch['username']} (Qo'shildi: {ch['subscribers_added']})\n"
+            
+    keyboard = [
+        [InlineKeyboardButton("➕ Kanal qo'shish", callback_data="add_ch_start")],
+        [InlineKeyboardButton("❌ Kanalni o'chirish", callback_data="rem_ch_start")],
+        [InlineKeyboardButton("🔙 Orqaga", callback_data="admin_main")]
+    ]
+    
+    await query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
+    return A_MAIN
+
+# =============================================================================================
+
 async def exec_add_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Kanal qo'shish ijrosi.
@@ -909,6 +934,18 @@ async def exec_rem_channel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return ConversationHandler.END
 
 # ===================================================================================
+
+async def admin_ch_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "add_ch_start":
+        await query.message.reply_text("📝 Yangi kanal username'ini yuboring (masalan: @kanal_nomi):")
+        return A_ADD_CH # Bu holatda exec_add_channel ishlaydi
+        
+    elif query.data == "rem_ch_start":
+        await query.message.reply_text("🗑 O'chiriladigan kanal username'ini yuboring:")
+        return A_REM_CH # Bu holatda exec_rem_channel ishlaydi
 
 # ===================================================================================
 
@@ -5288,7 +5325,8 @@ async def main():
         ],
         states={
             A_MAIN: [
-                CallbackQueryHandler(admin_channels_logic, pattern="^adm_ch$"),
+                CallbackQueryHandler(admin_channels_menu, pattern="^adm_ch$"),
+                CallbackQueryHandler(admin_ch_callback_handler, pattern="^(add_ch_start|rem_ch_start)$"),
                 CallbackQueryHandler(admin_anime_ctrl_logic, pattern="^adm_ani_ctrl$"),
                 CallbackQueryHandler(admin_stats_logic, pattern="^adm_stats$"),
                 CallbackQueryHandler(admin_ads_logic, pattern="^adm_ads_start$"),
@@ -5436,45 +5474,5 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
-
-
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
