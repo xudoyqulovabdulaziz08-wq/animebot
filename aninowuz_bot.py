@@ -275,13 +275,9 @@ logger = logging.getLogger(__name__)
 # ====================== MA'LUMOTLAR BAZASI (TUZATILGAN VA OPTIMAL) ======================
 
 
-
-
-
 async def init_db_pool():
-    global db_pool
+    global db_pool # Kichik harf bilan
     try:
-        # SSL sozlamalari
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
@@ -293,14 +289,13 @@ async def init_db_pool():
             password=DB_CONFIG['password'],
             db=DB_CONFIG['db'],
             autocommit=True,
-            minsize=1,    
-            maxsize=15,    
-            echo=False,
+            minsize=1, 
+            maxsize=20,
+            pool_recycle=300,
             charset='utf8mb4',
             cursorclass=aiomysql.DictCursor,
             ssl=ctx
         )
-
         
         # Jadvallarni yaratish (Asinxron rejimda)
         async with db_pool.acquire() as conn:
@@ -669,12 +664,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 # O'zgarishlarni saqlash
                 await conn.commit()
-
     except Exception as e:
         logger.error(f"DATABASE ERROR (Start): {e}")
-        # Agar xato bo'lsa, foydalanuvchiga bildirmasdan davom etish ham mumkin
-        # yoki quyidagi xabarni qoldiring:
-        return await update.message.reply_text("⚠️ Bazaga ulanishda xato. Birozdan so'ng `/start` bosing.")
+        # Xato bo'lsa ham foydalanuvchini to'xtatmaymiz!
+        # Faqat foydalanuvchi obuna bo'lganligini qo'lda tekshirishga o'tamiz
+
 
     # 3. Obunani tekshirish
     try:
@@ -5412,6 +5406,7 @@ if __name__ == '__main__':
 
 
         
+
 
 
 
