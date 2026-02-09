@@ -624,19 +624,14 @@ def get_cancel_kb():
 # ====================== ASOSIY ISHLOVCHILAR (TUZATILGAN VA TO'LIQ) ======================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Botni ishga tushirish, obunani tekshirish, Deep Link va Referral tizimi.
-    Tranzaksiyalar va xavfsizlik choralari bilan.
-    """
     if not update.effective_user or not update.message:
         return
 
     uid = update.effective_user.id
     user_obj = update.effective_user
-    # SQL injection va xatolikdan qochish uchun username'ni tozalash
     username = (user_obj.username or user_obj.first_name or "User")[:50]
     
-    # --- 1. DEEP LINK (Referral yoki Anime ID) ---
+    # 1. Deep Link
     ref_id = None
     if context.args:
         arg = context.args[0]
@@ -645,49 +640,44 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif arg.isdigit():
             ref_id = int(arg)
 
-    # --- 2. MA'LUMOTLAR BAZASI BILAN ISHLASH (Tranzaksiya bilan) ---
+    # 2. Baza bilan ishlash
     try:
+        # DB pool ulanishini olish
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                # Tranzaksiyani boshlash
-                await conn.begin()
-                
-                # Foydalanuvchi borligini tekshirish
+                # Avval foydalanuvchini tekshiramiz
                 await cur.execute("SELECT user_id FROM users WHERE user_id = %s", (uid,))
                 user_exists = await cur.fetchone()
                 
                 new_user_bonus = False
                 if not user_exists:
-                    # Yangi foydalanuvchini qo'shish (10 ball bonus)
+                    # Yangi foydalanuvchini qo'shish
                     await cur.execute(
                         "INSERT INTO users (user_id, username, joined_at, points) VALUES (%s, %s, %s, %s)",
                         (uid, username, datetime.datetime.now(), 10)
                     )
                     new_user_bonus = True
                     
-                    # Agar referral orqali kelgan bo'lsa va o'zini o'zi taklif qilmagan bo'lsa
+                    # Referral mantiqi
                     if ref_id and ref_id != uid:
-                        # Taklif qilganga 20 ball berish
                         await cur.execute("UPDATE users SET points = points + 20 WHERE user_id = %s", (ref_id,))
-                        # Taklif qilganga xabar yuborish (Xatolik bo'lsa ham asosiy start to'xtab qolmaydi)
                         try:
                             await context.bot.send_message(
                                 chat_id=ref_id, 
-                                text=f"🎉 Tabriklaymiz! Do'stingiz (@{username}) qo'shildi va sizga 20 ball taqdim etildi."
+                                text=f"🎉 Tabriklaymiz! Do'stingiz (@{username}) qo'shildi va sizga 20 ball berildi."
                             )
-                        except:
-                            pass
+                        except: pass
                 
-                # Tranzaksiyani yakunlash (Hammasi muvaffaqiyatli bo'lsa bazaga yozadi)
+                # O'zgarishlarni saqlash
                 await conn.commit()
 
     except Exception as e:
-        logger.error(f"Ma'lumotlar bazasida xatolik (Start): {e}")
-        # Xatolik bo'lsa bazaga yozishni bekor qilish (Rollback)
-        if 'conn' in locals(): await conn.rollback()
-        return await update.message.reply_text("⚠️ Texnik nosozlik. Birozdan so'ng urinib ko'ring.")
+        logger.error(f"DATABASE ERROR (Start): {e}")
+        # Agar xato bo'lsa, foydalanuvchiga bildirmasdan davom etish ham mumkin
+        # yoki quyidagi xabarni qoldiring:
+        return await update.message.reply_text("⚠️ Bazaga ulanishda xato. Birozdan so'ng `/start` bosing.")
 
-    # --- 3. OBUNANI TEKSHIRISH ---
+    # 3. Obunani tekshirish
     try:
         not_joined = await check_sub(uid, context.bot)
         if not_joined:
@@ -696,37 +686,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             msg = "👋 Botdan foydalanish uchun kanallarga a'zo bo'ling:"
             if 'pending_anime' in context.user_data:
-                msg = "🎬 <b>Siz tanlagan animeni ko'rish uchun</b> avval kanallarga a'zo bo'lishingiz kerak:"
+                msg = "🎬 <b>Siz tanlagan animeni ko'rish uchun</b> avval a'zo bo'ling:"
 
-            return await update.message.reply_text(
-                msg, reply_markup=InlineKeyboardMarkup(btn), parse_mode="HTML"
-            )
+            return await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(btn), parse_mode="HTML")
     except Exception as e:
-        logger.error(f"Obuna tekshirishda xatolik: {e}")
+        logger.error(f"SUB CHECK ERROR: {e}")
 
-    # --- 4. KUTAYOTGAN ANIME BO'LSA (Obunadan o'tgan bo'lsa) ---
-    if 'pending_anime' in context.user_data:
-        ani_id = context.user_data.pop('pending_anime')
-        return await show_specific_anime_by_id(update, context, ani_id)
-
-    # --- 5. ASOSIY MENYU ---
+    # 4. Asosiy Menyu
     try:
         status = await get_user_status(uid)
-        
-        welcome_msg = f"✨ Xush kelibsiz, {user_obj.first_name}! Anime olamiga marhamat.\n"
-        if new_user_bonus:
-            welcome_msg += "Sizga 10 ball xush kelibsiz bonusi berildi! 💰"
-        else:
-            welcome_msg += "Sizni qaytib kelganingizdan xursandmiz! 😊"
+        welcome_msg = f"✨ Xush kelibsiz, {user_obj.first_name}!\n"
+        welcome_msg += "💰 10 ball bonus berildi!" if new_user_bonus else "Xush kelibsiz! 😊"
 
-        await update.message.reply_text(
-            welcome_msg, 
-            reply_markup=get_main_kb(status)
-        )
+        await update.message.reply_text(welcome_msg, reply_markup=get_main_kb(status))
     except Exception as e:
-        logger.error(f"Menyuni yuborishda xatolik: {e}")
+        logger.error(f"MENU ERROR: {e}")
     
     return ConversationHandler.END
+    
     
 
     
@@ -5436,6 +5413,7 @@ if __name__ == '__main__':
 
 
         
+
 
 
 
