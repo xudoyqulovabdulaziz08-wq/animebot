@@ -5258,25 +5258,22 @@ async def toggle_health_handler(update: Update, context: ContextTypes.DEFAULT_TY
 # ====================== MAIN FUNKSIYA (TUZATILDI) =======================
 
 async def main():
-    # 1. Serverni uyg'oq saqlash
+    # 1. Serverni uyg'oq saqlash (Keep-alive mantiqi)
     keep_alive() 
 
-    # 2. Ma'lumotlar bazasini ishga tushirish
-    # DIQQAT: Funksiya ichida global db_pool ishlatilgani uchun 
-    # shunchaki await qilish kifoya, o'zgaruvchiga tenglash shart emas.
+    # 2. Ma'lumotlar bazasini ishga tushirish (Faqat bir marta!)
     try:
         await init_db_pool() 
         if db_pool is None:
-            logger.error("ðŸ›‘ Baza ulanmadi (pool is None)!")
+            logger.error("🛑 Baza ulanmadi (pool is None)!")
             return
-        logger.info("âœ… Ma'lumotlar bazasi asinxron ulandi.")
+        logger.info("✅ Ma'lumotlar bazasi asinxron ulandi.")
     except Exception as e:
-        logger.error(f"ðŸ›‘ Baza ulanishida xato: {e}")
+        logger.error(f"🛑 Baza ulanishida xato: {e}")
         return
 
     # 3. Applicationni qurish
     application = ApplicationBuilder().token(BOT_TOKEN).build()
-    
 
     # 4. Menyu filtri (Regex)
     menu_filter = filters.Regex(
@@ -5284,6 +5281,7 @@ async def main():
         "🎙 Fandablar|❤️ Sevimlilar|🤝 Do'st orttirish|Rasm orqali qidirish"
     )
     
+    # 5. Conversation Handler (Buni birinchi bo'lib e'lon qilamiz)
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
@@ -5293,11 +5291,8 @@ async def main():
             CallbackQueryHandler(add_comment_callback, pattern="^comment_"),
         ],
         states={
-            # Qidiruv menyusi ochilganda bot foydalanuvchini holatga kiritishi kerak
-            # search_menu_cmd funksiyasi oxirida 'return A_MAIN' bo'lishi shart!
             A_MAIN: [
                 MessageHandler(filters.Regex("Anime boshqaruvi"), anime_control_panel),
-                # Qidiruv turlari uchun callback handlerlar
                 CallbackQueryHandler(search_anime_logic, pattern="^search_type_"),
                 CallbackQueryHandler(handle_callback),
             ],
@@ -5328,7 +5323,6 @@ async def main():
                 MessageHandler(filters.VIDEO | filters.Document.VIDEO, handle_ep_uploads),
                 CallbackQueryHandler(handle_callback)
             ],
-            # Qidiruv holatlari
             A_SEARCH_BY_ID: [
                 CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), 
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
@@ -5352,28 +5346,12 @@ async def main():
         fallbacks=[
             CommandHandler("start", start),
             MessageHandler(filters.Regex("^Bekor qilish$"), start),
-            CallbackQueryHandler(start, pattern="^cancel_search$") # Bekor qilish tugmasi uchun
+            CallbackQueryHandler(start, pattern="^cancel_search$")
         ],
         allow_reentry=True,
         name="aninow_v103_persistent",
         persistent=False
     )
- 
-    try:
-        await init_db_pool() 
-        if db_pool is None:
-            logger.error("🛑 Baza ulanmadi (pool is None)!")
-            return
-        logger.info("✅ Ma'lumotlar bazasi asinxron ulandi.")
-    except Exception as e:
-        logger.error(f"🛑 Baza ulanishida xato: {e}")
-        return
-
-    # 3. Applicationni qurish
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-
-
-    
 
     # 6. TAYMERNI (SCHEDULER) SOZLASH
     scheduler = AsyncIOScheduler()
@@ -5381,64 +5359,40 @@ async def main():
     scheduler.add_job(delete_expired_ads, 'interval', minutes=15, args=[application])
     scheduler.start()
 
-
-        # 7. HANDLERLARNI RO'YXATGA OLISH (SKELET ASOSIDA)
+    # 7. HANDLERLARNI RO'YXATGA OLISH (TARTIB MUHIM!)
     
-    # 7.1. Maxsus Callbacklar
+    # 7.1. Maxsus Callbacklar (Birinchi bo'lib callbacklar)
     application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
     application.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     application.add_handler(CallbackQueryHandler(pagination_handler, pattern="^pg_"))
     application.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
     application.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
-    application.add_handler(CallbackQueryHandler(add_comment_callback, pattern="^comment_"))
     application.add_handler(CallbackQueryHandler(view_comments_handler, pattern="^view_comm_"))
     application.add_handler(CallbackQueryHandler(add_favorite_handler, pattern="^fav_"))
     application.add_handler(CallbackQueryHandler(process_redeem, pattern="^redeem_"))
 
-    # 7.2. MATNLI TUGMALAR (Keyboard Buttons)
-    # Regex ichidagi matnlarni Telegram tugmalari bilan bir xil ekanligini tekshiring
-    
-    # Shaxsiy kabinet (Skeletda: show_user_cabinet)
-    application.add_handler(MessageHandler(filters.Regex(r"Shaxsiy Kabinet"), show_user_cabinet))
-    
-    # Muxlislar Klubi (Skeletda: start_profile_creation yoki maxsus funksiya bo'lishi mumkin)
-    # Agar bu tugma do'st orttirish bo'lsa:
-    application.add_handler(MessageHandler(filters.Regex(r"Muxlislar Klubi"), start_profile_creation))
-    
-    # Murojaat & Shikoyat (Skeletda: feedback_start)
-    application.add_handler(MessageHandler(filters.Regex(r"Murojaat & Shikoyat"), feedback_start))
-    
-    # Ballar & VIP (Skeletda: show_bonus)
-    application.add_handler(MessageHandler(filters.Regex(r"Ballar & VIP"), show_bonus))
-    
-    # Barcha animelar (Skeletda: export_all_anime)
-    application.add_handler(MessageHandler(filters.Regex(r"Barcha animelar"), export_all_anime))
-    
-    # Qo'llanma (Skeletda: show_guide)
-    application.add_handler(MessageHandler(filters.Regex(r"Qo'llanma"), show_guide))
-    
-    # VIP PASS (Skeletda: vip_pass_info)
-    application.add_handler(MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info))
-
-    # 7.3. CONVERSATION HANDLER (Qidiruv va Admin Panel)
+    # 7.2. CONVERSATION HANDLER (Asosiy mantiq)
     application.add_handler(conv_handler)
+
+    # 7.3. MATNLI TUGMALAR (Keyboard Buttons - ConvHandler'dan keyin)
+    application.add_handler(MessageHandler(filters.Regex(r"Shaxsiy Kabinet"), show_user_cabinet))
+    application.add_handler(MessageHandler(filters.Regex(r"Muxlislar Klubi"), start_profile_creation))
+    application.add_handler(MessageHandler(filters.Regex(r"Murojaat & Shikoyat"), feedback_start))
+    application.add_handler(MessageHandler(filters.Regex(r"Ballar & VIP"), show_bonus))
+    application.add_handler(MessageHandler(filters.Regex(r"Barcha animelar"), export_all_anime))
+    application.add_handler(MessageHandler(filters.Regex(r"Qo'llanma"), show_guide))
+    application.add_handler(MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info))
 
     # 7.4. MEDIA VA ADMIN REPLY
     application.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, search_anime_by_photo))
     application.add_handler(MessageHandler(filters.Chat(ADMIN_GROUP_ID) & filters.REPLY, admin_reply_handler))
 
-    # 7.5. FALLBACKLAR
+    # 7.5. OXIRGI FALLBACK (Hech narsa mos kelmasa)
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start))
-    
-
-
-    
+    # Bu yerda filters.TEXT handlerini olib tashladim, chunki u hamma narsani startga qaytarib yuboradi
 
     # 8. BOTNI ISHGA TUSHIRISH
     logger.info("🚀 Bot polling rejimida ishga tushdi...")
-    
-
     
     
     # ASYNC WITH blokini funksiya ICHIGA oldik:
@@ -5468,30 +5422,20 @@ if __name__ == '__main__':
     # 3. Faqat bir marta Threadni boshlash
     flask_thread = Thread(target=run_flask, daemon=True)
     flask_thread.start()
-    logger.info(f"🌐 Flask web server {port}-portda ishga tushdi.")
+    logger.info(f"ðŸŒ Flask web server {port}-portda ishga tushdi.")
 
     # 4. BOTNI ISHGA TUSHIRISH (Eng barqaror usul)
     try:
         # asyncio.run ishlatish loop yopilib qolishini oldini oladi
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        logger.info("👋 Bot to'xtatildi.")
+        logger.info("ðŸ‘‹ Bot to'xtatildi.")
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
+
         
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
