@@ -5335,7 +5335,7 @@ async def main():
     # 1. Serverni uyg'oq saqlash (Keep-alive mantiqi)
     keep_alive() 
 
-    # 2. Ma'lumotlar bazasini ishga tushirish (Faqat bir marta!)
+    # 2. Ma'lumotlar bazasini ishga tushirish
     try:
         await init_db_pool() 
         if db_pool is None:
@@ -5349,13 +5349,13 @@ async def main():
     # 3. Applicationni qurish
     application = ApplicationBuilder().token(BOT_TOKEN).build()
 
-    # 4. Menyu filtri (Regex)
+    # 4. Menyu filtri (Regex) - Klaviaturadagi tugmalar uchun
     menu_filter = filters.Regex(
         "Anime qidirish|VIP PASS|Bonus ballarim|Qo'llanma|Barcha anime ro'yxati|ADMIN PANEL|Bekor qilish|"
         "🎙 Fandablar|❤️ Sevimlilar|🤝 Do'st orttirish|Rasm orqali qidirish"
     )
     
-    # 5. Conversation Handler (Buni birinchi bo'lib e'lon qilamiz)
+    # 5. Conversation Handler (Botning asosiy mantiqiy zanjiri)
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("start", start),
@@ -5365,19 +5365,22 @@ async def main():
             CallbackQueryHandler(add_comment_callback, pattern="^comment_"),
         ],
         states={
+            # ADMIN PANEL ASOSIY HOLATI
             A_MAIN: [
                 CallbackQueryHandler(admin_channels_menu, pattern="^adm_ch$"),
                 CallbackQueryHandler(admin_ch_callback_handler, pattern="^(add_ch_start|rem_ch_start)$"),
                 CallbackQueryHandler(anime_control_panel, pattern="^adm_ani_ctrl$"),
                 CallbackQueryHandler(admin_stats_logic, pattern="^adm_stats$"),
-                CallbackQueryHandler(admin_ads_logic, pattern="^adm_ads_start$"),
+                CallbackQueryHandler(check_ads_pass, pattern="^adm_ads_start$"),
                 CallbackQueryHandler(admin_vip_logic, pattern="^adm_vip_add$"),
-                CallbackQueryHandler(admin_export_logic, pattern="^adm_export$"),
+                CallbackQueryHandler(export_all_anime, pattern="^adm_export$"),
                 CallbackQueryHandler(manage_admins_logic, pattern="^manage_admins$"),
                 MessageHandler(filters.Regex("Anime boshqaruvi"), anime_control_panel),
                 CallbackQueryHandler(search_anime_logic, pattern="^search_type_"),
                 CallbackQueryHandler(handle_callback),
             ],
+            
+            # ANIME BOSHQARUVI ICHKI MENYUSI
             A_ANI_CONTROL: [
                 MessageHandler(filters.Regex("Anime List"), list_animes_view),
                 MessageHandler(filters.Regex("Yangi anime"), add_anime_panel),
@@ -5386,13 +5389,8 @@ async def main():
                 MessageHandler(filters.Regex("Orqaga"), admin_panel_text_handler),
                 CallbackQueryHandler(handle_callback),
             ],
-            U_ADD_COMMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_comment_handler)],
-            A_LIST_VIEW: [CallbackQueryHandler(handle_callback)],
-            A_REM_MENU: [CallbackQueryHandler(handle_callback)],
-            A_REM_ANI_LIST: [CallbackQueryHandler(handle_callback)],
-            A_REM_EP_ANI_LIST: [CallbackQueryHandler(handle_callback)],
-            A_REM_EP_NUM_LIST: [CallbackQueryHandler(handle_callback)],
-            A_SELECT_ANI_EP: [CallbackQueryHandler(handle_callback)],
+
+            # MA'LUMOTLARNI QABUL QILISH HOLATLARI
             A_GET_POSTER: [
                 MessageHandler(filters.PHOTO, get_poster_handler), 
                 CallbackQueryHandler(handle_callback)
@@ -5405,6 +5403,17 @@ async def main():
                 MessageHandler(filters.VIDEO | filters.Document.VIDEO, handle_ep_uploads),
                 CallbackQueryHandler(handle_callback)
             ],
+            A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
+            A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
+            A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
+            A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
+            
+            # FOYDALANUVCHI INTERFEYSI
+            U_ADD_COMMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, save_comment_handler)],
+            U_FEEDBACK_SUBJ: [CallbackQueryHandler(feedback_subject_callback, pattern="^subj_")],
+            U_FEEDBACK_MSG: [MessageHandler(filters.TEXT & ~filters.COMMAND, feedback_message_handler)],
+            
+            # QIDIRUV VA RO'YXATLAR
             A_SEARCH_BY_ID: [
                 CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"), 
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
@@ -5415,15 +5424,6 @@ async def main():
                 MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
                 CallbackQueryHandler(handle_callback)
             ],
-            U_FEEDBACK_SUBJ: [CallbackQueryHandler(feedback_subject_callback, pattern="^subj_")],
-            U_FEEDBACK_MSG: [MessageHandler(filters.TEXT & ~filters.COMMAND, feedback_message_handler)],
-            A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
-            A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
-            A_ADD_ADM: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_admin)],
-            A_ADD_VIP: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_vip_add)],
-            A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
-            A_SELECT_ADS_TARGET: [CallbackQueryHandler(handle_callback)],
-            A_SEND_ADS_MSG: [MessageHandler(filters.ALL & ~filters.COMMAND, ads_send_finish)],
         },
         fallbacks=[
             CommandHandler("start", start),
@@ -5431,8 +5431,7 @@ async def main():
             CallbackQueryHandler(start, pattern="^cancel_search$")
         ],
         allow_reentry=True,
-        name="aninow_v103_persistent",
-        persistent=False
+        name="aninow_v103_persistent"
     )
 
     # 6. TAYMERNI (SCHEDULER) SOZLASH
@@ -5443,7 +5442,7 @@ async def main():
 
     # 7. HANDLERLARNI RO'YXATGA OLISH (TARTIB MUHIM!)
     
-    # 7.1. Maxsus Callbacklar (Birinchi bo'lib callbacklar)
+    # 7.1. Maxsus Callbacklar (Birinchi bo'lib mustaqil tugmalar)
     application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
     application.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     application.add_handler(CallbackQueryHandler(pagination_handler, pattern="^pg_"))
@@ -5453,10 +5452,10 @@ async def main():
     application.add_handler(CallbackQueryHandler(add_favorite_handler, pattern="^fav_"))
     application.add_handler(CallbackQueryHandler(process_redeem, pattern="^redeem_"))
 
-    # 7.2. CONVERSATION HANDLER (Asosiy mantiq)
+    # 7.2. CONVERSATION HANDLERNI QO'SHISH
     application.add_handler(conv_handler)
 
-    # 7.3. MATNLI TUGMALAR (Keyboard Buttons - ConvHandler'dan keyin)
+    # 7.3. MATNLI TUGMALAR (Keyboard)
     application.add_handler(MessageHandler(filters.Regex(r"Shaxsiy Kabinet"), show_user_cabinet))
     application.add_handler(MessageHandler(filters.Regex(r"Muxlislar Klubi"), start_profile_creation))
     application.add_handler(MessageHandler(filters.Regex(r"Murojaat & Shikoyat"), feedback_start))
@@ -5465,56 +5464,45 @@ async def main():
     application.add_handler(MessageHandler(filters.Regex(r"Qo'llanma"), show_guide))
     application.add_handler(MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info))
 
-    # 7.4. MEDIA VA ADMIN REPLY
+    # 7.4. MEDIA VA ADMIN JAVOBI
     application.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, search_anime_by_photo))
     application.add_handler(MessageHandler(filters.Chat(ADMIN_GROUP_ID) & filters.REPLY, admin_reply_handler))
 
-    # 7.5. OXIRGI FALLBACK (Hech narsa mos kelmasa)
+    # 7.5. OXIRGI FALLBACK
     application.add_handler(CommandHandler("start", start))
-    # Bu yerda filters.TEXT handlerini olib tashladim, chunki u hamma narsani startga qaytarib yuboradi
 
     # 8. BOTNI ISHGA TUSHIRISH
     logger.info("🚀 Bot polling rejimida ishga tushdi...")
     
-    
-    # ASYNC WITH blokini funksiya ICHIGA oldik:
     async with application:
         await application.initialize()
         await application.start()
-        # drop_pending_updates=True eski yig'ilib qolgan xabarlarni o'chirib, 
-        # botni hozirgi vaqtdan boshlab ishlatadi
         await application.updater.start_polling(drop_pending_updates=True)
-        
-        # Bot to'xtab qolmasligi uchun cheksiz kutish
         await asyncio.Event().wait()
 
 if __name__ == '__main__':
-    # 1. Flask server uchun portni olish
+    # Flaskni alohida oqimda ishga tushirish (Render/Uptime uchun)
+    from threading import Thread
     port = int(os.environ.get("PORT", 10000))
     
-    # 2. Flaskni alohida oqimda ishga tushirish funksiyasi
-    from threading import Thread
     def run_flask():
         try:
-            # use_reloader=False bo'lishi shart, aks holda port ikki marta band qilinadi
             app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
         except Exception as e:
             logger.error(f"Flask xatosi: {e}")
 
-    # 3. Faqat bir marta Threadni boshlash
     flask_thread = Thread(target=run_flask, daemon=True)
     flask_thread.start()
-    logger.info(f"ðŸŒ Flask web server {port}-portda ishga tushdi.")
 
-    # 4. BOTNI ISHGA TUSHIRISH (Eng barqaror usul)
+    # Botni ishga tushirish
     try:
-        # asyncio.run ishlatish loop yopilib qolishini oldini oladi
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
-        logger.info("ðŸ‘‹ Bot to'xtatildi.")
+        logger.info("👋 Bot to'xtatildi.")
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
