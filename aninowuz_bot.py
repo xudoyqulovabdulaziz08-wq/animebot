@@ -5110,7 +5110,48 @@ async def feedback_message_handler(update: Update, context: ContextTypes.DEFAULT
         return ConversationHandler.END
 
 # ===================================================================================
+async def admin_stats_logic(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
 
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                # 1. Jami foydalanuvchilar
+                await cur.execute("SELECT COUNT(*) as total FROM users")
+                u_count = await cur.fetchone()
+
+                # 2. Jami animelar
+                await cur.execute("SELECT COUNT(*) as total FROM anime_list")
+                a_count = await cur.fetchone()
+
+                # 3. Jami qismlar (epizodlar)
+                await cur.execute("SELECT COUNT(*) as total FROM anime_episodes")
+                e_count = await cur.fetchone()
+
+                # 4. Majburiy kanallar soni
+                await cur.execute("SELECT COUNT(*) as total FROM channels")
+                c_count = await cur.fetchone()
+
+        stats_text = (
+            "📊 <b>Botning umumiy statistikasi:</b>\n\n"
+            f"👥 Foydalanuvchilar: <b>{u_count['total']} ta</b>\n"
+            f"🎬 Animelar: <b>{a_count['total']} ta</b>\n"
+            f"🎞 Yuklangan qismlar: <b>{e_count['total']} ta</b>\n"
+            f"📢 Majburiy kanallar: <b>{c_count['total']} ta</b>\n\n"
+            f"🕒 Yangilangan vaqt: <i>{datetime.datetime.now().strftime('%H:%M:%S')}</i>"
+        )
+
+        keyboard = [[InlineKeyboardButton("🔙 Orqaga", callback_data="admin_main")]]
+        
+        await query.edit_message_text(
+            text=stats_text, 
+            reply_markup=InlineKeyboardMarkup(keyboard), 
+            parse_mode="HTML"
+        )
+    except Exception as e:
+        logger.error(f"Statistika olishda xato: {e}")
+        await query.message.reply_text("❌ Statistikani yuklashda xatolik yuz berdi.")
 
 # ===================================================================================
 
@@ -5474,6 +5515,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
