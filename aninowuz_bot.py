@@ -5372,7 +5372,6 @@ async def main():
                 CallbackQueryHandler(anime_control_panel, pattern="^adm_ani_ctrl$"),
                 CallbackQueryHandler(admin_stats_logic, pattern="^adm_stats$"),
                 CallbackQueryHandler(check_ads_pass, pattern="^adm_ads_start$"),
-                CallbackQueryHandler(admin_vip_logic, pattern="^adm_vip_add$"),
                 CallbackQueryHandler(export_all_anime, pattern="^adm_export$"),
                 CallbackQueryHandler(manage_admins_logic, pattern="^manage_admins$"),
                 MessageHandler(filters.Regex("Anime boshqaruvi"), anime_control_panel),
@@ -5502,6 +5501,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
