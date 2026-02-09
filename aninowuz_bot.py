@@ -5288,6 +5288,13 @@ async def main():
         ],
         states={
             A_MAIN: [
+                CallbackQueryHandler(admin_channels_logic, pattern="^adm_ch$"),
+                CallbackQueryHandler(admin_anime_ctrl_logic, pattern="^adm_ani_ctrl$"),
+                CallbackQueryHandler(admin_stats_logic, pattern="^adm_stats$"),
+                CallbackQueryHandler(admin_ads_logic, pattern="^adm_ads_start$"),
+                CallbackQueryHandler(admin_vip_logic, pattern="^adm_vip_add$"),
+                CallbackQueryHandler(admin_export_logic, pattern="^adm_export$"),
+                CallbackQueryHandler(manage_admins_logic, pattern="^manage_admins$"),
                 MessageHandler(filters.Regex("Anime boshqaruvi"), anime_control_panel),
                 CallbackQueryHandler(search_anime_logic, pattern="^search_type_"),
                 CallbackQueryHandler(handle_callback),
@@ -5432,6 +5439,7 @@ if __name__ == '__main__':
 
 
         
+
 
 
 
