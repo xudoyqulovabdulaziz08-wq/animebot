@@ -1180,8 +1180,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ... bu yerda boshqa callbacklar davom etadi ...
         
 # ===================================================================================
-    
-    # 1. Qidiruv turlari tanlanganda
+        # 1. Qidiruv turlari tanlanganda
     if data == "search_type_id":
         await query.edit_message_text(
             text="🔢 <b>Anime ID raqamini kiriting:</b>", 
@@ -1190,6 +1189,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]]), 
             parse_mode="HTML"
         )
+        context.user_data["search_mode"] = "id" # Rejimni saqlab qo'yamiz
         return A_SEARCH_BY_ID
         
     elif data == "search_type_name":
@@ -1200,27 +1200,43 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]]), 
             parse_mode="HTML"
         )
+        context.user_data["search_mode"] = "name" # Rejimni saqlab qo'yamiz
         return A_SEARCH_BY_NAME
 
-    # 2. Qidiruv menyusiga qaytish
+    # 2. Qidiruv menyusiga qaytish (TO'LIQ TUGMALAR BILAN)
     elif data == "back_to_search_menu":
         search_btns = [
-            [InlineKeyboardButton("🆔 ID orqali qidirish", callback_data="search_type_id")],
-            [InlineKeyboardButton("🔎 Nomi orqali qidirish", callback_data="search_type_name")],
+            [
+                InlineKeyboardButton("🔎 Nomi orqali", callback_data="search_type_name"),
+                InlineKeyboardButton("🆔 ID raqami", callback_data="search_type_id")
+            ],
+            [
+                InlineKeyboardButton("🖼 Rasm orqali (AI)", callback_data="search_type_photo"),
+                InlineKeyboardButton("👤 Personaj (AI)", callback_data="search_type_character")
+            ],
+            [
+                InlineKeyboardButton("🎭 Janrlar", callback_data="search_type_genre"),
+                InlineKeyboardButton("🎙 Fandublar", callback_data="search_type_fandub")
+            ],
+            [InlineKeyboardButton("🎲 Tasodifiy anime", callback_data="search_type_random")],
             [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")]
         ]
+        
         await query.edit_message_text(
             text="🎬 <b>Anime qidirish bo'limi</b>\n\nQidiruv usulini tanlang: 👇", 
             reply_markup=InlineKeyboardMarkup(search_btns),
             parse_mode="HTML"
         )
-        return None 
+        # 🔥 BU YERDA None EMAS, holatni qaytarish kerak:
+        return A_SEARCH_BY_NAME 
 
     # 3. Haqiqiy bekor qilish (Qidiruvdan chiqish)
     elif data == "cancel_search":
-        # Statusni yuqorida await get_user_status orqali olganimiz uchun bu yerda tayyor
-        await query.message.delete() # Eski xabarni o'chirib yuborish chiroyliroq chiqadi
-        
+        try:
+            await query.message.delete()
+        except:
+            pass
+            
         await context.bot.send_message(
             chat_id=user_id,
             text="🏠 <b>Qidiruv bekor qilindi.</b>\nAsosiy menyu:",
@@ -1228,6 +1244,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="HTML"
         )
         return ConversationHandler.END
+        
+    
     
     # ===================================================================================
 
@@ -5552,6 +5570,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
