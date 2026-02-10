@@ -10,7 +10,7 @@ from config import MAIN_ADMIN_ID, logger, BOT_TOKEN
 from db import execute_query, get_db
 from aiomysql import Pool
 import asyncio
-from states import U_FEEDBACK_MSG
+from .states import U_FEEDBACK_MSG
 db_pool: Pool = None
 
 
