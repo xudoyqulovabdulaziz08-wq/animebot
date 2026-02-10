@@ -103,7 +103,7 @@ async def background_ads_task(bot, admin_id, users, msg_id, from_chat_id):
             )
             sent += 1
             
-        except FloodWait as e:
+        except RetryAfter as e:
             # Telegram cheklovi bo'lsa, aytilgan vaqtcha kutamiz
             await asyncio.sleep(e.retry_after)
             # Kutishdan so'ng xabarni qayta yuborishga urinish (ixtiyoriy)
