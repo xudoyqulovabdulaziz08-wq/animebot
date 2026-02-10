@@ -8,7 +8,7 @@ from utils import keep_alive, init_db_pool, db_pool
 from handlers import (
     start, search_menu_cmd, admin_panel_text_handler, start_profile_creation, add_comment_callback,
     admin_channels_menu, admin_ch_callback_handler, anime_control_panel, admin_stats_logic,
-    check_ads_pass, export_all_anime, manage_admins_logic, search_anime_logic, handle_callback,
+    check_ads_pass, export_all_anime, admin_control, search_anime_logic, handle_callback,
     list_animes_view, add_anime_panel, remove_menu_handler, select_ani_for_new_ep, get_poster_handler, save_ani_handler, handle_ep_uploads,
     exec_add_channel, exec_rem_channel, ads_send_finish, save_comment_handler, feedback_subject_callback, feedback_message_handler, show_selected_anime, view_comments_handler, add_favorite_handler, process_redeem, search_anime_by_photo, admin_reply_handler, show_user_cabinet, feedback_start, show_bonus, show_guide, vip_pass_info, auto_check_notifications, delete_expired_ads, recheck_callback, handle_pagination, pagination_handler, get_episode_handler  
 )
@@ -60,7 +60,7 @@ async def main():
                 CallbackQueryHandler(admin_stats_logic, pattern="^adm_stats$"),
                 CallbackQueryHandler(check_ads_pass, pattern="^adm_ads_start$"),
                 CallbackQueryHandler(export_all_anime, pattern="^adm_export$"),
-                CallbackQueryHandler(manage_admins_logic, pattern="^manage_admins$"),
+                CallbackQueryHandler(admin_control, pattern="^manage_admins$"),
                 MessageHandler(filters.Regex("Anime boshqaruvi"), anime_control_panel),
                 CallbackQueryHandler(search_anime_logic, pattern="^search_type_"),
                 CallbackQueryHandler(handle_callback),
