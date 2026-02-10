@@ -1,3 +1,4 @@
+sys.path
 import asyncio
 import os
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
