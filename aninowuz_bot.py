@@ -2192,6 +2192,9 @@ async def post_new_anime_to_channel(context, anime_id):
 
 async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Qidiruv turini tanlash menyusi"""
+    query = update.callback_query
+    
+    # 1. Tugmalarni shakllantirish
     kb = [
         [
             InlineKeyboardButton("🔎 Nomi orqali", callback_data="search_type_name"),
@@ -2209,26 +2212,35 @@ async def search_menu_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")]
     ]
     
-    is_callback = bool(update.callback_query)
-    msg_obj = update.callback_query.message if is_callback else update.message
-
     text = (
         "🎬 <b>Anime qidirish bo'limi</b>\n\n"
-        "Qidiruv usulini tanlang:\n\n"
+        "Qidiruv usulini tanlang yoki savolingizni yozing:\n\n"
         "💡 <i>Maslahat: Rasm orqali qidirish (AI) animesi esingizda yo'q kadrlarni topishga yordam beradi!</i>"
     )
 
-    if is_callback:
-        await update.callback_query.edit_message_text(
-            text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML"
-        )
-    else:
-        await msg_obj.reply_text(
-            text=text, reply_markup=InlineKeyboardMarkup(kb), parse_mode="HTML"
-        )
+    # 2. Xabarni tahrirlash yoki yangi yuborish (Xabarlar to'planib ketmasligi uchun)
+    try:
+        if query:
+            await query.answer()
+            await query.edit_message_text(
+                text=text, 
+                reply_markup=InlineKeyboardMarkup(kb), 
+                parse_mode="HTML"
+            )
+        else:
+            await update.message.reply_text(
+                text=text, 
+                reply_markup=InlineKeyboardMarkup(kb), 
+                parse_mode="HTML"
+            )
+    except Exception as e:
+        # Agar xabar bir xil bo'lsa edit_message xato beradi, shuni oldini olamiz
+        logger.error(f"Search menu xatosi: {e}")
+
+    # 🔥 MUHIM: Foydalanuvchini aynan QIDIRUV holatiga o'tkazamiz
+    # A_MAIN o'rniga A_SEARCH_BY_NAME yoki maxsus SEARCH holatini ishlating
+    return A_SEARCH_BY_NAME 
     
-    # 🔥 MANA BU QATOR JUDA MUHIM:
-    return A_MAIN 
     
 
 # ===================================================================================
@@ -5556,6 +5568,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
