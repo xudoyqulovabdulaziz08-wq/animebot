@@ -1,4 +1,4 @@
-sys.path.append(...)
+import sys.path.append(os.path.dirname(os.path.abspath(__init__)))
 import asyncio
 import os
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
