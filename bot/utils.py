@@ -3,7 +3,7 @@ from random import random
 from telegram import Bot, Update
 import time
 from telegram.ext import ContextTypes
-from telegram.error import TelegramError, Forbidden, BadRequest, FloodWait
+from telegram.error import TelegramError, Forbidden, BadRequest, RetryAfter
 from config import logger
 from db import db_pool, execute_query, get_db, init_db_pool
 from config import MAIN_ADMIN_ID, logger, BOT_TOKEN
