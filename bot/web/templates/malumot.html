@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/aninovuz.css') }}">
+    
+    <title>malumot</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <div class="navbar">
+        <div class="hamburger" id="hamburger">
+            <i class="fa-solid fa-bars"></i>
+        </div>  
+        <div class="logo">
+            <a href="aninovuz.html"><h2><span>Aninovuz</h2><span></a>
+        </div>
+        <div class="search">
+            <input type="text" placeholder="Qidiruv..." id="searchInput" name="searchInput" data-lang-placeholder="search" data-lang="search">
+            <button id="search-btn"  ><i class="fa-solid fa-magnifying-glass"></i></button>
+        </div>
+        
+        <div class="til">
+            <section>
+                <select name="language" id="language" onchange="changeLanguage()">
+                    <option value="uz" data-lang="lang1">Uzbek</option>
+                    <option value="ru" data-lang="lang2">Russian</option>
+                    <option value="en" data-lang="lang3">English</option>
+                </select>
+            </section>
+        </div>
+        <div class="login" id="userProfileBlock" style="display: none;">
+            <div class="profile-trigger" onclick="toggleProfileMenu()">
+                <img src="" id="userAvatar" class="user-avatar" alt="Avatar">
+                <span id="userName">User</span>
+            </div>
+    
+            <div class="profile-dropdown" id="profileDropdown">
+                <p>
+                    <strong data-lang="id">ID</strong>: 
+                    <span id="userId">---</span>
+                </p>
+                <p>
+                    <strong data-lang="name">Ism</strong>: 
+                    <span id="userFullName">---</span>
+                </p>
+                <p>
+                    <strong data-lang="status">Status</strong>: 
+                    <span id="userStatus" class="status-badge">User</span>
+                </p>
+                <hr>
+                </div>
+        </div>
+        
+    </div>
+    <div class="navbar2">
+        <a href="/" data-lang="home">Bosh sahifa</a>
+        <a href="/malumot.html" data-lang="about">Ma'lumot</a>
+        <a href="/services.html" data-lang="services">Anime list</a>
+        <a href="/contact.html" data-lang="contact">Tarix</a>
+    </div>
+    <div class="menu">
+        <a href="#" data-lang="popular">Eng mashhur</a>
+        <a href="#" data-lang="new">Yangi animelar</a>
+        <a href="#" data-lang="rating">Reyting</a>
+        <div class="janr">
+            <h3 data-lang="genres">Janrlar</h3>
+            <select name="turi" id="turi" onchange="changeturi()">
+                <option value="none" data-lang="none">Hech biri</option>
+                <option value="action" data-lang="action">Action</option>
+                <option value="adventure" data-lang="adventure">Adventure</option>
+                <option value="comedy" data-lang="comedy">Comedy</option>
+                <option value="drama" data-lang="drama">Drama</option>
+                <option value="fantasy" data-lang="fantasy">Fantasy</option>
+                <option value="horror" data-lang="horror">Horror</option>
+                <option value="mystery" data-lang="mystery">Mystery</option>
+                <option value="romance" data-lang="romance">Romance</option>
+                <option value="sci-fi" data-lang="sci-fi">Sci-Fi</option>
+                <option value="slice-of-life" data-lang="slice-of-life">Slice of Life</option>
+            </select>
+        </div>
+    </div>
+    <div class="main-container">
+        <main class="content">
+    <div class="about-container">
+        <section class="about-hero">
+            <h1 data-lang="abouttitle">Aninovuz Loyihasi Haqida</h1>
+            <p class="lead-text" data-lang="abouttext">O'zbekistondagi eng innovatsion anime platformasiga xush kelibsiz. Bizning maqsadimiz — sifatli kontentni har bir muxlisga yetkazishdir.</p>
+        </section>
+
+        <section class="about-card">
+            <div class="mission-header">
+                <h2 data-lang="missiontitle">Bizning Missiyamiz</h2>
+            </div>
+            <p data-lang="missiontext">
+                Aninovuz loyihasi 2025-yilda anime ixlosmandlari uchun qulay muhit yaratish maqsadida tashkil etilgan. Biz nafaqat anime ko'rish, balki o'zbek tili rivojiga hissa qo'shadigan sifatli dublyaj va subtitrlarni taqdim etishni o'z oldimizga maqsad qilganmiz. Bizning platformamiz Telegram WebApp texnologiyasi asosida qurilgan bo'lib, bu sizga ilova o'rnatmasdan turib, brauzer tezligida anime ko'rish imkonini beradi.
+            </p>
+        </section>
+
+        <div class="features-grid">
+            <div class="feature-item">
+                <i class="fa-solid fa-bolt"></i>
+                <h3 data-lang="feat1title">Tezkorlik</h3>
+                <p data-lang="feat1desc">Bizning serverlarimiz MySQL bazasi bilan optimallashtirilgan bo'lib, ma'lumotlar soniyalar ichida yuklanadi.</p>
+            </div>
+            <div class="feature-item">
+                <i class="fa-solid fa-shield-halved"></i>
+                <h3 data-lang="feat2title">Xavfsizlik</h3>
+                <p data-lang="feat2desc">Foydalanuvchi ma'lumotlari Telegram xavfsizlik protokollari orqali himoyalangan.</p>
+            </div>
+            <div class="feature-item">
+                <i class="fa-solid fa-clapperboard"></i>
+                <h3 data-lang="feat3title">Sifat</h3>
+                <p data-lang="feat3desc">Eng so'nggi animelar FHD formatda va o'zbekcha tarjimada taqdim etiladi.</p>
+            </div>
+        </div>
+
+        <section class="about-card guide-section">
+            <h2 data-lang="guidetitle"><i class="fa-solid fa-book-open"></i> Botdan qanday foydalaniladi?</h2>
+            <div class="step">
+                <span>1</span>
+                <p data-lang="step1">Telegramdagi <strong>@aninovuz_bot</strong> manziliga o'ting va /start buyrug'ini bosing.</p>
+            </div>
+            <div class="step">
+                <span>2</span>
+                <p data-lang="step2">Katalogdan o'zingizga yoqqan animeni tanlang yoki qidiruv tizimidan foydalaning.</p>
+            </div>
+            <div class="step">
+                <span>3</span>
+                <p data-lang="step3">"Botda ko'rish" tugmasini bosing va o'sha zahoti tomosha qilishni boshlang!</p>
+            </div>
+        </section>
+
+        <div class="stats-row">
+    <div class="stat-box">
+        <h2 id="animeCount">{{ anime_count }}+</h2>
+        <p data-lang="statanimes">Animelar</p>
+    </div>
+    
+    <div class="stat-box">
+        <h2 id="userCount">{{ user_count }}+</h2>
+        <p data-lang="statusers">Foydalanuvchilar</p>
+    </div>
+
+    <div class="stat-box">
+        <h2>24/7</h2>
+        <p data-lang="statsupport">Texnik yordam</p>
+    </div>
+</div>
+
+        <section class="contact-preview">
+            <h2 data-lang="contactus">Savollaringiz bormi?</h2>
+            <p data-lang="contacttext">Agar sizda hamkorlik yoki loyiha bo'yicha takliflar bo'lsa, biz bilan bog'laning.</p>
+            <a href="https://t.me/Khudoyqulov_pg" class="contact-btn" onclick="openAdmin(event)">
+                <i class="fa-brands fa-telegram"></i>
+                <span data-lang="shareus">Admin bilan bog'lanish</span>
+            </a>
+        </section>
+    </div>
+</main>
+    </div>
+<div class="mobile-menu" id="mobileMenu" style="display:none;">
+    <div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-sreach">
+        <input type="text" placeholder="Qidiruv..." id="mobileSearchInput">
+        <button><i class="fa-solid fa-magnifying-glass"></i></button>
+    </div>
+
+    <a href="/" data-lang="home">Bosh sahifa</a>
+    <a href="/malumot.html" data-lang="about">Ma'lumot</a>
+    <a href="/services.html" data-lang="services">Anime list</a>
+    <a href="/contact.html" data-lang="contact">Tarix</a>
+
+    <hr style="opacity: 0.1; margin: 10px 0;">
+
+    
+    
+
+    <a href="#" data-lang="popular">Eng mashhur</a>
+    <a href="#" data-lang="new">Yangi animelar</a>
+    <a href="#" data-lang="rating">Reyting</a>
+
+    <div class="janr">
+        <h3 data-lang="genres">Janrlar</h3>
+        <select id="mobileTuri" onchange="changeturi()">
+            <option value="none" data-lang="none">Hech biri</option>
+            <option value="action" data-lang="action">Action</option>
+            <option value="adventure" data-lang="adventure">Adventure</option>
+            <option value="comedy" data-lang="comedy">Comedy</option>
+            <option value="drama" data-lang="drama">Drama</option>
+            <option value="fantasy" data-lang="fantasy">Fantasy</option>
+            <option value="horror" data-lang="horror">Horror</option>
+            <option value="mystery" data-lang="mystery">Mystery</option>
+            <option value="romance" data-lang="romance">Romance</option>
+            <option value="sci-fi" data-lang="sci-fi">Sci-Fi</option>
+            <option value="slice-of-life" data-lang="slice-of-life">Slice of Life</option>
+        </select>
+    </div>
+
+    <div class="mobile-til">
+        <h3 data-lang="lang">Til</h3>
+        <section>
+            <select name="language" id="mobileLanguage" onchange="syncLanguage(this)">
+                <option value="uz" data-lang="lang1">Uzbek</option>
+                <option value="ru" data-lang="lang2">Russian</option>
+                <option value="en" data-lang="lang3">English</option>
+            </select>
+        </section>
+    </div>
+</div>
+</div>
+    
+    <script src="{{ url_for('static', filename='js/aninovuz.js') }}"></script>
+</body>
+
+</html>
+
+
+
+
