@@ -263,6 +263,7 @@ DB_CONFIG = {
 
 async def init_db_pool():
     global db_pool # Kichik harf bilan
+    loop = asyncio.get_running_loop()
     try:
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
@@ -5549,6 +5550,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
