@@ -60,7 +60,7 @@ async def main():
                 CallbackQueryHandler(admin_stats_logic, pattern="^adm_stats$"),
                 CallbackQueryHandler(check_ads_pass, pattern="^adm_ads_start$"),
                 CallbackQueryHandler(export_all_anime, pattern="^adm_export$"),
-                CallbackQueryHandler(admin_control, pattern="^manage_admins$"),
+                CallbackQueryHandler(admin_control, pattern="^admin_panel$"),
                 MessageHandler(filters.Regex("Anime boshqaruvi"), anime_control_panel),
                 CallbackQueryHandler(search_anime_logic, pattern="^search_type_"),
                 CallbackQueryHandler(handle_callback),
