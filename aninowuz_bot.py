@@ -5506,7 +5506,7 @@ async def main():
     application.add_handler(MessageHandler(filters.Regex(r"Murojaat & Shikoyat"), feedback_start))
     application.add_handler(MessageHandler(filters.Regex(r"Ballar & VIP"), show_bonus))
     application.add_handler(MessageHandler(filters.Regex(r"Barcha animelar"), export_all_anime))
-    application.add_handler(MessageHandler(filters.Regex(r"Qo'llanma"), show_guser_ide))
+    application.add_handler(MessageHandler(filters.Regex(r"Qo'llanma"), show_guide))
     application.add_handler(MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info))
 
     # 7.4. MEDIA VA ADMIN JAVOBI
@@ -5549,6 +5549,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
