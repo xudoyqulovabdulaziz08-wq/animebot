@@ -5488,7 +5488,7 @@ async def main():
     
     # 7.1. Avvalo Start va Reset buyruqlari (Eng muhimi!)
     application.add_handler(CommandHandler("start", start))
-    application.add_handler(CommandHandler("reset", reset_db_cmd))
+    
 
     # 7.2. Maxsus Callbacklar
     application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
@@ -5556,6 +5556,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
