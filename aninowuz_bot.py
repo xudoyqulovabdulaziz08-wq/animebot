@@ -276,6 +276,7 @@ async def init_db_pool():
             password=DB_CONFIG['password'],
             db=DB_CONFIG['db'],
             autocommit=True,
+            loop=loop,
             minsize=1, 
             maxsize=20,
             pool_recycle=300,
@@ -5585,6 +5586,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
