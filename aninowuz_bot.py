@@ -5506,7 +5506,7 @@ async def main():
         states={
             A_MAIN: [
                 CallbackQueryHandler(admin_channels_menu, pattern="^adm_ch$"),
-                CallbackQueryHandler(del_ch_callback_handler, pattern="^del_ch_"),
+                
                 CallbackQueryHandler(admin_ch_callback_handler, pattern="^(add_ch_start|rem_ch_start|channel_stats|view_all_channels)$"),
                 CallbackQueryHandler(anime_control_panel, pattern="^adm_ani_ctrl$"),
                 CallbackQueryHandler(admin_panel, pattern="^admin_main$"),
@@ -5643,5 +5643,6 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
