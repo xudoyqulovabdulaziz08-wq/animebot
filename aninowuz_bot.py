@@ -606,29 +606,7 @@ def get_admin_kb(is_main=False):
 
 # ===================================================================================
 
-async def admin_panel_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    
-    # Admin ekanligini tekshirish (admin_id ro'yxatingiz bo'lishi kerak)
-    if user_id not in admin_id and user_id != MAIN_ADMIN_ID:
-        # Admin bo'lmaganlarga javob bermaslik yoki xabar yuborish
-        return 
 
-    # Eski holatlarni tozalash
-    if context.user_data:
-        context.user_data.clear()
-
-    is_main = (user_id == MAIN_ADMIN_ID)
-    
-    await update.message.reply_text(
-        "🛠 **ADMIN BOSHQARUV PANELI**\n\n"
-        "Kerakli bo'limni tanlang:",
-        reply_markup=get_admin_kb(is_main=is_main),
-        parse_mode="Markdown"
-    )
-    # MUHIM: Bu return A_MAIN bo'lsa, conv_handler ichida A_MAIN stateda 
-    # adm_ bilan boshlanadigan patternlarni tutadigan CallbackQueryHandler bo'lishi shart!
-    return A_MAIN
 
 # ===================================================================================
 
@@ -5528,8 +5506,10 @@ async def main():
         states={
             A_MAIN: [
                 CallbackQueryHandler(admin_channels_menu, pattern="^adm_ch$"),
-                CallbackQueryHandler(admin_ch_callback_handler, pattern="^(add_ch_start|rem_ch_start)$"),
+                CallbackQueryHandler(del_ch_callback_handler, pattern="^del_ch_"),
+                CallbackQueryHandler(admin_ch_callback_handler, pattern="^(add_ch_start|rem_ch_start|channel_stats|view_all_channels)$"),
                 CallbackQueryHandler(anime_control_panel, pattern="^adm_ani_ctrl$"),
+                CallbackQueryHandler(admin_panel, pattern="^admin_main$")
                 CallbackQueryHandler(admin_stats_logic, pattern="^adm_stats$"),
                 CallbackQueryHandler(check_ads_pass, pattern="^adm_ads_start$"),
                 CallbackQueryHandler(export_all_anime, pattern="^adm_export$"),
@@ -5663,3 +5643,4 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
