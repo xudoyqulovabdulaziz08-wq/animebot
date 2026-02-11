@@ -2332,11 +2332,26 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await cur.execute(sql, params)
                 results = await cur.fetchall()
 
-        # NATIJA TOPILMASA
+        
+       # NATIJA TOPILMAGANDA
         if not results:
-            kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔄 Qayta qidirish", callback_data="search_type_name")]])
-            await update.message.reply_text(f"😔 <b>'{text}'</b> topilmadi.", reply_markup=kb, parse_mode="HTML")
-            return A_SEARCH_BY_NAME
+            # Qaysi rejimda bo'lsa, o'sha rejimga qaytarish uchun dinamik callback yaratamiz
+            current_mode = context.user_data.get("search_mode", "name")
+            
+            kb = InlineKeyboardMarkup([[
+                InlineKeyboardButton("🔄 Qayta qidirish", callback_data=f"search_type_{current_mode}"),
+                InlineKeyboardButton("🏠 Menyu", callback_data="back_to_search_menu")
+            ]])
+            
+            mode_label = "ID raqami" if current_mode == "id" else "nomi"
+            
+            await update.message.reply_text(
+                f"😔 <b>{mode_label.capitalize()}</b> bo'yicha hech narsa topilmadi: <b>'{text}'</b>", 
+                reply_markup=kb, 
+                parse_mode="HTML"
+            )
+            # Holatni o'zida saqlab qolamiz
+            return A_SEARCH_BY_ID if current_mode == "id" else A_SEARCH_BY_NAME
 
         # NATIJA BITTA BO'LSA (To'g'ridan-to'g'ri ko'rsatamiz)
         if len(results) == 1:
@@ -5570,6 +5585,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
