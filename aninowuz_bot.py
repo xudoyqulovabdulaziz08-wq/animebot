@@ -2068,6 +2068,49 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"VIP Save Error: {e}")
             await query.answer("❌ Ma'lumotni saqlashda texnik xatolik.", show_alert=True)
 
+# ----------------- BOSHQA FUNKSIYALAR -----------------
+
+async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    try:
+        # aiomysql pool orqali ulanish
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT bonus, status FROM users WHERE user_id=%s", (user_id,))
+                res = await cur.fetchone()
+        
+        # Ma'lumotlarni olish (DictCursor ishlatilgan deb hisoblaymiz)
+        val = res['bonus'] if res else 0
+        st = res['status'] if res else "user"
+        
+        # Statusga qarab chiroyli emoji tanlash
+        st_emoji = "💎 VIP" if st == "vip" else "👤 Foydalanuvchi"
+        if st in ["admin", "main_admin"]:
+            st_emoji = "👮 Admin"
+
+        text = (
+            "🏦 <b>SHAXSIY HISOB</b>\n\n"
+            f"👤 <b>Foydalanuvchi:</b> {update.effective_user.mention_html()}\n"
+            f"💰 <b>To'plangan ballar:</b> <code>{val}</code>\n"
+            f"⭐ <b>Maqomingiz:</b> {st_emoji}\n\n"
+            "<i>💡 Ballar yordamida VIP statusini sotib olishingiz yoki maxsus imkoniyatlardan foydalanishingiz mumkin.</i>"
+        )
+
+        # Agar foydalanuvchi xabar yuborgan bo'lsa (command), aks holda callback bo'lsa
+        if update.message:
+            await update.message.reply_text(text, parse_mode="HTML")
+        elif update.callback_query:
+            await update.callback_query.edit_message_text(text, parse_mode="HTML")
+
+    except Exception as e:
+        logger.error(f"Bonus ko'rsatishda xato: {e}")
+        error_msg = "⚠️ Ma'lumotlarni yuklashda xatolik yuz berdi."
+        if update.message:
+            await update.message.reply_text(error_msg)
+        elif update.callback_query:
+            await update.callback_query.answer(error_msg, show_alert=True)
+
 # ===================================================================================
 
 
@@ -5630,6 +5673,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
