@@ -5564,12 +5564,9 @@ async def main():
                 CallbackQueryHandler(handle_callback)
             ],
             A_ADD_VIP: [
-                # 1. ID yuborilganda ishlaydigan funksiya
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("ADMIN PANEL"), exec_vip_add),
-    
-                # 2. Tugmalar bosilganda (Back kabi) javob berishi uchun
-                CallbackQueryHandler(handle_callback) 
-            ],
+                MessageHandler(filters.Regex(r'^\d+$'), exec_vip_add),
+                CallbackQueryHandler(handle_callback)
+            ]
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
             A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
             A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
@@ -5673,6 +5670,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
