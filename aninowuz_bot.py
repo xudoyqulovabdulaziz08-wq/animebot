@@ -4193,7 +4193,7 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-        return A_MAIN # Callbacklarni handle_callback tutishi uchun
+        return A_ADD_VIP# Callbacklarni handle_callback tutishi uchun
 
     except Exception as e:
         logger.error(f"VIP add check error: {e}")
@@ -5565,8 +5565,11 @@ async def main():
             ],
             A_ADD_VIP: [
                 MessageHandler(filters.Regex(r'^\d+$'), exec_vip_add),
+                CallbackQueryHandler(handle_callback, pattern="^set_vip_time_"),
+                CallbackQueryHandler(handle_callback, pattern="^conf_vip_"),
                 CallbackQueryHandler(handle_callback)
             ]
+
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
             A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
             A_SEND_ADS_PASS: [MessageHandler(filters.TEXT & ~filters.COMMAND, check_ads_pass)],
@@ -5670,6 +5673,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
