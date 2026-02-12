@@ -5568,7 +5568,7 @@ async def main():
                 CallbackQueryHandler(handle_callback, pattern="^set_vip_time_"),
                 CallbackQueryHandler(handle_callback, pattern="^conf_vip_"),
                 CallbackQueryHandler(handle_callback)
-            ]
+            ],
 
             A_ADD_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_add_channel)],
             A_REM_CH: [MessageHandler(filters.TEXT & ~filters.COMMAND, exec_rem_channel)],
@@ -5673,6 +5673,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
