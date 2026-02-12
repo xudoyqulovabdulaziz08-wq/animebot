@@ -5555,12 +5555,13 @@ async def main():
             ],
         },
         fallbacks=[
-            CommandHandler("start", start),
+            CommandHandler("start", start), # Holatdan majburiy chiqarish
             MessageHandler(filters.Regex("^Bekor qilish$"), start),
+            MessageHandler(filters.Regex("^(Anime qidirish|VIP PASS|ADMIN PANEL)$"), start), 
             CallbackQueryHandler(start, pattern="^cancel_search$")
         ],
-        allow_reentry=True,
-        name="aninow_v103_persistent"
+        allow_reentry=True 
+        name="aninow_v104_persistent"
     )
 
     # 6. TAYMERNI (SCHEDULER) SOZLASH
@@ -5571,24 +5572,18 @@ async def main():
 
     # 7. HANDLERLARNI RO'YXATGA OLISH
     
-    # 7.1. Avvalo Start va Reset buyruqlari (Eng muhimi!)
-    application.add_handler(CommandHandler("start", start))
-    
+    # 7. HANDLERLARNI RO'YXATGA OLISH (TARTIB JUDA MUHIM!)
 
-    # 7.2. Maxsus Callbacklar
+    # 7.1. Avvalo Majburiy Obuna va Pagination kabi umumiy callbacklar
     application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
     application.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
     application.add_handler(CallbackQueryHandler(pagination_handler, pattern="^pg_"))
-    application.add_handler(CallbackQueryHandler(get_episode_handler, pattern="^get_ep_"))
-    application.add_handler(CallbackQueryHandler(show_selected_anime, pattern="^show_anime_"))
-    application.add_handler(CallbackQueryHandler(view_comments_handler, pattern="^view_comm_"))
-    application.add_handler(CallbackQueryHandler(add_favorite_handler, pattern="^fav_"))
-    application.add_handler(CallbackQueryHandler(process_redeem, pattern="^redeem_"))
 
-    # 7.3. CONVERSATION HANDLER (Mustaqil buyruqlardan keyin, matnlardan oldin)
+    # 7.2. CONVERSATION HANDLER (Barcha muloqot tizimi shu yerda)
+    # MUHIM: conv_handler ichidagi entry_points hamma asosiy tugmalarni o'z ichiga olishi kerak
     application.add_handler(conv_handler)
 
-    # 7.4. MATNLI TUGMALAR
+    # 7.3. MUSTAQIL MATNLI TUGMALAR (Agar conv_handler tutib olmasa, bular ishlaydi)
     application.add_handler(MessageHandler(filters.Regex(r"Shaxsiy Kabinet"), show_user_cabinet))
     application.add_handler(MessageHandler(filters.Regex(r"Muxlislar Klubi"), start_profile_creation))
     application.add_handler(MessageHandler(filters.Regex(r"Murojaat & Shikoyat"), feedback_start))
@@ -5596,7 +5591,9 @@ async def main():
     application.add_handler(MessageHandler(filters.Regex(r"Barcha animelar"), export_all_anime))
     application.add_handler(MessageHandler(filters.Regex(r"Qo'llanma"), show_guide))
     application.add_handler(MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info))
-    application.add_handler(MessageHandler(filters.Regex(r"Admin panel"), admin_panel_text_handler))
+    
+    # 7.4. QOLGAN BARCHA CALLBACKLAR (Hech qayerga kirmay qolganlari uchun)
+    application.add_handler(CallbackQueryHandler(handle_callback))
 
     # 7.5. MEDIA VA ADMIN JAVOBI
     application.add_handler(MessageHandler(filters.PHOTO & ~filters.COMMAND, search_anime_by_photo))
@@ -5642,6 +5639,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
