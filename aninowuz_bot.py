@@ -1514,94 +1514,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ===================================================================================
      
         
-   # 1. VIP o'chirish ro'yxatini chiqarish
-    elif data == "rem_vip_list":
-        # show_vip_removal_list funksiyasi asinxron bo'lishi kerak
-        await show_vip_removal_list(update, context, page=0)
-
-    # 2. VIP ro'yxatida sahifadan sahifaga o'tish
-    elif data.startswith("rem_vip_page_"):
-        try:
-            page = int(data.split("_")[-1]) # Oxirgi qismni olish xavfsizroq
-        except (ValueError, IndexError):
-            page = 0
-        await show_vip_removal_list(update, context, page=page)
-
-    # 3. VIP maqomini olib tashlash ijrosi
-    elif data.startswith("exec_rem_vip_"):
-        parts = data.split("_")
-        # exec_rem_vip_{target_id}_{page} -> ['exec', 'rem', 'vip', '12345', '0']
-        target_id = parts[3]
-        
-        try:
-            current_page = int(parts[4])
-        except:
-            current_page = 0
-        
-        try:
-            async with db_pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    # Statusni yangilash
-                    await cur.execute(
-                        "UPDATE users SET status = 'user' WHERE user_id = %s", 
-                        (target_id,)
-                    )
-                    
-                    # 28-BAND (21-band): Admin harakatini logga yozish
-                    await cur.execute(
-                        "INSERT INTO admin_logs (admin_id, action) VALUES (%s, %s)",
-                        (user_id, f"Foydalanuvchidan VIP maqomini oldi: {target_id}")
-                    )
-            
-            await query.answer(f"✅ ID: {target_id} VIP ro'yxatidan o'chirildi!", show_alert=True)
-            # Ro'yxatni yangilangan holda qayta ko'rsatish
-            await show_vip_removal_list(update, context, page=current_page)
-            
-        except Exception as e:
-            logger.error(f"⚠️ VIP o'chirishda xato: {e}")
-            await query.answer("❌ Xatolik yuz berdi.", show_alert=True)
-
-    # ================= VIP TASDIQLASH (ELIF VARIANTI) =================
-    elif data.startswith("conf_vip_"):
-        # callback_data dan ID raqamini ajratib olamiz
-        target_id = data.split("_")[2]
-        
-        try:
-            async with db_pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    # 1. Foydalanuvchi statusini 'vip' ga o'zgartiramiz
-                    await cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
-                    
-                    # 2. 28-BAND (21-band): Admin harakatini logga yozish
-                    await cur.execute(
-                        "INSERT INTO admin_logs (admin_id, action) VALUES (%s, %s)",
-                        (user_id, f"Foydalanuvchiga VIP maqomi berdi: {target_id}")
-                    )
-            
-            # Admin xabarini yangilaymiz
-            await query.edit_message_text(
-                f"✅ <b>Muvaffaqiyatli!</b>\n\nFoydalanuvchi (ID: <code>{target_id}</code>) endi VIP statusiga ega.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("⬅️ VIP Menu", callback_data="manage_vip")]
-                ]),
-                parse_mode="HTML"
-            )
-            
-            # 3. Foydalanuvchiga xabar yuborish
-            try:
-                await context.bot.send_message(
-                    chat_id=target_id,
-                    text="✨ <b>Tabriklaymiz!</b> Sizga VIP statusi berildi.\nEndi botdan reklamalarsiz va cheklovsiz foydalanishingiz mumkin.",
-                    parse_mode="HTML"
-                )
-            except Exception as e:
-                logger.warning(f"Foydalanuvchiga VIP xabari yuborilmadi ({target_id}): {e}")
-                
-        except Exception as e:
-            logger.error(f"⚠️ VIP tasdiqlashda xato: {e}")
-            await query.answer("❌ Ma'lumotni saqlashda texnik xatolik.", show_alert=True)
-            
-        return None
+   
 
 
     # ================= 2. FAQAT ADMINLAR UCHUN CALLBACKLAR =================
@@ -2029,8 +1942,140 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ O'chirishda xatolik yuz berdi.")
  
     
+        # 1. VIP o'chirish ro'yxatini chiqarish
+    elif data == "rem_vip_list":
+        # show_vip_removal_list funksiyasi asinxron bo'lishi kerak
+        await show_vip_removal_list(update, context, page=0)
 
+    # 2. VIP ro'yxatida sahifadan sahifaga o'tish
+    elif data.startswith("rem_vip_page_"):
+        try:
+            page = int(data.split("_")[-1]) # Oxirgi qismni olish xavfsizroq
+        except (ValueError, IndexError):
+            page = 0
+        await show_vip_removal_list(update, context, page=page)
 
+    # 3. VIP maqomini olib tashlash ijrosi
+    elif data.startswith("exec_rem_vip_"):
+        parts = data.split("_")
+        # exec_rem_vip_{target_id}_{page} -> ['exec', 'rem', 'vip', '12345', '0']
+        target_id = parts[3]
+        
+        try:
+            current_page = int(parts[4])
+        except:
+            current_page = 0
+        
+        try:
+            async with db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    # Statusni yangilash
+                    await cur.execute(
+                        "UPDATE users SET status = 'user' WHERE user_id = %s", 
+                        (target_id,)
+                    )
+                    
+                    # 28-BAND (21-band): Admin harakatini logga yozish
+                    await cur.execute(
+                        "INSERT INTO admin_logs (admin_id, action) VALUES (%s, %s)",
+                        (user_id, f"Foydalanuvchidan VIP maqomini oldi: {target_id}")
+                    )
+            
+            await query.answer(f"✅ ID: {target_id} VIP ro'yxatidan o'chirildi!", show_alert=True)
+            # Ro'yxatni yangilangan holda qayta ko'rsatish
+            await show_vip_removal_list(update, context, page=current_page)
+            
+        except Exception as e:
+            logger.error(f"⚠️ VIP o'chirishda xato: {e}")
+            await query.answer("❌ Xatolik yuz berdi.", show_alert=True)
+
+    # ================= VIP TASDIQLASH (ELIF VARIANTI) =================
+    elif data.startswith("conf_vip_"):
+        # callback_data dan ID raqamini ajratib olamiz
+        target_id = data.split("_")[2]
+        
+        try:
+            async with db_pool.acquire() as conn:
+                async with conn.cursor() as cur:
+                    # 1. Foydalanuvchi statusini 'vip' ga o'zgartiramiz
+                    await cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
+                    
+                    # 2. 28-BAND (21-band): Admin harakatini logga yozish
+                    await cur.execute(
+                        "INSERT INTO admin_logs (admin_id, action) VALUES (%s, %s)",
+                        (user_id, f"Foydalanuvchiga VIP maqomi berdi: {target_id}")
+                    )
+            
+            # Admin xabarini yangilaymiz
+            await query.edit_message_text(
+                f"✅ <b>Muvaffaqiyatli!</b>\n\nFoydalanuvchi (ID: <code>{target_id}</code>) endi VIP statusiga ega.",
+                reply_markup=InlineKeyboardMarkup([
+                    [InlineKeyboardButton("⬅️ VIP Menu", callback_data="manage_vip")]
+                ]),
+                parse_mode="HTML"
+            )
+            
+            # 3. Foydalanuvchiga xabar yuborish
+            try:
+                await context.bot.send_message(
+                    chat_id=target_id,
+                    text="✨ <b>Tabriklaymiz!</b> Sizga VIP statusi berildi.\nEndi botdan reklamalarsiz va cheklovsiz foydalanishingiz mumkin.",
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.warning(f"Foydalanuvchiga VIP xabari yuborilmadi ({target_id}): {e}")
+                
+        except Exception as e:
+            logger.error(f"⚠️ VIP tasdiqlashda xato: {e}")
+            await query.answer("❌ Ma'lumotni saqlashda texnik xatolik.", show_alert=True)
+            
+        return None
+
+# Muddat tanlanganda tasdiqlashni chiqarish
+    elif data.startswith("set_vip_time_"):
+        parts = data.split("_")
+        target_id = parts[3]
+        months = parts[4]
+        
+        keyboard = [
+            [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"conf_vip_{target_id}_{months}")],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="start_vip_add")]
+        ]
+        
+        await query.edit_message_text(
+            f"💎 <b>VIP tasdiqlash</b>\n\n"
+            f"🆔 ID: <code>{target_id}</code>\n"
+            f"📅 Muddat: <b>{months} oy</b>\n\n"
+            f"Maqom berilsinmi?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+    # Yakuniy tasdiqlash (bazaga yozish)
+    elif data.startswith("conf_vip_"):
+        parts = data.split("_")
+        target_id = parts[2]
+        months = int(parts[3])
+        
+       
+        
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(
+                    "UPDATE users SET status = 'vip' WHERE user_id = %s", 
+                    (target_id,)
+                )
+                # Logga muddat bilan yozamiz
+                await cur.execute(
+                    "INSERT INTO admin_logs (admin_id, action) VALUES (%s, %s)",
+                    (user_id, f"Foydalanuvchiga {months} oylik VIP berdi: {target_id}")
+                )
+
+        await query.edit_message_text(
+            f"✅ <b>Muvaffaqiyatli!</b>\nID: {target_id} ga {months} oylik VIP berildi.",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ VIP Menu", callback_data="manage_vip")]]),
+            parse_mode="HTML"
+        )
 # ----------------- BOSHQA FUNKSIYALAR -----------------
 
 async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -5637,6 +5682,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
