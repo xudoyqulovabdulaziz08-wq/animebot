@@ -5536,8 +5536,10 @@ async def main():
                 MessageHandler(filters.VIDEO | filters.Document.VIDEO, handle_ep_uploads),
                 CallbackQueryHandler(handle_callback)
             ],
-            A_ADD_VIP:[
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("ADMIN PANEL") , exec_vip_add),
+            A_ADD_VIP: [
+                # ID yuborilganda:
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, exec_vip_add),
+                # Tasodifan tugma bosilganda (Back kabi):
                 CallbackQueryHandler(handle_callback)
             ],
             
@@ -5644,6 +5646,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
