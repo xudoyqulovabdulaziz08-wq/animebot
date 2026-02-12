@@ -37,6 +37,7 @@ from telegram.ext import (
 )
 from telegram.error import Forbidden, TelegramError
 from telegram import LabeledPrice
+from datetime import datetime, timedelta
 from telegram.constants import ParseMode # Xabarlarni chiroyli (HTML/Markdown) chiqarish uchun
 
 # Logging sozlamalari
@@ -1989,8 +1990,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"⚠️ VIP o'chirishda xato: {e}")
             await query.answer("❌ Xatolik yuz berdi.", show_alert=True)
 
-    # ================= VIP TASDIQLASH (ELIF VARIANTI) =================
-# 1. Muddat tanlanganda (1, 3, 6, 12 oy) tasdiqlash oynasini chiqarish
+    # ================= VIP TASDIQLASH (ELIF VARIANTI) ==================
+
+    # 1. Muddat tanlanganda tasdiqlash oynasini chiqarish
     elif data.startswith("set_vip_time_"):
         parts = data.split("_")
         target_id = parts[3]
@@ -2003,14 +2005,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await query.edit_message_text(
             f"💎 <b>VIP Tasdiqlash</b>\n\n"
-            f"🆔 Foydalanuvchi ID: <code>{target_id}</code>\n"
-            f"⏳ Tanlangan muddat: <b>{months} oy</b>\n\n"
+            f"🆔 ID: <code>{target_id}</code>\n"
+            f"📅 Muddat: <b>{months} oy</b>\n\n"
             f"Ushbu foydalanuvchiga VIP maqomini berishni tasdiqlaysizmi?",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
 
-    # 2. Yakuniy tasdiqlash va bazaga yozish
+    # 2. Yakuniy tasdiqlash va bazaga muddat bilan yozish
     elif data.startswith("conf_vip_"):
         parts = data.split("_")
         # data format: conf_vip_{id}_{months}
@@ -2018,23 +2020,34 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             months = int(parts[3])
         except (IndexError, ValueError):
-            months = 1 # Xatolik bo'lsa standart 1 oy
+            months = 1
+            
+        # Muddatni hisoblash: Hozirgi vaqt + tanlangan oylar
+        expire_date = datetime.now() + timedelta(days=months * 30)
+        date_str = expire_date.strftime("%d.%m.%Y")
         
         try:
             async with db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
-                    # Statusni yangilash
-                    await cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
+                    # Status va amal qilish muddatini yangilash
+                    await cur.execute("""
+                        UPDATE users 
+                        SET status = 'vip', vip_expire_date = %s 
+                        WHERE user_id = %s
+                    """, (expire_date, target_id))
                     
-                    # Logga yozish
+                    # Admin logiga yozish
                     await cur.execute(
                         "INSERT INTO admin_logs (admin_id, action) VALUES (%s, %s)",
-                        (user_id, f"Foydalanuvchiga {months} oylik VIP berdi: {target_id}")
+                        (user_id, f"Foydalanuvchiga {months} oylik VIP berdi: {target_id}. Muddat: {date_str} gacha.")
                     )
             
             # Admin xabarini yangilash
             await query.edit_message_text(
-                f"✅ <b>Muvaffaqiyatli!</b>\n\nFoydalanuvchi (ID: <code>{target_id}</code>) ga <b>{months} oy</b> muddatga VIP maqomi berildi.",
+                f"✅ <b>Muvaffaqiyatli!</b>\n\n"
+                f"👤 ID: <code>{target_id}</code>\n"
+                f"📅 Muddat: <b>{months} oy</b>\n"
+                f"🕒 Amal qilish muddati: <b>{date_str}</b> gacha.",
                 reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ VIP Menu", callback_data="manage_vip")]]),
                 parse_mode="HTML"
             )
@@ -2043,105 +2056,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 await context.bot.send_message(
                     chat_id=target_id,
-                    text=f"✨ <b>Tabriklaymiz!</b>\n\nSizga <b>{months} oy</b> muddatga VIP statusi berildi. "
+                    text=f"✨ <b>Tabriklaymiz!</b> Sizga {months} oy muddatga VIP statusi berildi.\n"
+                         f"📅 Amal qilish muddati: <b>{date_str}</b> gacha.\n"
                          f"Endi botdan reklamalarsiz va cheklovsiz foydalanishingiz mumkin.",
                     parse_mode="HTML"
                 )
             except Exception as e:
-                logger.warning(f"Userga xabar yuborilmadi: {e}")
+                logger.warning(f"Userga ({target_id}) xabar yuborilmadi: {e}")
 
         except Exception as e:
             logger.error(f"VIP Save Error: {e}")
             await query.answer("❌ Ma'lumotni saqlashda texnik xatolik.", show_alert=True)
-
-# Muddat tanlanganda tasdiqlashni chiqarish
-    elif data.startswith("set_vip_time_"):
-        parts = data.split("_")
-        target_id = parts[3]
-        months = parts[4]
-        
-        keyboard = [
-            [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"conf_vip_{target_id}_{months}")],
-            [InlineKeyboardButton("⬅️ Orqaga", callback_data="start_vip_add")]
-        ]
-        
-        await query.edit_message_text(
-            f"💎 <b>VIP tasdiqlash</b>\n\n"
-            f"🆔 ID: <code>{target_id}</code>\n"
-            f"📅 Muddat: <b>{months} oy</b>\n\n"
-            f"Maqom berilsinmi?",
-            reply_markup=InlineKeyboardMarkup(keyboard),
-            parse_mode="HTML"
-        )
-
-    # Yakuniy tasdiqlash (bazaga yozish)
-    elif data.startswith("conf_vip_"):
-        parts = data.split("_")
-        target_id = parts[2]
-        months = int(parts[3])
-        
-       
-        
-        async with db_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    "UPDATE users SET status = 'vip' WHERE user_id = %s", 
-                    (target_id,)
-                )
-                # Logga muddat bilan yozamiz
-                await cur.execute(
-                    "INSERT INTO admin_logs (admin_id, action) VALUES (%s, %s)",
-                    (user_id, f"Foydalanuvchiga {months} oylik VIP berdi: {target_id}")
-                )
-
-        await query.edit_message_text(
-            f"✅ <b>Muvaffaqiyatli!</b>\nID: {target_id} ga {months} oylik VIP berildi.",
-            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ VIP Menu", callback_data="manage_vip")]]),
-            parse_mode="HTML"
-        )
-# ----------------- BOSHQA FUNKSIYALAR -----------------
-
-async def show_bonus(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
-    
-    try:
-        # aiomysql pool orqali ulanish
-        async with db_pool.acquire() as conn:
-            async with conn.cursor() as cur:
-                await cur.execute("SELECT bonus, status FROM users WHERE user_id=%s", (user_id,))
-                res = await cur.fetchone()
-        
-        # Ma'lumotlarni olish (DictCursor ishlatilgan deb hisoblaymiz)
-        val = res['bonus'] if res else 0
-        st = res['status'] if res else "user"
-        
-        # Statusga qarab chiroyli emoji tanlash
-        st_emoji = "💎 VIP" if st == "vip" else "👤 Foydalanuvchi"
-        if st in ["admin", "main_admin"]:
-            st_emoji = "👮 Admin"
-
-        text = (
-            "🏦 <b>SHAXSIY HISOB</b>\n\n"
-            f"👤 <b>Foydalanuvchi:</b> {update.effective_user.mention_html()}\n"
-            f"💰 <b>To'plangan ballar:</b> <code>{val}</code>\n"
-            f"⭐ <b>Maqomingiz:</b> {st_emoji}\n\n"
-            "<i>💡 Ballar yordamida VIP statusini sotib olishingiz yoki maxsus imkoniyatlardan foydalanishingiz mumkin.</i>"
-        )
-
-        # Agar foydalanuvchi xabar yuborgan bo'lsa (command), aks holda callback bo'lsa
-        if update.message:
-            await update.message.reply_text(text, parse_mode="HTML")
-        elif update.callback_query:
-            await update.callback_query.edit_message_text(text, parse_mode="HTML")
-
-    except Exception as e:
-        logger.error(f"Bonus ko'rsatishda xato: {e}")
-        error_msg = "⚠️ Ma'lumotlarni yuklashda xatolik yuz berdi."
-        if update.message:
-            await update.message.reply_text(error_msg)
-        elif update.callback_query:
-            await update.callback_query.answer(error_msg, show_alert=True)
-
 
 # ===================================================================================
 
@@ -5705,6 +5630,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
