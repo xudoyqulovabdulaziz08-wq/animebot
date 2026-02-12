@@ -5508,7 +5508,7 @@ async def main():
                 CallbackQueryHandler(admin_channels_menu, pattern="^adm_ch$"),
                 
                 CallbackQueryHandler(admin_ch_callback_handler, pattern="^(add_ch_start|rem_ch_start|channel_stats|view_all_channels)$"),
-                CallbackQueryHandler(admin_panel, pattern="^admin_main$"),
+                CallbackQueryHandler(admin_panel_text_handler, pattern="^admin_main$"),
                 CallbackQueryHandler(admin_stats_logic, pattern="^adm_stats$"),
                 CallbackQueryHandler(check_ads_pass, pattern="^adm_ads_start$"),
                 CallbackQueryHandler(export_all_anime, pattern="^adm_export$"),
@@ -5639,6 +5639,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
