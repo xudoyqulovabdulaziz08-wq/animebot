@@ -4158,46 +4158,65 @@ async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     
+    # 1. ID raqam ekanligini tekshirish
     if not text.isdigit():
-        await update.message.reply_text("❌ <b>Xato!</b> Foydalanuvchi ID-sini faqat raqamlarda yuboring.", parse_mode="HTML")
+        await update.message.reply_text(
+            "❌ <b>Xato format!</b>\n\nFoydalanuvchi ID-sini faqat raqamlarda yuboring (masalan: 1234567).", 
+            parse_mode="HTML"
+        )
         return A_ADD_VIP
 
     target_id = int(text)
 
     try:
+        # 2. Baza bilan ulanishni tekshirish
         async with db_pool.acquire() as conn:
             async with conn.cursor(dictionary=True) as cur:
+                # Foydalanuvchini qidirish
                 await cur.execute("SELECT name, status FROM users WHERE user_id = %s", (target_id,))
                 user = await cur.fetchone()
 
+        # 3. Agar foydalanuvchi bazada yo'q bo'lsa
         if not user:
-            await update.message.reply_text(f"⚠️ <b>Foydalanuvchi topilmadi!</b> ID: <code>{target_id}</code>", parse_mode="HTML")
-            return A_ADD_VIP
+            await update.message.reply_text(
+                f"⚠️ <b>Foydalanuvchi topilmadi!</b>\n\n"
+                f"ID: <code>{target_id}</code> bazada mavjud emas. "
+                f"Foydalanuvchi avval botni ishga tushirganiga ishonch hosil qiling.", 
+                parse_mode="HTML"
+            )
+            return A_ADD_VIP # Qayta ID kutish rejimida qoladi
         
-        user_name = user['name'] if isinstance(user, dict) else user[0]
+        # 4. Foydalanuvchi topilsa, ma'lumotlarni olish
+        user_name = user.get('name', 'Noma\'lum') if isinstance(user, dict) else user[0]
 
-        # Muddatlarni tanlash tugmalari
-        # Callback format: set_vip_time_{ID}_{oylar}
         keyboard = [
             [InlineKeyboardButton("⏳ 1 Oylik", callback_data=f"set_vip_time_{target_id}_1")],
             [InlineKeyboardButton("⏳ 3 Oylik", callback_data=f"set_vip_time_{target_id}_3")],
             [InlineKeyboardButton("⏳ 6 Oylik", callback_data=f"set_vip_time_{target_id}_6")],
-            [InlineKeyboardButton("⏳ 1 Yillik (12 oy)", callback_data=f"set_vip_time_{target_id}_12")],
+            [InlineKeyboardButton("⏳ 1 Yillik", callback_data=f"set_vip_time_{target_id}_12")],
             [InlineKeyboardButton("❌ Bekor qilish", callback_data="manage_vip")]
         ]
         
         await update.message.reply_text(
-            f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
-            f"🆔 <b>ID:</b> <code>{target_id}</code>\n\n"
-            f"💎 <b>VIP maqomi qancha muddatga beriladi?</b>",
+            f"✅ <b>Foydalanuvchi topildi!</b>\n\n"
+            f"👤 <b>Ism:</b> {user_name}\n"
+            f"🆔 <b>ID:</b> <code>{target_id}</code>\n"
+            f"current status: <b>{user.get('status', 'user')}</b>\n\n"
+            f"💎 VIP muddatini tanlang:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-        return A_ADD_VIP# Callbacklarni handle_callback tutishi uchun
+        return A_ADD_VIP
 
     except Exception as e:
-        logger.error(f"VIP add check error: {e}")
+        # 5. Texnik xatolik yuz bersa (Baza ulanmasa va h.k.)
+        logger.error(f"VIP add error: {e}")
+        await update.message.reply_text(
+            f"🚫 <b>Texnik xatolik yuz berdi!</b>\n\nXatolik turi: <code>{str(e)}</code>", 
+            parse_mode="HTML"
+        )
         return ConversationHandler.END
+        
 
 
 # ===================================================================================
@@ -5673,6 +5692,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
