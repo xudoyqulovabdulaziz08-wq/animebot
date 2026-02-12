@@ -4166,7 +4166,7 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-        return None # Keyingi qadam callback orqali bo'ladi
+        return A_MAIN# Keyingi qadam callback orqali bo'ladi
 
     except Exception as e:
         logger.error(f"VIP add check error: {e}")
@@ -5537,7 +5537,7 @@ async def main():
                 CallbackQueryHandler(handle_callback)
             ],
             A_ADD_VIP:[
-                MessageHandler(filters.TEXT & ~filters.COMMAND, exec_vip_add),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Regex("ADMIN PANEL") , exec_vip_add),
                 CallbackQueryHandler(handle_callback)
             ],
             
@@ -5644,6 +5644,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
