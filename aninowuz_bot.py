@@ -5560,7 +5560,7 @@ async def main():
             MessageHandler(filters.Regex("^(Anime qidirish|VIP PASS|ADMIN PANEL)$"), start), 
             CallbackQueryHandler(start, pattern="^cancel_search$")
         ],
-        allow_reentry=True 
+        allow_reentry=True ,
         name="aninow_v104_persistent"
     )
 
@@ -5639,6 +5639,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
