@@ -1990,46 +1990,69 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("❌ Xatolik yuz berdi.", show_alert=True)
 
     # ================= VIP TASDIQLASH (ELIF VARIANTI) =================
+# 1. Muddat tanlanganda (1, 3, 6, 12 oy) tasdiqlash oynasini chiqarish
+    elif data.startswith("set_vip_time_"):
+        parts = data.split("_")
+        target_id = parts[3]
+        months = parts[4]
+        
+        keyboard = [
+            [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"conf_vip_{target_id}_{months}")],
+            [InlineKeyboardButton("⬅️ Muddatni o'zgartirish", callback_data="start_vip_add")]
+        ]
+        
+        await query.edit_message_text(
+            f"💎 <b>VIP Tasdiqlash</b>\n\n"
+            f"🆔 Foydalanuvchi ID: <code>{target_id}</code>\n"
+            f"⏳ Tanlangan muddat: <b>{months} oy</b>\n\n"
+            f"Ushbu foydalanuvchiga VIP maqomini berishni tasdiqlaysizmi?",
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+
+    # 2. Yakuniy tasdiqlash va bazaga yozish
     elif data.startswith("conf_vip_"):
-        # callback_data dan ID raqamini ajratib olamiz
-        target_id = data.split("_")[2]
+        parts = data.split("_")
+        # data format: conf_vip_{id}_{months}
+        target_id = parts[2]
+        try:
+            months = int(parts[3])
+        except (IndexError, ValueError):
+            months = 1 # Xatolik bo'lsa standart 1 oy
         
         try:
             async with db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
-                    # 1. Foydalanuvchi statusini 'vip' ga o'zgartiramiz
+                    # Statusni yangilash
                     await cur.execute("UPDATE users SET status = 'vip' WHERE user_id = %s", (target_id,))
                     
-                    # 2. 28-BAND (21-band): Admin harakatini logga yozish
+                    # Logga yozish
                     await cur.execute(
                         "INSERT INTO admin_logs (admin_id, action) VALUES (%s, %s)",
-                        (user_id, f"Foydalanuvchiga VIP maqomi berdi: {target_id}")
+                        (user_id, f"Foydalanuvchiga {months} oylik VIP berdi: {target_id}")
                     )
             
-            # Admin xabarini yangilaymiz
+            # Admin xabarini yangilash
             await query.edit_message_text(
-                f"✅ <b>Muvaffaqiyatli!</b>\n\nFoydalanuvchi (ID: <code>{target_id}</code>) endi VIP statusiga ega.",
-                reply_markup=InlineKeyboardMarkup([
-                    [InlineKeyboardButton("⬅️ VIP Menu", callback_data="manage_vip")]
-                ]),
+                f"✅ <b>Muvaffaqiyatli!</b>\n\nFoydalanuvchi (ID: <code>{target_id}</code>) ga <b>{months} oy</b> muddatga VIP maqomi berildi.",
+                reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ VIP Menu", callback_data="manage_vip")]]),
                 parse_mode="HTML"
             )
             
-            # 3. Foydalanuvchiga xabar yuborish
+            # Foydalanuvchini xabardor qilish
             try:
                 await context.bot.send_message(
                     chat_id=target_id,
-                    text="✨ <b>Tabriklaymiz!</b> Sizga VIP statusi berildi.\nEndi botdan reklamalarsiz va cheklovsiz foydalanishingiz mumkin.",
+                    text=f"✨ <b>Tabriklaymiz!</b>\n\nSizga <b>{months} oy</b> muddatga VIP statusi berildi. "
+                         f"Endi botdan reklamalarsiz va cheklovsiz foydalanishingiz mumkin.",
                     parse_mode="HTML"
                 )
             except Exception as e:
-                logger.warning(f"Foydalanuvchiga VIP xabari yuborilmadi ({target_id}): {e}")
-                
+                logger.warning(f"Userga xabar yuborilmadi: {e}")
+
         except Exception as e:
-            logger.error(f"⚠️ VIP tasdiqlashda xato: {e}")
+            logger.error(f"VIP Save Error: {e}")
             await query.answer("❌ Ma'lumotni saqlashda texnik xatolik.", show_alert=True)
-            
-        return None
 
 # Muddat tanlanganda tasdiqlashni chiqarish
     elif data.startswith("set_vip_time_"):
@@ -5682,6 +5705,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
