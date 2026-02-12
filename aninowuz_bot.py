@@ -4120,11 +4120,8 @@ async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """VIP qo'shishdan oldin ID-ni tekshirish va tasdiqlash so'rash"""
     text = update.message.text.strip()
-    admin_id = update.effective_user.id
-
-    # 1. ID raqam ekanligini tekshirish
+    
     if not text.isdigit():
         await update.message.reply_text("❌ <b>Xato!</b> Foydalanuvchi ID-sini faqat raqamlarda yuboring.", parse_mode="HTML")
         return A_ADD_VIP
@@ -4132,46 +4129,40 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_id = int(text)
 
     try:
-        # 2. Foydalanuvchi bazada borligini tekshirish
         async with db_pool.acquire() as conn:
             async with conn.cursor(dictionary=True) as cur:
                 await cur.execute("SELECT name, status FROM users WHERE user_id = %s", (target_id,))
                 user = await cur.fetchone()
 
         if not user:
-            await update.message.reply_text(
-                f"⚠️ <b>Foydalanuvchi topilmadi!</b>\n\nID: <code>{target_id}</code> bazada mavjud emas. "
-                f"Foydalanuvchi kamida bir marta botga kirgan bo'lishi shart.",
-                parse_mode="HTML"
-            )
+            await update.message.reply_text(f"⚠️ <b>Foydalanuvchi topilmadi!</b> ID: <code>{target_id}</code>", parse_mode="HTML")
             return A_ADD_VIP
         
-        # 3. Agar foydalanuvchi allaqachon VIP bo'lsa
-        user_status = user['status'] if isinstance(user, dict) else user[1]
-        if user_status == 'vip':
-            await update.message.reply_text("💎 Bu foydalanuvchi allaqachon <b>VIP</b> maqomiga ega!", parse_mode="HTML")
-            return ConversationHandler.END
+        user_name = user['name'] if isinstance(user, dict) else user[0]
 
-        # 4. Tasdiqlash tugmalari
+        # Muddatlarni tanlash tugmalari
+        # Callback format: set_vip_time_{ID}_{oylar}
         keyboard = [
-            [InlineKeyboardButton("✅ Tasdiqlash", callback_data=f"conf_vip_{target_id}")],
+            [InlineKeyboardButton("⏳ 1 Oylik", callback_data=f"set_vip_time_{target_id}_1")],
+            [InlineKeyboardButton("⏳ 3 Oylik", callback_data=f"set_vip_time_{target_id}_3")],
+            [InlineKeyboardButton("⏳ 6 Oylik", callback_data=f"set_vip_time_{target_id}_6")],
+            [InlineKeyboardButton("⏳ 1 Yillik (12 oy)", callback_data=f"set_vip_time_{target_id}_12")],
             [InlineKeyboardButton("❌ Bekor qilish", callback_data="manage_vip")]
         ]
         
-        user_name = user['name'] if isinstance(user, dict) else user[0]
         await update.message.reply_text(
-            f"💎 <b>VIP maqomini berishni tasdiqlaysizmi?</b>\n\n"
             f"👤 <b>Foydalanuvchi:</b> {user_name}\n"
-            f"🆔 <b>ID:</b> <code>{target_id}</code>",
+            f"🆔 <b>ID:</b> <code>{target_id}</code>\n\n"
+            f"💎 <b>VIP maqomi qancha muddatga beriladi?</b>",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
         )
-        return A_MAIN# Keyingi qadam callback orqali bo'ladi
+        return A_MAIN # Callbacklarni handle_callback tutishi uchun
 
     except Exception as e:
         logger.error(f"VIP add check error: {e}")
-        await update.message.reply_text("🛑 Texnik xatolik yuz berdi.")
         return ConversationHandler.END
+
 
 # ===================================================================================
 
@@ -5646,6 +5637,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
