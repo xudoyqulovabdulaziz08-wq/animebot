@@ -1880,16 +1880,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return None
 
-    # 2. VIP QO'SHISHNI BOSHLASH
+
+    # handle_callback ichida
     elif data == "start_vip_add":
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_vip")]])
         await query.edit_message_text(
-            "🆔 <b>VIP qilinadigan foydalanuvchi ID-sini yuboring:</b>", 
-            reply_markup=kb, 
+            "🆔 <b>VIP qilinadigan foydalanuvchi ID-sini yuboring:</b>",
+            reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back", callback_data="manage_vip")]]),
             parse_mode="HTML"
         )
-        return A_ADD_VIP
+        return A_ADD_VIP # <--- SHU QATOR BORLIGIGA ISHONCH HOSIL QILING
 
+
+    
     # 3. VIP FOYDALANUVCHILAR RO'YXATI
     elif data == "vip_list":
         try:
@@ -4156,12 +4158,15 @@ async def export_all_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Terminalda tekshirish uchun log
+    print(f"--- DEBUG: exec_vip_add ga xabar keldi: {update.message.text} ---")
+    
     text = update.message.text.strip()
     
     # 1. ID raqam ekanligini tekshirish
     if not text.isdigit():
         await update.message.reply_text(
-            "❌ <b>Xato format!</b>\n\nFoydalanuvchi ID-sini faqat raqamlarda yuboring (masalan: 1234567).", 
+            "❌ <b>Xato format!</b>\n\nFoydalanuvchi ID-sini faqat raqamlarda yuboring.", 
             parse_mode="HTML"
         )
         return A_ADD_VIP
@@ -4169,10 +4174,12 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_id = int(text)
 
     try:
-        # 2. Baza bilan ulanishni tekshirish
+        global db_pool # Pool global ekanligini bildiramiz
+        
+        # 2. Baza bilan ulanish (Muzlab qolish ehtimoli bor joy)
         async with db_pool.acquire() as conn:
             async with conn.cursor(dictionary=True) as cur:
-                # Foydalanuvchini qidirish
+                print(f"DEBUG: Bazadan qidirilmoqda ID: {target_id}")
                 await cur.execute("SELECT name, status FROM users WHERE user_id = %s", (target_id,))
                 user = await cur.fetchone()
 
@@ -4180,14 +4187,14 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user:
             await update.message.reply_text(
                 f"⚠️ <b>Foydalanuvchi topilmadi!</b>\n\n"
-                f"ID: <code>{target_id}</code> bazada mavjud emas. "
-                f"Foydalanuvchi avval botni ishga tushirganiga ishonch hosil qiling.", 
+                f"ID: <code>{target_id}</code> bazada mavjud emas.", 
                 parse_mode="HTML"
             )
-            return A_ADD_VIP # Qayta ID kutish rejimida qoladi
+            return A_ADD_VIP
         
-        # 4. Foydalanuvchi topilsa, ma'lumotlarni olish
-        user_name = user.get('name', 'Noma\'lum') if isinstance(user, dict) else user[0]
+        # 4. Foydalanuvchi topilsa
+        user_name = user.get('name', 'Noma\'lum')
+        user_status = user.get('status', 'user')
 
         keyboard = [
             [InlineKeyboardButton("⏳ 1 Oylik", callback_data=f"set_vip_time_{target_id}_1")],
@@ -4201,7 +4208,7 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"✅ <b>Foydalanuvchi topildi!</b>\n\n"
             f"👤 <b>Ism:</b> {user_name}\n"
             f"🆔 <b>ID:</b> <code>{target_id}</code>\n"
-            f"current status: <b>{user.get('status', 'user')}</b>\n\n"
+            f"Hozirgi status: <b>{user_status}</b>\n\n"
             f"💎 VIP muddatini tanlang:",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="HTML"
@@ -4209,13 +4216,14 @@ async def exec_vip_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return A_ADD_VIP
 
     except Exception as e:
-        # 5. Texnik xatolik yuz bersa (Baza ulanmasa va h.k.)
+        print(f"--- XATOLIK: {str(e)} ---")
         logger.error(f"VIP add error: {e}")
         await update.message.reply_text(
-            f"🚫 <b>Texnik xatolik yuz berdi!</b>\n\nXatolik turi: <code>{str(e)}</code>", 
+            f"🚫 <b>Texnik xatolik:</b>\n<code>{str(e)}</code>", 
             parse_mode="HTML"
         )
         return ConversationHandler.END
+        
         
 
 
@@ -5692,6 +5700,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
