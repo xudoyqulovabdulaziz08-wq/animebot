@@ -5517,6 +5517,28 @@ async def reset_db_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logging.exception("RESET ERROR")
         await update.message.reply_text(f"❌ XATO YUZ BERDI:\n`{e}`", parse_mode="Markdown")
+
+
+# ===================================================================================
+
+async def wrap_check_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id == MAIN_ADMIN_ID:
+        return True
+
+    not_joined = await check_sub(user_id, context.bot)
+    if not_joined:
+        btn = [[InlineKeyboardButton("Obuna bo'lish ➕", url=f"https://t.me/{c.replace('@','')}") ] for c in not_joined]
+        btn.append([InlineKeyboardButton("Tekshirish ✅", callback_data="recheck")])
+        
+        msg = "⚠️ Davom etish uchun kanallarga a'zo bo'lishingiz shart!"
+        
+        if update.callback_query:
+            await update.callback_query.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(btn))
+        else:
+            await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(btn))
+        return False
+    return True
         
 # ====================== MAIN FUNKSIYA (TUZATILDI) =======================
 
@@ -5704,6 +5726,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
