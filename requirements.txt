@@ -1,6 +1,6 @@
 python-telegram-bot==20.8
 aiomysql==0.2.0           # 0.1.0 dan ko'ra barqarorroq
-httpx==0.27.0             # Real barqaror versiya
+httpx==0.26.0            # Real barqaror versiya
 sqlalchemy==2.0.20
 flask[async]==3.0.3       # Agar FastAPI ga o'ta olmasangiz
 matplotlib==3.8.0
