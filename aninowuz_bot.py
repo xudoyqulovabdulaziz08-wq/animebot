@@ -1185,6 +1185,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
     data = query.data
+
+    if data != "recheck":
+        not_joined = await check_sub(user_id, context.bot)
+        if not_joined:
+            await query.answer("⚠️ Avval kanallarga obuna bo'ling!", show_alert=True)
+            # Agar obuna bo'lmagan bo'lsa, pastdagi kodlarga o'tmasdan funksiyani to'xtatamiz
+            return
     
     # get_user_status allaqachon aiomysql pool bilan ishlaydi (await shart)
     status = await get_user_status(user_id)
@@ -1194,29 +1201,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Obunani qayta tekshirish
     if data == "recheck":
-        # check_sub funksiyasi ham asinxron (await shart)
+        # 1. Obunani tekshirish
         not_joined = await check_sub(user_id, context.bot)
         
-        if not not_joined: # Agar ro'yxat bo'sh bo'lsa (hamma kanalga a'zo)
+        if not not_joined: # Hamma kanalga a'zo
             try:
+                # 2. Foydalanuvchi statusini bazadan olish (MUHIM!)
+                status = await get_user_status(user_id) 
+                
+                # 3. Eski xabarni o'chirish
                 await query.message.delete()
-            except:
-                pass # Xabar allaqachon o'chirilgan bo'lishi mumkin
-            
-            # 28-BAND: Obuna tasdiqlangach asosiy menyu chiqadi
-            await context.bot.send_message(
-                chat_id=user_id, 
-                text="<b>Tabriklaymiz! ✅ Obuna tasdiqlandi.</b>\nEndi botdan to'liq foydalanishingiz mumkin.", 
-                reply_markup=get_main_kb(status),
-                parse_mode="HTML"
-            )
+                
+                # 4. Tasdiqlash va Menyuni chiqarish
+                await context.bot.send_message(
+                    chat_id=user_id, 
+                    text="<b>Tabriklaymiz! ✅ Obuna tasdiqlandi.</b>\nEndi botdan to'liq foydalanishingiz mumkin.", 
+                    reply_markup=get_main_kb(status),
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                logger.error(f"Recheck error: {e}")
+                # Xato bo'lsa ham foydalanuvchiga bildirish
+                await query.answer("Xatolik yuz berdi, qaytadan urinib ko'ring.")
         else:
             # Hali a'zo bo'lmagan bo'lsa ogohlantirish
             await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
         return None
-
-    # ... bu yerda boshqa callbacklar davom etadi ...
-        
 # ===================================================================================
         # 1. Qidiruv turlari tanlanganda
     if data == "search_type_id":
@@ -5741,6 +5751,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
