@@ -5574,6 +5574,7 @@ async def main_menu_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYP
     not_joined = await check_sub(user_id, context.bot)
     if not_joined:
         # Foydalanuvchi obuna bo'lmagan bo'lsa, start oynasini chiqaramiz
+        from bot import start
         return await start(update, context)
 
     # --- 2. OBUNA BO'LGAN BO'LSA, TUGMALARNI TEKSHIRAMIZ ---
@@ -5780,6 +5781,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
