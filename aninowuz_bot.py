@@ -1841,27 +1841,31 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Admin o'chirish xatosi: {e}")
 
-    # 5. ADMIN QO'SHISHNI TASDIQLASH
     elif data.startswith("conf_adm_"):
         new_id = data.replace("conf_adm_", "")
         try:
             async with db_pool.acquire() as conn:
                 async with conn.cursor() as cur:
-                    # Admin jadvaliga qo'shish
-                    await cur.execute("INSERT INTO admin_id (user_id) VALUES (%s)", (new_id,))
-                    # Users jadvalida statusni yangilash
+                    # 1. Faqat statusni yangilaymiz (Admin_id jadvali shart emas)
                     await cur.execute("UPDATE users SET status = 'admin' WHERE user_id = %s", (new_id,))
-                    # LOG (21-band)
+                
+                    # 2. LOG yozamiz (Kim admin qilganini bilish uchun)
                     await cur.execute(
                         "INSERT INTO admin_logs (admin_id, action) VALUES (%s, %s)",
                         (user_id, f"Yangi admin tayinladi: {new_id}")
                     )
-            
+                
+                    # 3. Albatta commit qilamiz!
+                    await conn.commit()
+        
             await query.edit_message_text(f"✅ ID: <code>{new_id}</code> muvaffaqiyatli admin qilib tayinlandi.", parse_mode="HTML")
         except Exception as e:
-            await query.edit_message_text(f"❌ Xatolik: {e}")
-        
+            logger.error(f"Admin tayinlashda xatolik: {e}")
+            await query.edit_message_text(f"❌ Xatolik yuz berdi: {e}")
+    
         return ConversationHandler.END
+    
+    
 
 
   # ================= VIP CONTROL (ADMIN PANEL) =================
@@ -5700,6 +5704,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
