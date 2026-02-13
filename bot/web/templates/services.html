@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-lang="services">Anime List - Aninovuz</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/aninovuz.css') }}">
+    
+    
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+
+    <div class="navbar">
+        <div class="hamburger" id="hamburger">
+            <i class="fa-solid fa-bars"></i>
+        </div>  
+        <div class="logo">
+            <a href="aninovuz.html"><h2><span>Aninovuz</h2><span></a>
+        </div>
+        <div class="search">
+            <input type="text" placeholder="Qidiruv..." id="searchInput" name="searchInput" data-lang-placeholder="search" data-lang="search">
+            <button id="search-btn"  ><i class="fa-solid fa-magnifying-glass"></i></button>
+        </div>
+        
+        <div class="til">
+            <section>
+                <select name="language" id="language" onchange="changeLanguage()">
+                    <option value="uz" data-lang="lang1">Uzbek</option>
+                    <option value="ru" data-lang="lang2">Russian</option>
+                    <option value="en" data-lang="lang3">English</option>
+                </select>
+            </section>
+        </div>
+        <div class="login" id="userProfileBlock" style="display: none;">
+            <div class="profile-trigger" onclick="toggleProfileMenu()">
+                <img src="" id="userAvatar" class="user-avatar" alt="Avatar">
+                <span id="userName">User</span>
+            </div>
+    
+            <div class="profile-dropdown" id="profileDropdown">
+                <p>
+                    <strong data-lang="id">ID</strong>: 
+                    <span id="userId">---</span>
+                </p>
+                <p>
+                    <strong data-lang="name">Ism</strong>: 
+                    <span id="userFullName">---</span>
+                </p>
+                <p>
+                    <strong data-lang="status">Status</strong>: 
+                    <span id="userStatus" class="status-badge">User</span>
+                </p>
+                <hr>
+                </div>
+        </div>
+        
+    </div>
+    <div class="navbar2">
+        <a href="/" data-lang="home">Bosh sahifa</a>
+        <a href="/malumot.html" data-lang="about">Ma'lumot</a>
+        <a href="/services.html" data-lang="services">Anime list</a>
+        <a href="/contact.html" data-lang="contact">Tarix</a>
+    </div>
+    <div class="menu">
+        <a href="#" data-lang="popular">Eng mashhur</a>
+        <a href="#" data-lang="new">Yangi animelar</a>
+        <a href="#" data-lang="rating">Reyting</a>
+        <div class="janr">
+            <h3 data-lang="genres">Janrlar</h3>
+            <select name="turi" id="turi" onchange="changeturi()">
+                <option value="none" data-lang="none">Hech biri</option>
+                <option value="action" data-lang="action">Action</option>
+                <option value="adventure" data-lang="adventure">Adventure</option>
+                <option value="comedy" data-lang="comedy">Comedy</option>
+                <option value="drama" data-lang="drama">Drama</option>
+                <option value="fantasy" data-lang="fantasy">Fantasy</option>
+                <option value="horror" data-lang="horror">Horror</option>
+                <option value="mystery" data-lang="mystery">Mystery</option>
+                <option value="romance" data-lang="romance">Romance</option>
+                <option value="sci-fi" data-lang="sci-fi">Sci-Fi</option>
+                <option value="slice-of-life" data-lang="slice-of-life">Slice of Life</option>
+            </select>
+        </div>
+    </div>
+
+        <main class="content">
+            <div class="list-header">
+                <h2 data-lang="services">Barcha animelar ro'yxati</h2>
+                <p id="resultCount">Jami: {{ animes|length }} ta</p>
+            </div>
+
+            <div class="anime-grid" id="newAnimeGrid">
+                {% if animes %}
+                    {% for anime in animes %}
+                    <div class="anime-card">
+                        <div class="poster-wrapper">
+                            <img src="/image/{{ anime.poster_id }}" alt="{{ anime.name }}">
+                            <span class="rating-badge">★ 8.5</span>
+                        </div>
+                        <h3>{{ anime.name }}</h3>
+                        <a href="https://t.me/aninovuz_bot?start=ani_{{ anime.id }}" class="watch-btn">
+                            <i class="fa-brands fa-telegram"></i>
+                            <span data-lang="watch_bot">Botda ko'rish</span>
+                        </a>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fa-solid fa-film"></i>
+                        <p>Hozircha ro'yxat bo'sh.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </main>
+   
+    
+<div class="mobile-menu" id="mobileMenu" style="display:none;">
+    <div class="mobile-menu" id="mobileMenu">
+    <div class="mobile-sreach">
+        <input type="text" placeholder="Qidiruv..." id="mobileSearchInput">
+        <button><i class="fa-solid fa-magnifying-glass"></i></button>
+    </div>
+
+    <a href="/" data-lang="home">Bosh sahifa</a>
+    <a href="/malumot.html" data-lang="about">Ma'lumot</a>
+    <a href="/services.html" data-lang="services">Anime list</a>
+    <a href="/contact.html" data-lang="contact">Tarix</a>
+
+    <hr style="opacity: 0.1; margin: 10px 0;">
+
+    
+    
+
+    <a href="#" data-lang="popular">Eng mashhur</a>
+    <a href="#" data-lang="new">Yangi animelar</a>
+    <a href="#" data-lang="rating">Reyting</a>
+
+    <div class="janr">
+        <h3 data-lang="genres">Janrlar</h3>
+        <select id="mobileTuri" onchange="changeturi()">
+            <option value="none" data-lang="none">Hech biri</option>
+            <option value="action" data-lang="action">Action</option>
+            <option value="adventure" data-lang="adventure">Adventure</option>
+            <option value="comedy" data-lang="comedy">Comedy</option>
+            <option value="drama" data-lang="drama">Drama</option>
+            <option value="fantasy" data-lang="fantasy">Fantasy</option>
+            <option value="horror" data-lang="horror">Horror</option>
+            <option value="mystery" data-lang="mystery">Mystery</option>
+            <option value="romance" data-lang="romance">Romance</option>
+            <option value="sci-fi" data-lang="sci-fi">Sci-Fi</option>
+            <option value="slice-of-life" data-lang="slice-of-life">Slice of Life</option>
+        </select>
+    </div>
+
+    <div class="mobile-til">
+        <h3 data-lang="lang">Til</h3>
+        <section>
+            <select name="language" id="mobileLanguage" onchange="syncLanguage(this)">
+                <option value="uz" data-lang="lang1">Uzbek</option>
+                <option value="ru" data-lang="lang2">Russian</option>
+                <option value="en" data-lang="lang3">English</option>
+            </select>
+        </section>
+    </div>
+</div>
+</div>
+    <script src="{{ url_for('static', filename='js/aninovuz.js') }}"></script>
+    
+   
+</body>
+
+</html>
+
+
+
