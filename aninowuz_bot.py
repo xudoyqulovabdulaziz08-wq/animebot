@@ -5564,7 +5564,42 @@ async def wrap_check_sub(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(btn))
         return False
     return True
+# ===================================================================================
+
+async def main_menu_dispatcher(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    text = update.message.text
+
+    # --- 1. MAJBURIY OBUNA TEKSHIRUVI ---
+    not_joined = await check_sub(user_id, context.bot)
+    if not_joined:
+        # Foydalanuvchi obuna bo'lmagan bo'lsa, start oynasini chiqaramiz
+        return await start(update, context)
+
+    # --- 2. OBUNA BO'LGAN BO'LSA, TUGMALARNI TEKSHIRAMIZ ---
+    if "Shaxsiy Kabinet" in text:
+        return await show_user_cabinet(update, context)
         
+    elif "Muxlislar Klubi" in text:
+        return await start_profile_creation(update, context)
+        
+    elif "Murojaat & Shikoyat" in text:
+        return await feedback_start(update, context)
+        
+    elif "Ballar & VIP" in text:
+        return await show_bonus(update, context)
+        
+    elif "Barcha animelar" in text:
+        return await export_all_anime(update, context)
+        
+    elif "Qo'llanma" in text:
+        return await show_guide(update, context)
+        
+    elif "VIP PASS" in text:
+        return await vip_pass_info(update, context)
+
+    
+
 # ====================== MAIN FUNKSIYA (TUZATILDI) =======================
 
 
@@ -5685,7 +5720,7 @@ async def main():
     # 7. HANDLERLARNI RO'YXATGA OLISH
     
     # 7. HANDLERLARNI RO'YXATGA OLISH (TARTIB JUDA MUHIM!)
-
+    
     # 7.1. Avvalo Majburiy Obuna va Pagination kabi umumiy callbacklar
     application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
     application.add_handler(CallbackQueryHandler(handle_pagination, pattern="^page_"))
@@ -5695,14 +5730,8 @@ async def main():
     # MUHIM: conv_handler ichidagi entry_points hamma asosiy tugmalarni o'z ichiga olishi kerak
     application.add_handler(conv_handler)
 
-    # 7.3. MUSTAQIL MATNLI TUGMALAR (Agar conv_handler tutib olmasa, bular ishlaydi)
-    application.add_handler(MessageHandler(filters.Regex(r"Shaxsiy Kabinet"), show_user_cabinet))
-    application.add_handler(MessageHandler(filters.Regex(r"Muxlislar Klubi"), start_profile_creation))
-    application.add_handler(MessageHandler(filters.Regex(r"Murojaat & Shikoyat"), feedback_start))
-    application.add_handler(MessageHandler(filters.Regex(r"Ballar & VIP"), show_bonus))
-    application.add_handler(MessageHandler(filters.Regex(r"Barcha animelar"), export_all_anime))
-    application.add_handler(MessageHandler(filters.Regex(r"Qo'llanma"), show_guide))
-    application.add_handler(MessageHandler(filters.Regex(r"VIP PASS"), vip_pass_info))
+    # 7.3. MATNLI TUGMALAR UCHUN YAGONA FILTR
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, main_menu_dispatcher))
     
     # 7.4. QOLGAN BARCHA CALLBACKLAR (Hech qayerga kirmay qolganlari uchun)
     application.add_handler(CallbackQueryHandler(handle_callback))
@@ -5751,6 +5780,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
