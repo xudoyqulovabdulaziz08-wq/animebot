@@ -1,0 +1,12 @@
+python-telegram-bot==20.8
+aiomysql==0.2.0           # 0.1.0 dan ko'ra barqarorroq
+httpx==0.27.0             # Real barqaror versiya
+sqlalchemy==2.0.20
+flask[async]==3.0.3       # Agar FastAPI ga o'ta olmasangiz
+matplotlib==3.8.0
+numpy==1.26.4             # Barqarorlik uchun
+apscheduler==3.10.4       # Zamonaviy versiya
+requests==2.31.0
+gunicorn==21.2.0          # 23.0 hali beta bo'lishi mumkin
+cryptography==42.0.5      # Yangilangan xavfsizlik
+python-dotenv==1.0.1      
