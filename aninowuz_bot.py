@@ -720,32 +720,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # =============================================================================================
 
 async def recheck_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Obunani tekshirish va har bir kanal uchun o'sish statistikasini hisoblash.
-    """
     query = update.callback_query
     user_id = query.from_user.id
     
-    # 1. Hozirgi holatni tekshiramiz
+    # 1. Obunani tekshirish
     not_joined = await check_sub(user_id, context.bot)
     
     if not not_joined:
-        # Foydalanuvchi hamma kanalga a'zo bo'ldi.
-        # 2. Xotiradan avval a'zo bo'lmagan kanallar ro'yxatini olamiz
+        # 2. Statistika yangilash
         old_not_joined = context.user_data.get('last_not_joined', [])
         
         if old_not_joined:
-            async with db_pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    # 3. 28-BAND (8-band): Har bir yangi a'zo bo'lingan kanal uchun +1
-                    for ch_username in old_not_joined:
-                        await cur.execute(
-                            "UPDATE channels SET subscribers_added = subscribers_added + 1 WHERE username = %s",
-                            (ch_username,)
-                        )
-            # Hisoblagandan keyin xotirani tozalaymiz
+            try:
+                async with db_pool.acquire() as conn:
+                    async with conn.cursor() as cur:
+                        for ch_username in old_not_joined:
+                            await cur.execute(
+                                "UPDATE channels SET subscribers_added = subscribers_added + 1 WHERE username = %s",
+                                (ch_username,)
+                            )
+                        await conn.commit() # <--- MUHIM: Ma'lumotni saqlash
+            except Exception as e:
+                logger.error(f"Statistika yangilashda xato: {e}")
+
             context.user_data.pop('last_not_joined', None)
 
+        # 3. Eski xabarni o'chirish
         try:
             await query.message.delete()
         except:
@@ -754,17 +754,20 @@ async def recheck_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # 4. Kutilayotgan anime bo'lsa ko'rsatish
         if 'pending_anime' in context.user_data:
             ani_id = context.user_data.pop('pending_anime')
-            return await show_specific_anime_by_id(query, context, ani_id)
+            # Eslatna: show_specific_anime_by_id funksiyasi query yoki user_id bilan ishlashiga qarab chaqiring
+            return await show_specific_anime_by_id(update, context, ani_id)
         
-        # 5. Aks holda asosiy menyu
+        # 5. Asosiy menyu (Statusni yangi funksiyamiz orqali olamiz)
         status = await get_user_status(user_id)
-        await query.message.reply_text(
-            "✅ Rahmat! Obuna tasdiqlandi. Marhamat, botdan foydalanishingiz mumkin.", 
+        
+        # O'chirilgan xabar ustiga emas, yangi xabar sifatida yuboramiz
+        await context.bot.send_message(
+            chat_id=user_id,
+            text="✅ Rahmat! Obuna tasdiqlandi. Marhamat, botdan foydalanishingiz mumkin.", 
             reply_markup=get_main_kb(status)
         )
     else:
-        # Foydalanuvchi hali ham a'zo emas. 
-        # Keyingi safar solishtirish uchun hozirgi a'zo bo'lmagan kanallarini saqlab qo'yamiz.
+        # Foydalanuvchi hali ham a'zo emas
         context.user_data['last_not_joined'] = not_joined
         await query.answer("❌ Hali hamma kanallarga a'zo emassiz!", show_alert=True)
     
@@ -5738,6 +5741,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
