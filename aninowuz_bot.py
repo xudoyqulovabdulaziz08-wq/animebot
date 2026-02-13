@@ -626,6 +626,7 @@ def get_cancel_kb():
 
 # ====================== ASOSIY ISHLOVCHILAR (TUZATILGAN VA TO'LIQ) ======================
 
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_user or not update.message:
         return
@@ -634,7 +635,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_obj = update.effective_user
     username = (user_obj.username or user_obj.first_name or "User")[:50]
     
-    # 1. Deep Link
+    # 1. Deep Link tahlili
     ref_id = None
     if context.args:
         arg = context.args[0]
@@ -644,22 +645,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ref_id = int(arg)
 
     new_user_bonus = False
+    user_status = 'user' # Default status
 
-    # 2. Baza bilan ishlash
+    # 2. Baza bilan ishlash (Aniq mantiq)
     try:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                # INSERT IGNORE - agar user bo'lsa xato bermaydi, shunchaki o'tib ketadi
-                await cur.execute(
-                    "INSERT IGNORE INTO users (user_id, username, joined_at, points) VALUES (%s, %s, %s, %s)",
-                    (user_id, username, datetime.datetime.now(), 10)
-                )
+                # Avval user bormi deb tekshiramiz
+                await cur.execute("SELECT status FROM users WHERE user_id = %s", (user_id,))
+                row = await cur.fetchone()
                 
-                # Agar qator qo'shilgan bo'lsa (rowcount > 0), demak bu yangi user
-                if cur.rowcount > 0:
+                if row:
+                    # User allaqachon bor, statusni olamiz
+                    user_status = row['status'] if isinstance(row, dict) else row[0]
+                else:
+                    # Yangi foydalanuvchi!
                     new_user_bonus = True
+                    user_status = 'user'
                     
-                    # Referral mantiqi (faqat yangi user bo'lsagina ishlaydi)
+                    # Bazaga qo'shish
+                    await cur.execute(
+                        "INSERT INTO users (user_id, username, joined_at, points, status) VALUES (%s, %s, %s, %s, %s)",
+                        (user_id, username, datetime.datetime.now(), 10, 'user')
+                    )
+                    
+                    # Referral mantiqi (faqat haqiqiy yangi user uchun)
                     if ref_id and ref_id != user_id:
                         await cur.execute("UPDATE users SET points = points + 20 WHERE user_id = %s", (ref_id,))
                         try:
@@ -667,51 +677,44 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 chat_id=ref_id, 
                                 text=f"🎉 Tabriklaymiz! Do'stingiz (@{username}) qo'shildi va sizga 20 ball berildi."
                             )
-                        except: 
-                            pass
+                        except: pass
                 
                 await conn.commit()
     except Exception as e:
         logger.error(f"DATABASE ERROR (Start): {e}")
 
     # 3. Obunani tekshirish
-    # 3. Obunani tekshirish
+    # Muhim: MAIN_ADMIN_ID bo'lsa tekshirmaymiz
     if user_id != MAIN_ADMIN_ID: 
         try:
             not_joined = await check_sub(user_id, context.bot)
-            
-            # Agar kanallar ro'yxati bo'sh bo'lmasa
             if not_joined:
-                btn = [[InlineKeyboardButton("Obuna bo'lish ➕", url=f"https://t.me/{c.replace('@','')}")] for c in not_joined]
+                btn = [[InlineKeyboardButton("Obuna bo'lish ➕", url=f"https://t.me/{c.replace('@','')}") ] for c in not_joined]
                 btn.append([InlineKeyboardButton("Tekshirish ✅", callback_data="recheck")])
             
                 msg = "👋 Botdan foydalanish uchun kanallarga a'zo bo'ling:"
-                if context.user_data.get('pending_anime'): # .get ishlatish xavfsizroq
+                if context.user_data.get('pending_anime'):
                     msg = "🎬 <b>Siz tanlagan animeni ko'rish uchun</b> avval a'zo bo'ling:"
 
-                # return bo'lsa, funksiya shu yerda to'xtaydi va menyuni ochmaydi
                 return await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(btn), parse_mode="HTML")
-        
         except Exception as e:
             logger.error(f"SUB CHECK ERROR: {e}")
-            # Xatolik bo'lsa ham foydalanuvchini to'xtatib turish ma'qul
 
-    # 4. Asosiy Menyu
+    # 4. Asosiy Menyu chiqarish
     try:
-        status = await get_user_status(user_id)
+        # Agar bu MAIN_ADMIN_ID bo'lsa, statusni 'admin' qilib ko'rsatamiz
+        final_status = 'admin' if user_id == MAIN_ADMIN_ID else user_status
         
-        # Mantiqiy tekshiruv: Faqat yangi user bo'lsa bonus haqida yozamiz
         if new_user_bonus:
             welcome_msg = f"✨ Xush kelibsiz, {user_obj.first_name}!\n💰 Sizga 10 ball start bonus berildi!"
         else:
             welcome_msg = f"Xush kelibsiz, {user_obj.first_name}! 😊\nSizni yana ko'rganimizdan xursandmiz."
 
-        await update.message.reply_text(welcome_msg, reply_markup=get_main_kb(status))
+        await update.message.reply_text(welcome_msg, reply_markup=get_main_kb(final_status))
     except Exception as e:
         logger.error(f"MENU ERROR: {e}")
     
-    return ConversationHandler.END
-    
+    return ConversationHandler.END    
     
 
     
@@ -5736,6 +5739,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
