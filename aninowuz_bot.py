@@ -453,42 +453,41 @@ async def execute_query(query, params=None, fetch="none"):
 async def get_user_status(user_id: int):
     """
     Foydalanuvchi statusini asinxron aniqlash.
-    28-band: VIP muddatini avtomatik tekshirish va statusni yangilash qo'shildi.
+    Faqat users jadvalidagi 'status' ustuniga tayanadi.
     """
-    # 1. Asosiy egasini tekshirish
+    # 1. Asosiy egasini tekshirish (Hardcoded)
     if user_id == MAIN_ADMIN_ID: 
         return "main_admin"
     
     try:
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
-                # 2. Adminlar jadvalini tekshirish
-                # Eslatma: init_db da 'admin_id' jadvali qolib ketgan bo'lsa, uni yaratishni unutmang
-                await cur.execute("SELECT user_id FROM admin_id WHERE user_id=%s", (user_id,))
-                if await cur.fetchone():
-                    return "admin"
-                
-                # 3. Foydalanuvchi ma'lumotlarini olish
+                # 2. Foydalanuvchi ma'lumotlarini bitta so'rovda olamiz
+                # Bu yerda 'admin' degan alohida tekshiruv shart emas, 
+                # chunki statusning o'zi 'admin' qiymatiga ega bo'lishi mumkin.
                 await cur.execute("SELECT status, vip_expire_date FROM users WHERE user_id=%s", (user_id,))
                 res = await cur.fetchone()
                 
                 if not res:
                     return "user"
                 
-                status = res['status']
-                vip_date = res['vip_expire_date']
+                # Baza formatiga qarab (dict yoki tuple) ma'lumotni ajratamiz
+                status = res['status'] if isinstance(res, dict) else res[0]
+                vip_date = res['vip_expire_date'] if isinstance(res, dict) else res[1]
                 
-                # 4. 28-BAND: VIP muddati o'tganini tekshirish (Avtomatlashtirish)
+                # 3. VIP muddatini tekshirish
                 if status == 'vip' and vip_date:
                     if datetime.datetime.now() > vip_date:
                         # Muddat tugagan bo'lsa statusni tushiramiz
                         await cur.execute("UPDATE users SET status='user', vip_expire_date=NULL WHERE user_id=%s", (user_id,))
+                        await conn.commit() # UPDATE'dan keyin commit shart!
                         return "user"
                 
+                # Status 'admin', 'vip' yoki 'user' bo'lishidan qat'i nazar qaytaradi
                 return status
                 
     except Exception as e:
-        logger.error(f"⚠️ Status aniqlashda (aiomysql) xato: {e}")
+        logger.error(f"⚠️ Status aniqlashda xato: {e}")
         return "user"
 
 
@@ -5739,6 +5738,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
