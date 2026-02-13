@@ -496,40 +496,44 @@ async def get_user_status(user_id: int):
 # ===================================================================================
 
 async def check_sub(user_id: int, bot):
+    # Asosiy adminni tekshirmaymiz
+    if user_id == MAIN_ADMIN_ID:
+        return []
+
     not_joined = []
     
-    # 1. Kanallarni bazadan olishni try-except ichiga olamiz
-    channels = []
     try:
-        # Timeout qo'shamizki, baza qotib qolsa bot o'lib qolmasin
-        async with asyncio.timeout(5): 
-            async with db_pool.acquire() as conn:
-                async with conn.cursor() as cur:
-                    await cur.execute("SELECT username FROM channels")
-                    channels = await cur.fetchall()
+        # 1. Kanallarni olish
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute("SELECT username FROM channels")
+                rows = await cur.fetchall()
     except Exception as e:
-        logger.error(f"⚠️ Kanal bazasida xato: {e}")
-        return [] # Xato bo'lsa tekshirmasdan o'tkazib yuboramiz
+        logger.error(f"🔴 BAZA XATOSI (check_sub): {e}")
+        return None # Bazada xato bo'lsa, buni start'da ushlaymiz
 
-    for row in channels:
-        # DictCursor yoki oddiy Cursor ekanligiga qarab username ni olamiz
+    for row in rows:
+        # Username olish (row[0] chunki SELECTda bitta ustun bor)
         ch = row['username'] if isinstance(row, dict) else row[0]
+        target = str(ch).strip()
+        
+        # Formatni to'g'irlash
+        if not target.startswith('@') and not target.startswith('-'):
+            target = f"@{target}"
         
         try:
-            target = str(ch).strip()
-            if not target.startswith('@') and not target.startswith('-'):
-                target = f"@{target}"
+            # 2. Telegram API orqali tekshirish
+            member = await bot.get_chat_member(chat_id=target, user_id=user_id)
             
-            # 2. Har bir kanalni tekshirishga 3 soniya vaqt beramiz
-            async with asyncio.timeout(3):
-                member = await bot.get_chat_member(target, user_id)
-                if member.status in ['left', 'kicked']:
-                    not_joined.append(ch)
-                    
+            # Statusni tekshirish
+            if member.status not in ['creator', 'administrator', 'member']:
+                not_joined.append(target)
+                
         except Exception as e:
-            # 3. KANAL TOPILMASA YOKI BOT ADMIN BO'LMASA - TASHLAB KETAMIZ
-            logger.warning(f"❗ Kanal tashlab ketildi: {ch}. Sabab: {e}")
-            continue 
+            # AGAR SHU YERDA XATO BO'LSA (masalan, bot admin emas desa)
+            logger.error(f"🔴 API XATOSI ({target}): {e}")
+            # Xavfsizlik uchun: xato bo'lsa ham foydalanuvchini azo bo'lmaganlar ro'yxatiga qo'shamiz
+            not_joined.append(target) 
             
     return not_joined
     
@@ -671,20 +675,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"DATABASE ERROR (Start): {e}")
 
     # 3. Obunani tekshirish
+    # 3. Obunani tekshirish
     if user_id != MAIN_ADMIN_ID: 
         try:
             not_joined = await check_sub(user_id, context.bot)
+            
+            # Agar kanallar ro'yxati bo'sh bo'lmasa
             if not_joined:
-                btn = [[InlineKeyboardButton("Obuna bo'lish ➕", url=f"https://t.me/{c.replace('@','')}") ] for c in not_joined]
+                btn = [[InlineKeyboardButton("Obuna bo'lish ➕", url=f"https://t.me/{c.replace('@','')}")] for c in not_joined]
                 btn.append([InlineKeyboardButton("Tekshirish ✅", callback_data="recheck")])
             
                 msg = "👋 Botdan foydalanish uchun kanallarga a'zo bo'ling:"
-                if 'pending_anime' in context.user_data:
+                if context.user_data.get('pending_anime'): # .get ishlatish xavfsizroq
                     msg = "🎬 <b>Siz tanlagan animeni ko'rish uchun</b> avval a'zo bo'ling:"
 
+                # return bo'lsa, funksiya shu yerda to'xtaydi va menyuni ochmaydi
                 return await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(btn), parse_mode="HTML")
+        
         except Exception as e:
             logger.error(f"SUB CHECK ERROR: {e}")
+            # Xatolik bo'lsa ham foydalanuvchini to'xtatib turish ma'qul
 
     # 4. Asosiy Menyu
     try:
@@ -5726,6 +5736,7 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
         
+
 
 
 
