@@ -1,6 +1,6 @@
 from sqlalchemy import select
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from db import async_session
+from database.db import async_session
 from database.models import Anime, Episode
 from telegram.ext import ContextTypes
 
@@ -203,6 +203,7 @@ async def show_anime_details_callback(update: Update, context: ContextTypes.DEFA
     anime_id = int(query.data.split("_")[1])
     await show_anime_details(update, context, anime_id)
     await query.answer()
+
 
 
 
