@@ -8,7 +8,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 # main.py ichidan faqat bot funksiyasini olamiz
 from main import start_bot 
 
+
+def run_dummy_server():
+    """Render uchun yolg'onchi port ochuvchi funksiya"""
+    port = int(os.environ.get("PORT", 8080))
+    handler = http.server.SimpleHTTPRequestHandler
+    with socketserver.TCPServer(("", port), handler) as httpd:
+        print(f"📡 Dummy server {port}-portda ishlamoqda...")
+        httpd.serve_forever()
+
+
 async def main():
+    threading.Thread(target=run_dummy_server, daemon=True).start()
     """Faqat Botni yurgizish mantiqi"""
     print("🚀 Tizim ishga tushmoqda...")
     try:
@@ -22,6 +33,7 @@ if __name__ == "__main__":
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Tizim to'xtatildi")
+
 
 
 
