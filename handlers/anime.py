@@ -27,7 +27,7 @@ async def show_anime_details(update: Update, context: ContextTypes.DEFAULT_TYPE,
         genren = anime.genre if anime.genre else "Noma'lum"
         yearn = anime.year if anime.year else "Noma'lum"
         fandubn = anime.fandub if anime.fandub else "Noma'lum"
-        langn = anime.lang if anime.lang  else "O'zbek
+        langn = anime.lang if anime.lang  else "O'zbek"
         caption = (
             f"🎬 <b>{anime.name}</b>\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n"
@@ -203,4 +203,5 @@ async def show_anime_details_callback(update: Update, context: ContextTypes.DEFA
     anime_id = int(query.data.split("_")[1])
     await show_anime_details(update, context, anime_id)
     await query.answer()
+
 
