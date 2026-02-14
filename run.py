@@ -1,6 +1,6 @@
 import asyncio
-from bot.main import start_bot  # Botni ishga tushirish funksiyasi
-from bot.web.app import app     # Flask (app.py) obyekti
+from main import start_bot  # Botni ishga tushirish funksiyasi
+from web.app import app     # Flask (app.py) obyekti
 import uvicorn                  # Flaskni asinxron ishga tushirish uchun
 
 async def run_flask():
@@ -23,3 +23,4 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Tizim to'xtatildi")
   
+
