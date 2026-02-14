@@ -1,10 +1,9 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from database.db import async_session   # db.py-dagi sessiya fabrikasi
+from database.db import async_session
 from services.user_service import register_user, get_user_status
-from keyboards.default import get_main_kb
-from config import MAIN_ADMIN_ID
-
+from keyboards.default import get_main_kb # Menyuni import qilamiz
+from config import MAIN_ADMIN_ID # Adminni tekshirish uchun
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.effective_user:
@@ -14,32 +13,41 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     async with async_session() as session:
         try:
-            # register_user funksiyasi bazadan foydalanuvchi obyektini qaytaradi
+            # 1. Foydalanuvchini ro'yxatdan o'tkazish yoki ma'lumotni yangilash
             user, is_new = await register_user(session, tg_user)
             
+            # 2. Statusni aniqlash (Menyu tugmalari uchun)
+            status = await get_user_status(session, tg_user.id, MAIN_ADMIN_ID)
+            
+            # 3. Statusga mos menyuni olish
+            reply_markup = get_main_kb(status)
+
             if is_new:
-                # Yangi foydalanuvchi uchun xabar
                 text = (
                     f"👋 Xush kelibsiz, {tg_user.full_name}!\n"
                     f"Siz muvaffaqiyatli ro'yxatdan o'tdingiz.\n\n"
-                    f"🆔 Sizning bazadagi ID: `{user.user_id}`\n"
-                    f"🏆 Ballaringiz: {user.points}"
+                    f"🆔 ID: `{user.user_id}`\n"
+                    f"🏆 Ballar: {user.points}\n"
+                    f"✨ Status: {status.upper()}"
                 )
             else:
-                # Bazada mavjud foydalanuvchi uchun xabar
-                # Bu yerda biz bazadan kelgan 'points' va 'status'ni ko'rsatamiz
                 text = (
                     f"Sizni yana ko'rib turganimizdan xursandmiz, {tg_user.full_name}! ✨\n\n"
-                    f"📊 **Sizning statusingiz:** {user.status.upper()}\n"
-                    f"💰 **Joriy ballaringiz:** {user.points}\n"
+                    f"📊 **Status:** {status.upper()}\n"
+                    f"💰 **Ballar:** {user.points}\n"
                     f"📅 **A'zo bo'lgan sana:** {user.joined_at.strftime('%d.%m.%Y')}"
                 )
             
-            await update.message.reply_text(text, parse_mode="Markdown")
+            # 4. Xabarni menyu bilan birga yuborish
+            await update.message.reply_text(
+                text, 
+                reply_markup=reply_markup, 
+                parse_mode="Markdown"
+            )
             
         except Exception as e:
-            print(f"❌ DB ulanish xatosi: {e}")
-            await update.message.reply_text("Bazaga ulanishda muammo yuz berdi. Iltimos, config va db.py ni tekshiring.")
+            print(f"❌ Xatolik: {e}")
+            await update.message.reply_text("Tizimda texnik xatolik yuz berdi.")
 
 
 
@@ -64,6 +72,7 @@ async def cabinet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += f"💎 VIP muddati: {user.vip_expire_date.strftime('%d.%m.%Y')}"
 
         await update.message.reply_text(text, parse_mode='Markdown')
+
 
 
 
