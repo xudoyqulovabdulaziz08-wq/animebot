@@ -20,17 +20,21 @@ async def show_anime_details(update: Update, context: ContextTypes.DEFAULT_TYPE,
         if not anime:
             await target.reply_text("❌ Kechirasiz, bu anime haqida ma'lumot topilmadi.")
             return
-        description = anime.description or 'Mazmun qo\'shilmagan'
+        description = anime.description or 'Mazmun qoshilmagan'
         if len(description) > 500:
             description = description[:500] + "..."
         # Matnni shakllantiramiz
+        genren = anime.genre if anime.genre else "Noma'lum"
+        yearn = anime.year if anime.year else "Noma'lum"
+        fandubn = anime.fandub if anime.fandub else "Noma'lum"
+        langn = anime.lang if anime.lang  else "O'zbek
         caption = (
             f"🎬 <b>{anime.name}</b>\n\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🎭 <b>Janr:</b> {anime.genre or 'Noma\'lum'}\n"
-            f"📅 <b>Yil:</b> {anime.year or 'Noma\'lum'}\n"
-            f"🎙 <b>Fandub:</b> {anime.fandub or 'Noma\'lum'}\n"
-            f"🌐 <b>Til:</b> {anime.lang or 'O\'zbek'}\n"
+            f"🎭 <b>Janr:</b> {genren}\n"
+            f"📅 <b>Yil:</b> {yearn}\n"
+            f"🎙 <b>Fandub:</b> {fandubn = anime.fandub if anime.fandub else "Noma'lum"}\n"
+            f"🌐 <b>Til:</b> {langn}\n"
             f"📊 <b>Reyting:</b> ⭐ {anime.rating_sum or 0}\n"
             f"✅ <b>Holati:</b> {'Tugallangan' if anime.is_completed else 'Davom etmoqda'}\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n"
@@ -199,3 +203,4 @@ async def show_anime_details_callback(update: Update, context: ContextTypes.DEFA
     anime_id = int(query.data.split("_")[1])
     await show_anime_details(update, context, anime_id)
     await query.answer()
+
