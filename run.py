@@ -1,4 +1,11 @@
+import sys
+import os
 import asyncio
+
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+
 from main import start_bot  # Botni ishga tushirish funksiyasi
 from web.app import app     # Flask (app.py) obyekti
 import uvicorn                  # Flaskni asinxron ishga tushirish uchun
@@ -23,4 +30,5 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Tizim to'xtatildi")
   
+
 
