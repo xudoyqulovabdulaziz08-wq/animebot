@@ -175,6 +175,35 @@ async def search_callback_handler(update: Update, context: ContextTypes.DEFAULT_
 
 # ===================================================================================
 
+async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Foydalanuvchi qaysi rejimda ekanligini tekshiramiz
+    mode = context.user_data.get("search_mode")
+    text = update.message.text
+
+    if not mode:
+        return # Agar rejim tanlanmagan bo'lsa, hech narsa qilmaymiz
+
+    if mode == "name":
+        # Shu yerda bazadan 'text' bo'yicha qidiramiz
+        await update.message.reply_text(f"🔍 Nom bo'yicha qidirilmoqda: <b>{text}</b>", parse_mode="HTML")
+        
+    elif mode == "id":
+        if text.isdigit():
+             await update.message.reply_text(f"🔢 ID bo'yicha qidirilmoqda: <b>{text}</b>", parse_mode="HTML")
+        else:
+             await update.message.reply_text("❌ Xato! ID faqat raqamlardan iborat bo'lishi kerak.")
+
+    elif mode == "genre":
+        if text.isalpha():
+             await update.message.reply_text(f"🎭 Janr bo'yicha qidirilmoqda: <b>{text}</b>", parse_mode="HTML")
+        else:
+            await update.message.reply_text("❌ Xato! Janr nomi faqat harflardan iborat bo'lishi kerak.")
+
+    elif mode == "character":
+        if text.isalpha():
+             await update.message.reply_text(f"👤 Personaj bo'yicha qidirilmoqda: <b>{text}</b>", parse_mode="HTML")
+        else:
+            await update.message.reply_text("❌ Xato! Personaj nomi faqat harflardan iborat bo'lishi kerak.")
 
 
 
