@@ -1,8 +1,19 @@
+import os
+import sys
+
+
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from config import TOKEN
-from db import engine
+
 from handlers.user import start  # user.py ichidagi start funksiyasi
+try:
+    from database.db import engine
+except ImportError:
+    # Agar hali ham topmasa, muqobil yo'l
+    import db
+    engine = db.engine
+
 
 async def start_bot():
     """Botni sozlash va ishga tushirish funksiyasi"""
@@ -45,3 +56,4 @@ async def start_bot():
 if __name__ == "__main__":
     import asyncio
     asyncio.run(start_bot())
+
