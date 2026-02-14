@@ -1,3 +1,4 @@
+import select
 from telegram import Update
 from telegram.ext import ContextTypes
 from database.db import async_session
@@ -5,7 +6,9 @@ from services.user_service import register_user, get_user_status
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from keyboard.default import get_main_kb # Menyuni import qilamiz
 from config import MAIN_ADMIN_ID # Adminni tekshirish uchun
-
+from handlers.anime import show_anime_details # Anime detallarini ko'rsatish funksiyasi
+from database.models import Anime
+from sqlalchemy import select
 
 # ===================================================================================
 
@@ -176,34 +179,89 @@ async def search_callback_handler(update: Update, context: ContextTypes.DEFAULT_
 # ===================================================================================
 
 async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Foydalanuvchi qaysi rejimda ekanligini tekshiramiz
     mode = context.user_data.get("search_mode")
     text = update.message.text
+    tg_user = update.effective_user
 
     if not mode:
-        return # Agar rejim tanlanmagan bo'lsa, hech narsa qilmaymiz
+        return 
 
-    if mode == "name":
-        # Shu yerda bazadan 'text' bo'yicha qidiramiz
-        await update.message.reply_text(f"🔍 Nom bo'yicha qidirilmoqda: <b>{text}</b>", parse_mode="HTML")
+    # 1. Bazadan qidirishni boshlaymiz (Rejimga qarab)
+    result = None
+    
+    async with async_session() as session:
+        if mode == "name":
+            # Nomi bo'yicha qidirish (ILIKE - o'xshashlarini topadi)
+            stmt = select(Anime).where(Anime.name.ilike(f"%{text}%")).limit(10)
+            res = await session.execute(stmt)
+            result = res.scalars().all()
+            
+        elif mode == "id":
+            if text.isdigit():
+                stmt = select(Anime).where(Anime.anime_id == int(text))
+                res = await session.execute(stmt)
+                result = res.scalar_one_or_none()
+            
+        elif mode == "genre":
+            stmt = select(Anime).where(Anime.genre.ilike(f"%{text}%")).limit(10)
+            res = await session.execute(stmt)
+            result = res.scalars().all()
+
+        elif mode == "fandub":
+            stmt = select(Anime).where(Anime.fandub.ilike(f"%{text}%")).limit(10)
+            res = await session.execute(stmt)
+            result = res.scalars().all()
+
+
+    # 2. AGAR NATIJA TOPILMASA (Barcha rejimlar uchun umumiy to'xtatuvchi)
+    if not result:
+        context.user_data.clear() 
+
+        retry_kb = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton("🔄 Qayta urinish", callback_data=f"search_type_{mode}"),
+                InlineKeyboardButton("⬅️ Orqaga", callback_data="cancel_search")
+            ]
+        ])
+
+        await update.message.reply_text(
+            f"😔 Kechirasiz {tg_user.full_name} siz bergan , <b>'{text}'</b> bo'yicha hech qanday natija topilmadi.\n\n"
+            f"<i>Qidiruv tugadi. Qayta uranasizmi yoki boshqa ylni tanlaysizmi</i>",
+            reply_markup=retry_kb,
+            parse_mode="HTML"
+        )
+        return
+
+    # 3. NATIJA TOPILGANDA
+    context.user_data.clear() 
+
+    # Agar qidiruv ID bo'yicha bo'lsa (Natija bitta obyekt bo'ladi)
+    if mode == "id":
+        await show_anime_details(update, context, result.anime_id)
+
+    # Agar boshqa usullar bilan qidirilsa (Natija ro'yxat/list bo'ladi)
+    else:
+        # Agar ro'yxatda faqat bitta anime bo'lsa, srazu o'shani ko'rsatamiz
+        if isinstance(result, list) and len(result) == 1:
+            await show_anime_details(update, context, result[0].anime_id)
+            return
+
+        # Agar natijalar ko'p bo'lsa, tugmalar chiqaramiz
+        buttons = []
+        for anime in result:
+            # Boss, tugma bosilganda info_ID callback-ini yuboradi
+            buttons.append([InlineKeyboardButton(f"🎬 {anime.name}", callback_data=f"info_{anime.anime_id}")])
         
-    elif mode == "id":
-        if text.isdigit():
-             await update.message.reply_text(f"🔢 ID bo'yicha qidirilmoqda: <b>{text}</b>", parse_mode="HTML")
-        else:
-             await update.message.reply_text("❌ Xato! ID faqat raqamlardan iborat bo'lishi kerak.")
+        reply_markup = InlineKeyboardMarkup(buttons)
+        count = len(result)
+        
+        response = (
+            f"🔍 <b>'{text}'</b> bo'yicha <b>{count}</b> ta natija topildi.\n\n"
+            f"<i>Kerakli animeni tanlang <b>{tg_user.full_name}</b>:</i>"
+        )
+        
+        await update.message.reply_text(response, reply_markup=reply_markup, parse_mode="HTML")
 
-    elif mode == "genre":
-        if text.isalpha():
-             await update.message.reply_text(f"🎭 Janr bo'yicha qidirilmoqda: <b>{text}</b>", parse_mode="HTML")
-        else:
-            await update.message.reply_text("❌ Xato! Janr nomi faqat harflardan iborat bo'lishi kerak.")
-
-    elif mode == "character":
-        if text.isalpha():
-             await update.message.reply_text(f"👤 Personaj bo'yicha qidirilmoqda: <b>{text}</b>", parse_mode="HTML")
-        else:
-            await update.message.reply_text("❌ Xato! Personaj nomi faqat harflardan iborat bo'lishi kerak.")
 
 
 
