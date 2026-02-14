@@ -12,7 +12,9 @@ import uvicorn                  # Flaskni asinxron ishga tushirish uchun
 
 async def run_flask():
     """Flaskni asinxron rejimda ishga tushirish"""
-    config = uvicorn.Config(app, host="0.0.0.0", port=5000, loop="asyncio")
+    # Render portni o'zi beradi, agar bo'lmasa 5000 ni oladi
+    port = int(os.environ.get("PORT", 5000)) 
+    config = uvicorn.Config(app, host="0.0.0.0", port=port, loop="asyncio")
     server = uvicorn.Server(config)
     await server.serve()
 
@@ -30,5 +32,6 @@ if __name__ == "__main__":
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Tizim to'xtatildi")
   
+
 
 
