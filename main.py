@@ -4,7 +4,9 @@ import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler
 from config import TOKEN
-from handlers.user import start  
+
+from telegram.ext import MessageHandler, filters
+from handlers.user import  start, cabinet_handler
 
 # Importni xavfsiz qilish
 try:
@@ -24,6 +26,8 @@ async def start_bot():
     # Handlerlarni qo'shish
     application.add_handler(CommandHandler("start", start))
 
+    application.add_handler(MessageHandler(filters.Text("👤 Shaxsiy Kabinet"), cabinet_handler))
+
     print("🤖 Bot polling rejimida ishlamoqda...")
     
     # Render va boshqa serverlarda botni to'xtovsiz ushlab turish uchun
@@ -39,3 +43,4 @@ async def start_bot():
 
 if __name__ == "__main__":
     asyncio.run(start_bot())
+
