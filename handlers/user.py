@@ -262,8 +262,22 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.reply_text(response, reply_markup=reply_markup, parse_mode="HTML")
 
+# ===================================================================================
 
-
+async def handle_photo_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Rasm yuborilganda ishlovchi funksiya"""
+    mode = context.user_data.get("search_mode")
+    
+    if mode == "photo":
+        await update.message.reply_text(
+            "🖼 <b>Rasmingiz qabul qilindi!</b>\n"
+            "AI tahlil qilmoqda, biroz kuting...", 
+            parse_mode="HTML"
+        )
+        # Kelajakda bu yerga AI qidiruv mantiqi qo'shiladi
+    else:
+        # Agar foydalanuvchi qidiruv rejimida bo'lmasa, shunchaki e'tibor bermaymiz
+        return
 
 
 
