@@ -1,6 +1,7 @@
 import sys
 import os
 import asyncio
+import threading 
 
 # Loyiha yo'laklarini Python-ga tanitish
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -33,6 +34,7 @@ if __name__ == "__main__":
         asyncio.run(main())
     except (KeyboardInterrupt, SystemExit):
         print("🛑 Tizim to'xtatildi")
+
 
 
 
