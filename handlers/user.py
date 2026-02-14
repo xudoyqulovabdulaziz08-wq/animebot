@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from database.db import async_session
 from services.user_service import register_user, get_user_status
-from keyboard.default import get_main_kb # Menyuni import qilamiz
+from keyboards.default import get_main_kb # Menyuni import qilamiz
 from config import MAIN_ADMIN_ID # Adminni tekshirish uchun
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -72,6 +72,7 @@ async def cabinet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += f"💎 VIP muddati: {user.vip_expire_date.strftime('%d.%m.%Y')}"
 
         await update.message.reply_text(text, parse_mode='Markdown')
+
 
 
 
