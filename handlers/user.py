@@ -1,6 +1,6 @@
 from telegram import Update
 from telegram.ext import ContextTypes
-from database.db import async_session
+from database.db import async_session   # db.py-dagi sessiya fabrikasi
 from services.user_service import register_user
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -37,4 +37,5 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             print(f"❌ DB ulanish xatosi: {e}")
             await update.message.reply_text("Bazaga ulanishda muammo yuz berdi. Iltimos, config va db.py ni tekshiring.")
+
 
