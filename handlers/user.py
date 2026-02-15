@@ -81,53 +81,42 @@ async def cabinet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
     async with async_session() as session:
-        # Foydalanuvchi ma'lumotlarini bazadan olamiz
-        user, _ = await register_user(session, update.effective_user)
-        status = await get_user_status(session, user_id, MAIN_ADMIN_ID)
-        
-        text = (
-            f"👤 **Sizning Kabinetingiz**\n\n"
-            f"🆔 ID: `{user.user_id}`\n"
-            f"🎭 Status: **{status.upper()}**\n"
-            f"💰 Ballar: `{user.points}`\n"
-            f"👥 Takliflar: `{user.referral_count}` ta\n"
-            f"📅 Ro'yxatdan o'tdingiz: {user.joined_at.strftime('%d.%m.%Y')}\n"
-        )
-        
-        if user.status == 'vip' and user.vip_expire_date:
-            text += f"💎 VIP muddati: {user.vip_expire_date.strftime('%d.%m.%Y')}"
+        try:
+            # 1. Foydalanuvchi ma'lumotlarini olish va statusni tekshirish
+            user, _ = await register_user(session, update.effective_user)
+            status = await get_user_status(session, user_id, MAIN_ADMIN_ID)
+            
+            # O'zgarishlarni (masalan, VIP muddati tugagan bo'lsa) saqlash
+            await session.commit()
 
-        await update.message.reply_text(text, parse_mode='Markdown')
+            # 2. Ma'lumotlarni tayyorlash
+            joined_date = user.joined_at.strftime('%d.%m.%Y') if user.joined_at else "Noma'lum"
+            
+            text = (
+                f"👤 <b>Sizning Kabinetingiz</b>\n\n"
+                f"🆔 <b>ID:</b> <code>{user.user_id}</code>\n"
+                f"🎭 <b>Status:</b> <b>{status.upper()}</b>\n"
+                f"💰 <b>Ballar:</b> <code>{user.points}</code>\n"
+                f"👥 <b>Takliflar:</b> <code>{user.referral_count}</code> ta\n"
+                f"📅 <b>Ro'yxatdan o'tdingiz:</b> {joined_date}\n"
+            )
+            
+            # 3. VIP muddatini tekshirish (faqat VIP foydalanuvchilar uchun)
+            if status.lower() == 'vip' and user.vip_expire_date:
+                vip_date = user.vip_expire_date.strftime('%d.%m.%Y')
+                text += f"💎 <b>VIP muddati:</b> {vip_date}"
 
-
-async def search_anime_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Qidiruv tugmasi bosilganda Inline tugmalarni chiqaradi"""
-    
-    search_btns = [
-        [
-            InlineKeyboardButton("🔎 Nomi orqali", callback_data="search_type_name"),
-            InlineKeyboardButton("🆔 ID raqami", callback_data="search_type_id")
-        ],
-        [
-            InlineKeyboardButton("🖼 Rasm orqali (AI)", callback_data="search_type_photo"),
-            InlineKeyboardButton("👤 Personaj (AI)", callback_data="search_type_character")
-        ],
-        [
-            InlineKeyboardButton("🎭 Janrlar", callback_data="search_type_genre"),
-            InlineKeyboardButton("🎙 Fandublar", callback_data="search_type_fandub")
-        ],
-        [InlineKeyboardButton("🎲 Tasodifiy anime", callback_data="search_type_random")],
-        [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")]
-    ]
-    
-    reply_markup = InlineKeyboardMarkup(search_btns)
-    
-    await update.message.reply_text(
-        "<b>🔍 Qidiruv usulini tanlang:</b>  \n\n"
-        "<i>Qidirsh usulini tanglang va kerakli ma'limotlarni kiriting.</i>",
-        reply_markup=reply_markup,
-        parse_mode="HTML"
-    )
+            # 4. Javob yuborish
+            await update.message.reply_text(
+                text, 
+                parse_mode='HTML'
+            )
+            
+        except Exception as e:
+            await session.rollback()
+            print(f"❌ Kabinet xatosi: {e}")
+            await update.message.reply_text("⚠️ Kabinet ma'lumotlarini yuklashda xatolik yuz berdi.")
+            
 
 
 # ===================================================================================
@@ -292,6 +281,7 @@ async def handle_photo_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         # Agar foydalanuvchi qidiruv rejimida bo'lmasa, shunchaki e'tibor bermaymiz
         return
+
 
 
 
