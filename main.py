@@ -51,7 +51,7 @@ async def start_bot():
     application.add_handler(MessageHandler(filters.Text("🔍 Anime qidirish 🎬"), search_anime_handler))
 
     # 3. Callbacklar (Tugmalar)
-    application.add_handler(CallbackQueryHandler(search_callback_handler, pattern=r"^search_type_|^cancel_search"))
+    application.add_handler(CallbackQueryHandler(search_callback_handler, pattern=r"^search_type_|^cancel_search|^back_to_search_main"))
     application.add_handler(CallbackQueryHandler(show_episodes, pattern=r"^show_episodes_|^episodes_"))
     application.add_handler(CallbackQueryHandler(video_handler, pattern=r"^video_"))
     application.add_handler(CallbackQueryHandler(show_anime_details_callback, pattern=r"^info_"))
@@ -86,6 +86,7 @@ if __name__ == "__main__":
         asyncio.run(start_bot())
     except Exception as e:
         print(f"❌ Xatolik yuz berdi: {e}")
+
 
 
 
