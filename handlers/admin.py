@@ -2,13 +2,14 @@ from telegram.ext import ContextTypes
 from services.user_service import get_user_status
 from keyboard.admin_kb import get_admin_kb
 from telegram import Update
-
+from config import MAIN_ADMIN_ID
 
 async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
     # Foydalanuvchi statusini tekshiramiz
-    status = await get_user_status(user_id)
+    # Sessiya va MAIN_ADMIN_ID mavjudligiga ishonch hosil qiling
+    status = await get_user_status(session, user.id, MAIN_ADMIN_ID)
     
     if status in ["main_admin", "admin"]:
         is_main = (status == "main_admin")
@@ -29,3 +30,4 @@ async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
     else:
         await update.message.reply_text("❌ <b>Sizda ushbu bo'limga kirish huquqi yo'q!</b>", parse_mode="HTML")
+
