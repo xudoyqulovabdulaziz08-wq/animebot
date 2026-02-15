@@ -30,24 +30,27 @@ async def register_user(session: AsyncSession, tg_user):
     return user, is_new
     
 
-async def get_user_status(session: AsyncSession, user_id: int, main_admin_id: int):
+async def get_user_status(session: AsyncSession, user_id: int, MAIN_ADMIN_ID: int):
+    # 1. Avval yaratuvchini tekshiramiz (Bazaga kirmasdan)
+    # Argument sifatida kelgan MAIN_ADMIN_ID dan foydalanamiz
     if user_id == MAIN_ADMIN_ID:
         return "main_admin"
 
     try:
-        # User obyekti allaqachon register_user orqali sessiyada bo'lishi mumkin
+        # 2. Foydalanuvchini bazadan qidiramiz
         result = await session.execute(select(User).where(User.user_id == user_id))
         user = result.scalar_one_or_none()
 
         if not user:
             return "user"
 
+        # 3. VIP muddatini tekshirish
         if user.status == 'vip' and user.vip_expire_date:
-            # datetime.now() o'rniga timezone-ga mos func.now() yoki utcnow ishlatish tavsiya etiladi
+            # Server vaqti bilan solishtirish
             if datetime.now() > user.vip_expire_date:
                 user.status = 'user'
                 user.vip_expire_date = None
-                await session.flush() # Commit emas, flush ishlatamiz
+                await session.flush() 
                 return "user"
 
         return user.status
@@ -56,6 +59,7 @@ async def get_user_status(session: AsyncSession, user_id: int, main_admin_id: in
         return "user"
 
     
+
 
 
 
