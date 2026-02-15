@@ -5,11 +5,23 @@ from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler
 from config import TOKEN
 from telegram.ext import CallbackQueryHandler
-from handlers.user import search_callback_handler
+
 
 from telegram.ext import MessageHandler, filters
-from handlers.user import  start, cabinet_handler, search_anime_handler, handle_user_input, handle_photo_input, search_callback_handler
-from handlers.anime import show_episodes, video_handler, show_anime_details_callback
+from handlers.user import (
+    start,
+    cabinet_handler,
+    search_anime_handler,
+    search_callback_handler,
+    handle_user_input,
+    handle_photo_input
+    
+)
+from handlers.anime import (
+    show_episodes,
+    video_handler,
+    show_anime_details_callback
+)
 
 # Importni xavfsiz qilish
 try:
@@ -74,6 +86,7 @@ if __name__ == "__main__":
         asyncio.run(start_bot())
     except Exception as e:
         print(f"❌ Xatolik yuz berdi: {e}")
+
 
 
 
