@@ -204,6 +204,119 @@ async def show_anime_details_callback(update: Update, context: ContextTypes.DEFA
     await show_anime_details(update, context, anime_id)
     await query.answer()
 
+# ===================================================================================
+
+
+
+async def show_anime_details_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    anime_id = int(query.data.split("_")[1])
+    await show_anime_details(update, context, anime_id)
+    await query.answer()
+
+
+
+# ===================================================================================
+
+async def admin_list_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    # Callbackdan sahifa raqamini olamiz (masalan, list_0 -> 0)
+    # Agar data faqat 'admin_list_anime' bo'lsa, page = 0 bo'ladi
+    try:
+        page = int(query.data.split('_')[-1])
+    except (ValueError, IndexError):
+        page = 0
+
+    limit = 20
+    offset = page * limit
+
+    async with async_session() as session:
+        # 1. Jami animelar sonini sanaymiz
+        count_stmt = select(func.count(Anime.anime_id))
+        total_res = await session.execute(count_stmt)
+        total_count = total_res.scalar()
+
+        # 2. Shu sahifa uchun animelarni olamiz (ID bo'yicha teskari tartibda)
+        stmt = select(Anime).order_by(Anime.anime_id.desc()).offset(offset).limit(limit)
+        res = await session.execute(stmt)
+        animes = res.scalars().all()
+
+    buttons = []
+    # 20 ta anime tugmasi
+    for anime in animes:
+        buttons.append([InlineKeyboardButton(f"🆔 {anime.anime_id} | {anime.name}", callback_data=f"adm_v_{anime.anime_id}")])
+
+    # Navigatsiya tugmalari (Oldingi / Keyingi)
+    nav_row = []
+    if page > 0:
+        nav_row.append(InlineKeyboardButton("⬅️ Oldingi", callback_data=f"admin_list_anime_{page - 1}"))
+    if offset + limit < total_count:
+        nav_row.append(InlineKeyboardButton("Keyingi ➡️", callback_data=f"admin_list_anime_{page + 1}"))
+    
+    if nav_row:
+        buttons.append(nav_row)
+
+    # Orqaga qaytish menyusi
+    buttons.append([InlineKeyboardButton("⬅️ Anime Controlga qaytish", callback_data="adm_ani_ctrl")])
+    
+    reply_markup = InlineKeyboardMarkup(buttons)
+    
+    text = (
+        f"<b>📜 Bazadagi barcha animelar</b>\n\n"
+        f"Jami: <b>{total_count}</b> ta\n"
+        f"Sahifa: <b>{page + 1}</b>"
+    )
+
+    await query.edit_message_text(text=text, reply_markup=reply_markup, parse_mode="HTML")
+
+
+# ===================================================================================
+
+async def admin_view_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    # adm_v_123 -> 123
+    anime_id = int(query.data.split('_')[-1])
+
+    async with async_session() as session:
+        # 1. Animeni olish
+        stmt = select(Anime).where(Anime.anime_id == anime_id)
+        res = await session.execute(stmt)
+        anime = res.scalar_one_or_none()
+
+        # 2. Shu animening qismlar sonini sanash
+        ep_count_stmt = select(func.count(Episode.id)).where(Episode.anime_id == anime_id)
+        ep_res = await session.execute(ep_count_stmt)
+        ep_count = ep_res.scalar()
+
+    if not anime:
+        await query.edit_message_text("❌ Anime topilmadi!")
+        return
+
+    # Siz so'ragan ma'lumotlar formati
+    text = (
+        f"🆔 <b>ID:</b> <code>{anime.anime_id}</code>\n"
+        f"🎬 <b>Nomi:</b> {anime.name}\n"
+        f"🎞 <b>Qismlar soni:</b> {ep_count}\n"
+        f"🌐 <b>Tili:</b> {anime.lang or 'Noma`lum'}\n"
+        f"🎭 <b>Janri:</b> {anime.genre or 'Noma`lum'}\n"
+        f"📅 <b>Yili:</b> {anime.year or 'Noma`lum'}\n"
+        f"🎙 <b>Fandub:</b> {anime.fandub or 'Noma`lum'}\n"
+        f"👁 <b>Haftalik ko'rilgan:</b> {anime.views_week}\n"
+        f"⭐ <b>Reyting:</b> {anime.rating_sum / anime.rating_count if anime.rating_count > 0 else 0:.1f}\n"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎞 Epizodlarni boshqarish", callback_data=f"adm_ep_ctrl_{anime_id}")],
+        [InlineKeyboardButton("⬅️ Ro'yxatga qaytish", callback_data="admin_list_anime_0")]
+    ])
+
+    await query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="HTML")
+
+
 
 
 
