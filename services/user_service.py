@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from database.models import User
 from datetime import datetime
+from config import MAIN_ADMIN_ID
 
 async def register_user(session: AsyncSession, tg_user):
     stmt = select(User).where(User.user_id == tg_user.id)
@@ -29,8 +30,8 @@ async def register_user(session: AsyncSession, tg_user):
     return user, is_new
     
 
-async def get_user_status(session: AsyncSession, user_id: int, main_admin_id: int):
-    if user_id == main_admin_id:
+async def get_user_status(session: AsyncSession, user_id: int, MAIN_ADMIN_ID: int):
+    if user_id == MAIN_ADMIN_ID:
         return "main_admin"
 
     try:
@@ -53,5 +54,7 @@ async def get_user_status(session: AsyncSession, user_id: int, main_admin_id: in
     except Exception as e:
         print(f"⚠️ Status aniqlashda xato: {e}")
         return "user"
+
     
+
 
