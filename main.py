@@ -36,7 +36,7 @@ async def start_bot():
     # 2. Maxsus matnli tugmalar (Exact Match)
     # Bular handle_user_input dan TEPADA bo'lishi shart!
     application.add_handler(MessageHandler(filters.Text("👤 Shaxsiy Kabinet"), cabinet_handler))
-    application.add_handler(MessageHandler(filters.Text("🔍 Anime qidirish 🎬"), search_anime_handler))
+    application.add_handler(MessageHandler(filters.Text("🔍 Anime qidirish 🎬"), search_callback_handler))
 
     # 3. Callbacklar (Tugmalar)
     application.add_handler(CallbackQueryHandler(search_callback_handler, pattern=r"^search_type_|^cancel_search"))
@@ -74,6 +74,7 @@ if __name__ == "__main__":
         asyncio.run(start_bot())
     except Exception as e:
         print(f"❌ Xatolik yuz berdi: {e}")
+
 
 
 
