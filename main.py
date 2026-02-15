@@ -61,7 +61,7 @@ async def start_bot():
     # Bular handle_user_input dan TEPADA bo'lishi shart!
     application.add_handler(MessageHandler(filters.Text("👤 Shaxsiy Kabinet"), cabinet_handler))
     application.add_handler(MessageHandler(filters.Text("🔍 Anime qidirish 🎬"), search_anime_handler))
-    application.add_handler(MessageHandler(filters.Text("👨‍💼 Admin Panel"), admin_panel_handler))
+    application.add_handler(MessageHandler(filters.Text(["👨‍💼 Admin Panel", "🛠 ADMIN PANEL"]), admin_panel_handler))
 
     # 3. Callbacklar (Tugmalar)
     
@@ -104,6 +104,7 @@ if __name__ == "__main__":
         asyncio.run(start_bot())
     except Exception as e:
         print(f"❌ Xatolik yuz berdi: {e}")
+
 
 
 
