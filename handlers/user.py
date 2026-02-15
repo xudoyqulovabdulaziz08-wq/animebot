@@ -121,6 +121,39 @@ async def cabinet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===================================================================================
 
+
+async def search_anime_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Qidiruv tugmasi bosilganda Inline tugmalarni chiqaradi"""
+    
+    search_btns = [
+        [
+            InlineKeyboardButton("🔎 Nomi orqali", callback_data="search_type_name"),
+            InlineKeyboardButton("🆔 ID raqami", callback_data="search_type_id")
+        ],
+        [
+            InlineKeyboardButton("🖼 Rasm orqali (AI)", callback_data="search_type_photo"),
+            InlineKeyboardButton("👤 Personaj (AI)", callback_data="search_type_character")
+        ],
+        [
+            InlineKeyboardButton("🎭 Janrlar", callback_data="search_type_genre"),
+            InlineKeyboardButton("🎙 Fandublar", callback_data="search_type_fandub")
+        ],
+        [InlineKeyboardButton("🎲 Tasodifiy anime", callback_data="search_type_random")],
+        [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")]
+    ]
+    
+    reply_markup = InlineKeyboardMarkup(search_btns)
+    
+    await update.message.reply_text(
+        "<b>🔍 Qidiruv usulini tanlang:</b>  \n\n"
+        "<i>Qidirsh usulini tanglang va kerakli ma'limotlarni kiriting.</i>",
+        reply_markup=reply_markup,
+        parse_mode="HTML"
+    )
+
+# ===================================================================================
+
+
 async def search_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -282,6 +315,7 @@ async def process_random_search(update: Update, context: ContextTypes.DEFAULT_TY
     """Tasodifiy anime qidirish (Hozircha vaqtinchalik javob)"""
     query = update.callback_query
     await query.answer("🎲 Tasodifiy anime qidirish tez kunda qo'shiladi...")
+
 
 
 
