@@ -125,31 +125,45 @@ async def cabinet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def search_anime_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Qidiruv tugmasi bosilganda Inline tugmalarni chiqaradi"""
     
+    # 1. Tugmalarni tayyorlash
     search_btns = [
         [
             InlineKeyboardButton("🔎 Nomi orqali", callback_data="search_type_name"),
-            InlineKeyboardButton("🆔 ID raqami", callback_data="search_type_id")
+            InlineKeyboardButton("🆔 ID orqali", callback_data="search_type_id")
         ],
         [
             InlineKeyboardButton("🖼 Rasm orqali (AI)", callback_data="search_type_photo"),
-            InlineKeyboardButton("👤 Personaj (AI)", callback_data="search_type_character")
+            InlineKeyboardButton("👤 Personaj orqali (AI)", callback_data="search_type_character")
         ],
         [
-            InlineKeyboardButton("🎭 Janrlar", callback_data="search_type_genre"),
+            InlineKeyboardButton("🎭 Janrlar orqali", callback_data="search_type_genre"),
             InlineKeyboardButton("🎙 Fandublar", callback_data="search_type_fandub")
         ],
         [InlineKeyboardButton("🎲 Tasodifiy anime", callback_data="search_type_random")],
         [InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")]
     ]
-    
     reply_markup = InlineKeyboardMarkup(search_btns)
     
-    await update.message.reply_text(
-        "<b>🔍 Qidiruv usulini tanlang:</b>  \n\n"
-        "<i>Qidirsh usulini tanglang va kerakli ma'limotlarni kiriting.</i>",
-        reply_markup=reply_markup,
-        parse_mode="HTML"
+    text = (
+        "<b>🔍 Qidiruv usulini tanlang:</b>\n\n"
+        "<i>Qidiruv usulini tanlang va kerakli ma'lumotlarni kiriting.</i>"
     )
+
+    # 2. Xavfsiz yuborish mantiqi
+    if update.callback_query:
+        # "Orqaga" tugmasi bosilganda eski xabarni tahrirlaymiz
+        await update.callback_query.edit_message_text(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
+    else:
+        # Menyudagi tugma bosilganda yangi xabar yuboramiz
+        await update.message.reply_text(
+            text=text,
+            reply_markup=reply_markup,
+            parse_mode="HTML"
+        )
 
 # ===================================================================================
 
@@ -163,140 +177,166 @@ async def search_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     
     if data == "search_type_name":
         context.user_data["search_mode"] = "name"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_search_main")]
+        ])
         await query.edit_message_text(
             "📝 <b>Anime nomini yuboring:</b>\n\n"
-            "<i>Iltimos, nomni aniq yozing. Biz bazamizdan barcha mos keluvchi natijalarni qidirib topamiz.</i>", 
+            "<i>Iltimos, nomni aniq yozing. Biz bazamizdan barcha mos keluvchi natijalarni qidirib topamiz.</i>",
+            reply_markup=keyboard, 
             parse_mode="HTML"
         )
         
     elif data == "search_type_id":
         context.user_data["search_mode"] = "id"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_search_main")]
+        ])
         await query.edit_message_text(
             "🔢 <b>Anime ID raqamini kiriting:</b>\n\n"
-            "<i>Har bir animening o'z xos raqami (kod) mavjud. IDni to'g'ri yuborsangiz, srazu o'sha animeni chiqarib beraman.</i>", 
+            "<i>Har bir animening o'z xos raqami (kod) mavjud. IDni to'g'ri yuborsangiz, srazu o'sha animeni chiqarib beraman.</i>",
+            reply_markup=keyboard,
             parse_mode="HTML"
         )
 
     elif data == "search_type_photo":
         context.user_data["search_mode"] = "photo"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_search_main")]
+        ])
         await query.edit_message_text(
             "🖼 <b>Anime skrinshotini yuboring:</b>\n\n"
             "<i>Rasm tahlil qilinib, qaysi anime ekanligi aniqlanadi.</i>\n\n"
             "⚠️ <b>DIQQAT:</b> 🔞 <i>Behayolikni targ'ib qiluvchi rasmlar yuborish qat'iyan man etiladi! Qoidani buzganlar tizimdan umrbod <b>BAN</b> qilinadi!</i>", 
+            reply_markup=keyboard,
             parse_mode="HTML"
         )
 
     elif data == "search_type_character":
         context.user_data["search_mode"] = "character"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_search_main")]
+        ])
         await query.edit_message_text(
             "👤 <b>Personaj nomini yuboring:</b>\n\n"
             "<i>Sevimli qahramoningiz ismini yozing, u ishtirok etgan barcha animelarni ko'rsataman.</i>", 
+            reply_markup=keyboard,
             parse_mode="HTML"
         )
 
     elif data == "search_type_genre":
         context.user_data["search_mode"] = "genre"
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_search_main")]
+        ])
         await query.edit_message_text(
             "🎭 <b>Janr nomini kiriting:</b>\n\n"
             "<i>Masalan: Komediya, Drama, Triller... Janrni aniq yozishingiz qidiruv sifatini oshiradi.</i>", 
+            reply_markup=keyboard,
             parse_mode="HTML"
         )
 
-    elif data == "search_type_random":
-        await query.edit_message_text("🎲 <b>Siz uchun qiziqarli anime tanlanmoqda...</b>", parse_mode="HTML")
-        # Bu yerda bazadan tasodifiy bitta animeni olib beruvchi funksiyani ulaymiz
-        await process_random_search(update, context)
-        
+    elif data == "back_to_search_main":
+        # Avval tugma bosilganiga javob beramiz (soat belgisi yo'qolishi uchun)
+        await query.answer("Asosiy menyuga qaytildi")
+        # Rejimni tozalaymiz
+        context.user_data["search_mode"] = None
+        # Keyin menyuni chiqaramiz
+        await search_anime_handler(update, context)
+
     elif data == "cancel_search":
-        context.user_data.clear() 
-        await query.delete_message()
+        context.user_data.clear()
+        try:
+            # Xabarni o'chirishdan oldin javob berish xavfsizroq
+            await query.answer("Qidiruv bekor qilindi ❌")
+            await query.delete_message()
+        except Exception:
+            pass
         
 
 # ===================================================================================
 
 async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode = context.user_data.get("search_mode")
-    text = update.message.text
-    tg_user = update.effective_user
-
-    if not mode:
+    if not mode or not update.message.text:
         return 
 
-    # 1. Bazadan qidirishni boshlaymiz (Rejimga qarab)
-    result = None
-    
+    text = update.message.text
+    tg_user = update.effective_user
+    results = [] # Natijalarni har doim listda saqlash qulayroq
+
     async with async_session() as session:
-        if mode == "name":
-            # Nomi bo'yicha qidirish (ILIKE - o'xshashlarini topadi)
-            stmt = select(Anime).where(Anime.name.ilike(f"%{text}%")).limit(10)
-            res = await session.execute(stmt)
-            result = res.scalars().all()
-            
-        elif mode == "id":
-            if text.isdigit():
-                stmt = select(Anime).where(Anime.anime_id == int(text))
+        try:
+            if mode == "name":
+                stmt = select(Anime).where(Anime.name.ilike(f"%{text}%")).limit(10)
                 res = await session.execute(stmt)
-                result = res.scalar_one_or_none()
-            
-        elif mode == "genre":
-            stmt = select(Anime).where(Anime.genre.ilike(f"%{text}%")).limit(10)
-            res = await session.execute(stmt)
-            result = res.scalars().all()
+                results = res.scalars().all()
+                
+            elif mode == "id":
+                if text.isdigit():
+                    stmt = select(Anime).where(Anime.anime_id == int(text))
+                    res = await session.execute(stmt)
+                    anime = res.scalar_one_or_none()
+                    if anime:
+                        results = [anime] # Bitta bo'lsa ham listga solamiz
+                
+            elif mode == "genre":
+                stmt = select(Anime).where(Anime.genre.ilike(f"%{text}%")).limit(10)
+                res = await session.execute(stmt)
+                results = res.scalars().all()
 
-        elif mode == "fandub":
-            stmt = select(Anime).where(Anime.fandub.ilike(f"%{text}%")).limit(10)
-            res = await session.execute(stmt)
-            result = res.scalars().all()
+            elif mode == "fandub":
+                stmt = select(Anime).where(Anime.fandub.ilike(f"%{text}%")).limit(10)
+                res = await session.execute(stmt)
+                results = res.scalars().all()
+        except Exception as e:
+            print(f"🔍 Qidiruv xatosi: {e}")
+            await update.message.reply_text("⚠️ Qidiruv jarayonida xatolik yuz berdi.")
+            return
 
-
-    # 2. AGAR NATIJA TOPILMASA (Barcha rejimlar uchun umumiy to'xtatuvchi)
-    if not result:
-        context.user_data.clear() 
-
+    # 2. AGAR NATIJA TOPILMASA
+    if not results:
+        # Rejimni o'chirmaymiz, balki foydalanuvchiga qayta urinish imkonini beramiz
         retry_kb = InlineKeyboardMarkup([
             [
                 InlineKeyboardButton("🔄 Qayta urinish", callback_data=f"search_type_{mode}"),
-                InlineKeyboardButton("⬅️ Orqaga", callback_data="cancel_search")
+                InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")
             ]
         ])
 
         await update.message.reply_text(
-            f"😔 Kechirasiz {tg_user.full_name} siz bergan , <b>'{text}'</b> bo'yicha hech qanday natija topilmadi.\n\n"
-            f"<i>Qidiruv tugadi. Qayta uranasizmi yoki boshqa ylni tanlaysizmi</i>",
+            f"😔 Kechirasiz <b>{tg_user.full_name}</b>, <b>'{text}'</b> bo'yicha hech qanday natija topilmadi.\n\n"
+            f"<i>Imlo xatolarini tekshirib, qayta urinib ko'rishingiz mumkin.</i>",
             reply_markup=retry_kb,
             parse_mode="HTML"
         )
         return
 
     # 3. NATIJA TOPILGANDA
-    context.user_data.clear() 
+    # Qidiruv rejimi tugadi, endi holatni tozalaymiz
+    context.user_data["search_mode"] = None 
 
-    # Agar qidiruv ID bo'yicha bo'lsa (Natija bitta obyekt bo'ladi)
-    if mode == "id":
-        await show_anime_details(update, context, result.anime_id)
+    # Agar ro'yxatda faqat bitta anime bo'lsa
+    if len(results) == 1:
+        await show_anime_details(update, context, results[0].anime_id)
+        return
 
-    # Agar boshqa usullar bilan qidirilsa (Natija ro'yxat/list bo'ladi)
-    else:
-        # Agar ro'yxatda faqat bitta anime bo'lsa, srazu o'shani ko'rsatamiz
-        if isinstance(result, list) and len(result) == 1:
-            await show_anime_details(update, context, result[0].anime_id)
-            return
-
-        # Agar natijalar ko'p bo'lsa, tugmalar chiqaramiz
-        buttons = []
-        for anime in result:
-            # Boss, tugma bosilganda info_ID callback-ini yuboradi
-            buttons.append([InlineKeyboardButton(f"🎬 {anime.name}", callback_data=f"info_{anime.anime_id}")])
-        
-        reply_markup = InlineKeyboardMarkup(buttons)
-        count = len(result)
-        
-        response = (
-            f"🔍 <b>'{text}'</b> bo'yicha <b>{count}</b> ta natija topildi.\n\n"
-            f"<i>Kerakli animeni tanlang <b>{tg_user.full_name}</b>:</i>"
-        )
-        
-        await update.message.reply_text(response, reply_markup=reply_markup, parse_mode="HTML")
+    # Agar natijalar ko'p bo'lsa
+    buttons = []
+    for anime in results:
+        buttons.append([InlineKeyboardButton(f"🎬 {anime.name}", callback_data=f"info_{anime.anime_id}")])
+    
+    # Orqaga qaytish tugmasini ham qo'shib qo'yamiz
+    buttons.append([InlineKeyboardButton("⬅️ Qidiruvga qaytish", callback_data="back_to_search_main")])
+    
+    reply_markup = InlineKeyboardMarkup(buttons)
+    
+    await update.message.reply_text(
+        f"🔍 <b>'{text}'</b> bo'yicha <b>{len(results)}</b> ta natija topildi.\n"
+        f"<i>Kerakli animeni tanlang:</i>",
+        reply_markup=reply_markup,
+        parse_mode="HTML"
+    )
 
 # ===================================================================================
 
@@ -315,6 +355,7 @@ async def process_random_search(update: Update, context: ContextTypes.DEFAULT_TY
     """Tasodifiy anime qidirish (Hozircha vaqtinchalik javob)"""
     query = update.callback_query
     await query.answer("🎲 Tasodifiy anime qidirish tez kunda qo'shiladi...")
+
 
 
 
