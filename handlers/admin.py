@@ -3,7 +3,7 @@ from services.user_service import get_user_status
 from keyboard.admin_kb import get_admin_kb
 from telegram import Update
 from config import MAIN_ADMIN_ID
-from database import async_session
+from database.db import async_session
 
 
 async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -32,4 +32,5 @@ async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
         else:
             await update.message.reply_text("❌ <b>Sizda ushbu bo'limga kirish huquqi yo'q!</b>", parse_mode="HTML")
+
 
