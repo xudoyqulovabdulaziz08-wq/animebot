@@ -21,41 +21,42 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     async with async_session() as session:
         try:
-            # 1. Foydalanuvchini ro'yxatdan o'tkazish yoki ma'lumotni yangilash
+            # register_user funksiyasida user_id = tg_user.id ekanligini tekshiring
             user, is_new = await register_user(session, tg_user)
             
-            # 2. Statusni aniqlash (Menyu tugmalari uchun)
+            # Statusni aniqlash
             status = await get_user_status(session, tg_user.id, MAIN_ADMIN_ID)
-            
-            # 3. Statusga mos menyuni olish
             reply_markup = get_main_kb(status)
+
+            # joined_at DateTime obyektini formatlash
+            joined_date = user.joined_at.strftime('%d.%m.%Y') if user.joined_at else "Noma'lum"
 
             if is_new:
                 text = (
-                    f"👋 Xush kelibsiz, {tg_user.full_name}!\n"
+                    f"👋 Xush kelibsiz, <b>{tg_user.full_name}</b>!\n"
                     f"Siz muvaffaqiyatli ro'yxatdan o'tdingiz.\n\n"
-                    f"🆔 ID: `{user.user_id}`\n"
-                    f"🏆 Ballar: {user.points}\n"
-                    f"✨ Status: {status.upper()}"
+                    f"🆔 <b>Sizning ID:</b> <code>{user.user_id}</code>\n"
+                    f"🏆 <b>Ballar:</b> {user.points}\n"
+                    f"✨ <b>Status:</b> {status.upper()}"
                 )
             else:
                 text = (
-                    f"Sizni yana ko'rib turganimizdan xursandmiz, {tg_user.full_name}! ✨\n\n"
-                    f"📊 **Status:** {status.upper()}\n"
-                    f"💰 **Ballar:** {user.points}\n"
-                    f"📅 **A'zo bo'lgan sana:** {user.joined_at.strftime('%d.%m.%Y')}"
+                    f"Sizni yana ko'rib turganimizdan xursandmiz, <b>{tg_user.full_name}</b>! ✨\n\n"
+                    f"📊 <b>Status:</b> {status.upper()}\n"
+                    f"💰 <b>Ballar:</b> {user.points}\n"
+                    f"📅 <b>A'zo bo'lgan sana:</b> {joined_date}"
                 )
             
-            # 4. Xabarni menyu bilan birga yuborish
             await update.message.reply_text(
                 text, 
                 reply_markup=reply_markup, 
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
             
         except Exception as e:
-            print(f"❌ Xatolik: {e}")
-            await update.message.reply_text("Tizimda texnik xatolik yuz berdi.")
+            print(f"❌ Xatolik (Start): {e}")
+            await update.message.reply_text("⚠️ Bazaga ulanishda texnik xatolik yuz berdi.")
+            
 
 
 
@@ -278,6 +279,7 @@ async def handle_photo_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         # Agar foydalanuvchi qidiruv rejimida bo'lmasa, shunchaki e'tibor bermaymiz
         return
+
 
 
 
