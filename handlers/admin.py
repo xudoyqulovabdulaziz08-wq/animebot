@@ -6,31 +6,38 @@ from config import MAIN_ADMIN_ID
 from database.db import async_session
 
 
+
+# ===================================================================================
+
+
 async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    async with async_session() as session:
+    
+    # 1. 'effective_message' har qanday holatda (tugma yoki xabar) javob qaytarishni ta'minlaydi
+    msg = update.effective_message 
 
-    # Foydalanuvchi statusini tekshiramiz
-        status = await get_user_status(session, user_id, MAIN_ADMIN_ID )
+    async with async_session() as session:
+        # Foydalanuvchi statusini tekshiramiz
+        status = await get_user_status(session, user_id, MAIN_ADMIN_ID)
     
         if status in ["main_admin", "admin"]:
             is_main = (status == "main_admin")
-        
-             # Log yozish qismi (INSERT INTO admin_logs) butunlay olib tashlandi 🚀
         
             admin_info = "👑 <b>Bosh Admin Paneli</b>" if is_main else "👨‍💻 <b>Admin Paneli</b>"
             text = (
                 f"{admin_info}\n\n"
                 "Botni boshqarish va statistika bilan tanishish uchun quyidagi bo'limlardan birini tanlang:\n\n"
-            "   <i>Eslatma: Tizim barqaror ishlamoqda.</i>"
+                "   <i>Eslatma: Tizim barqaror ishlamoqda.</i>"
             )
         
-            await update.message.reply_text(
+            # 2. update.message o'rniga msg (effective_message) ishlatamiz
+            await msg.reply_text(
                 text=text,
                 reply_markup=get_admin_kb(is_main),
                 parse_mode="HTML"
             )
         else:
-            await update.message.reply_text("❌ <b>Sizda ushbu bo'limga kirish huquqi yo'q!</b>", parse_mode="HTML")
+            await msg.reply_text("❌ <b>Sizda ushbu bo'limga kirish huquqi yo'q!</b>", parse_mode="HTML")
+
 
 
