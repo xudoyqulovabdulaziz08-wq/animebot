@@ -14,23 +14,32 @@ from sqlalchemy import select
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # 1. Update va foydalanuvchini tekshirish
     if not update.message or not update.effective_user:
         return
 
     tg_user = update.effective_user
     
+    # 2. Bazaga ulanish
     async with async_session() as session:
         try:
-            # register_user funksiyasida user_id = tg_user.id ekanligini tekshiring
+            # Foydalanuvchini ro'yxatdan o'tkazish
             user, is_new = await register_user(session, tg_user)
             
             # Statusni aniqlash
             status = await get_user_status(session, tg_user.id, MAIN_ADMIN_ID)
+            
+            # Agar register_user yoki get_user_status ichida flush() qilinmagan bo'lsa, 
+            # barcha o'zgarishlarni bitta commit bilan yakunlaymiz
+            await session.commit()
+            
+            # Klaviatura menyusini olish (async bo'lsa await qo'shing)
             reply_markup = get_main_kb(status)
 
-            # joined_at DateTime obyektini formatlash
-            joined_date = user.joined_at.strftime('%d.%m.%Y') if user.joined_at else "Noma'lum"
+            # joined_at xavfsiz formatlash
+            joined_date = user.joined_at.strftime('%d.%m.%Y') if (user and user.joined_at) else "Noma'lum"
 
+            # 3. HTML formatidagi matn (Markdown-dan ancha barqaror)
             if is_new:
                 text = (
                     f"👋 Xush kelibsiz, <b>{tg_user.full_name}</b>!\n"
@@ -47,6 +56,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"📅 <b>A'zo bo'lgan sana:</b> {joined_date}"
                 )
             
+            # 4. Javob yuborish
             await update.message.reply_text(
                 text, 
                 reply_markup=reply_markup, 
@@ -54,8 +64,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             
         except Exception as e:
+            # Xatolik bo'lsa sessiyani orqaga qaytarish
+            await session.rollback()
             print(f"❌ Xatolik (Start): {e}")
-            await update.message.reply_text("⚠️ Bazaga ulanishda texnik xatolik yuz berdi.")
+            await update.message.reply_text("⚠️ Tizimda bazaga ulanish bilan bog'liq xatolik yuz berdi.")
+            
             
 
 
@@ -279,6 +292,7 @@ async def handle_photo_input(update: Update, context: ContextTypes.DEFAULT_TYPE)
     else:
         # Agar foydalanuvchi qidiruv rejimida bo'lmasa, shunchaki e'tibor bermaymiz
         return
+
 
 
 
