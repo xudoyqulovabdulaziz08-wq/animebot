@@ -123,9 +123,9 @@ async def cabinet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def search_anime_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Qidiruv tugmasi bosilganda Inline tugmalarni chiqaradi"""
+    """Asosiy qidiruv menyusi (Nomi, ID, Janr va h.k.)"""
     
-    # 1. Tugmalarni tayyorlash
+    # 1. Tugmalarni yaratish
     search_btns = [
         [
             InlineKeyboardButton("🔎 Nomi orqali", callback_data="search_type_name"),
@@ -146,19 +146,19 @@ async def search_anime_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     
     text = (
         "<b>🔍 Qidiruv usulini tanlang:</b>\n\n"
-        "<i>Qidiruv usulini tanlang va kerakli ma'lumotlarni kiriting.</i>"
+        "<i>Kerakli usulni tanlang va ma'lumotni yuboring.</i>"
     )
 
-    # 2. Xavfsiz yuborish mantiqi
+    # 2. ENG MUHIM JOYI: Qanday javob berishni aniqlash
+    # Agar 'Orqaga' tugmasi orqali kelgan bo'lsa (CallbackQuery)
     if update.callback_query:
-        # "Orqaga" tugmasi bosilganda eski xabarni tahrirlaymiz
         await update.callback_query.edit_message_text(
             text=text,
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
-    else:
-        # Menyudagi tugma bosilganda yangi xabar yuboramiz
+    # Agar menyudagi tugma orqali kelgan bo'lsa (Message)
+    elif update.message:
         await update.message.reply_text(
             text=text,
             reply_markup=reply_markup,
@@ -237,11 +237,13 @@ async def search_callback_handler(update: Update, context: ContextTypes.DEFAULT_
         )
 
     elif data == "back_to_search_main":
-        # Avval tugma bosilganiga javob beramiz (soat belgisi yo'qolishi uchun)
-        await query.answer("Asosiy menyuga qaytildi")
-        # Rejimni tozalaymiz
+        # 1. Rejimni tozalash (Matn yozsa bot qidirib ketmasligi uchun)
         context.user_data["search_mode"] = None
-        # Keyin menyuni chiqaramiz
+        
+        # 2. Tugma bosilganiga javob berish (soat belgisi yo'qolishi uchun)
+        await query.answer("Asosiy menyuga qaytildi")
+        
+        # 3. Yuqoridagi funksiyani chaqiramiz
         await search_anime_handler(update, context)
 
     elif data == "cancel_search":
@@ -298,11 +300,14 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not results:
         # Rejimni o'chirmaymiz, balki foydalanuvchiga qayta urinish imkonini beramiz
         retry_kb = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton("🔄 Qayta urinish", callback_data=f"search_type_{mode}"),
-                InlineKeyboardButton("❌ Bekor qilish", callback_data="cancel_search")
-            ]
-        ])
+        [
+            # Foydalanuvchini yana matn yozish rejimiga qaytaradi
+            InlineKeyboardButton("🔄 Qayta urinish", callback_data=f"search_type_{mode}"),
+            # Foydalanuvchini hamma qidiruv turlari bor menyuga qaytaradi
+            InlineKeyboardButton("⬅️ Asosiy menyu", callback_data="back_to_search_main")
+        ],
+        [InlineKeyboardButton("❌ Qidiruvni yopish", callback_data="cancel_search")]
+    ])
 
         await update.message.reply_text(
             f"😔 Kechirasiz <b>{tg_user.full_name}</b>, <b>'{text}'</b> bo'yicha hech qanday natija topilmadi.\n\n"
@@ -355,6 +360,7 @@ async def process_random_search(update: Update, context: ContextTypes.DEFAULT_TY
     """Tasodifiy anime qidirish (Hozircha vaqtinchalik javob)"""
     query = update.callback_query
     await query.answer("🎲 Tasodifiy anime qidirish tez kunda qo'shiladi...")
+
 
 
 
