@@ -2,12 +2,13 @@ import os
 import sys
 import asyncio
 from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
 from config import TOKEN
 from telegram.ext import CallbackQueryHandler
 
 
 from telegram.ext import MessageHandler, filters
+
 from handlers.user import (
     start,
     cabinet_handler,
@@ -20,7 +21,19 @@ from handlers.user import (
 from handlers.anime import (
     show_episodes,
     video_handler,
-    show_anime_details_callback
+    show_anime_details_callback,
+    admin_list_anime,
+    admin_view_anime
+)
+from handlers.admin import (
+    admin_panel_handler
+
+)
+from keyboard.admin_kb import(
+     get_admin_kb
+)
+from keyboard.anime_kb import(
+    anime_control_menu
 )
 
 # Importni xavfsiz qilish
@@ -32,9 +45,8 @@ except ImportError:
     except:
         engine = None
 
-import asyncio
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters
-from telegram import Update
+
+
 
 async def start_bot():
     """Botni sozlash va ishga tushirish funksiyasi"""
@@ -49,12 +61,18 @@ async def start_bot():
     # Bular handle_user_input dan TEPADA bo'lishi shart!
     application.add_handler(MessageHandler(filters.Text("👤 Shaxsiy Kabinet"), cabinet_handler))
     application.add_handler(MessageHandler(filters.Text("🔍 Anime qidirish 🎬"), search_anime_handler))
+    application.add_handler(MessageHandler(filters.Text("👨‍💼 Admin Panel"), admin_panel_handler))
 
     # 3. Callbacklar (Tugmalar)
+    
     application.add_handler(CallbackQueryHandler(search_callback_handler, pattern=r"^search_type_|^cancel_search|^back_to_search_main"))
+    application.add_handler(CallbackQueryHandler(anime_control_menu, pattern=r"^adm_ani_ctrl|^back_to_admin_main"))
+    application.add_handler(CallbackQueryHandler(admin_list_anime, pattern=r"^admin_list_anime"))
+    application.add_handler(CallbackQueryHandler(admin_view_anime, pattern=r"^adm_v_"))
     application.add_handler(CallbackQueryHandler(show_episodes, pattern=r"^show_episodes_|^episodes_"))
     application.add_handler(CallbackQueryHandler(video_handler, pattern=r"^video_"))
     application.add_handler(CallbackQueryHandler(show_anime_details_callback, pattern=r"^info_"))
+    application.add_handler(CallbackQueryHandler(admin_panel_handler, pattern=r"^adm_"))
     application.add_handler(CallbackQueryHandler(lambda u, c: u.callback_query.message.delete(), pattern="delete_msg"))
 
     # 4. Umumiy matn ushlagich (Catch-all text)
@@ -86,7 +104,6 @@ if __name__ == "__main__":
         asyncio.run(start_bot())
     except Exception as e:
         print(f"❌ Xatolik yuz berdi: {e}")
-
 
 
 
