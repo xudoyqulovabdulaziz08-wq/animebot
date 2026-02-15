@@ -1,4 +1,5 @@
-from sqlalchemy import select
+
+from sqlalchemy import func, select
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from database.db import async_session
 from database.models import Anime, Episode
@@ -315,6 +316,7 @@ async def admin_view_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
 
     await query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="HTML")
+
 
 
 
