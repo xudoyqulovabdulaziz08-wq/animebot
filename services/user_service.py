@@ -30,7 +30,7 @@ async def register_user(session: AsyncSession, tg_user):
     return user, is_new
     
 
-async def get_user_status(session: AsyncSession, user_id: int):
+async def get_user_status(session: AsyncSession, user_id: int, main_admin_id: int):
     if user_id == MAIN_ADMIN_ID:
         return "main_admin"
 
@@ -56,6 +56,7 @@ async def get_user_status(session: AsyncSession, user_id: int):
         return "user"
 
     
+
 
 
 
