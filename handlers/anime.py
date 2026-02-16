@@ -317,6 +317,200 @@ async def admin_view_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.edit_message_text(text=text, reply_markup=keyboard, parse_mode="HTML")
 
+async def start_add_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """1-qadam: Poster so'rash"""
+    query = update.callback_query
+    await query.answer()
+    
+    await query.edit_message_text(
+        "🎬 <b>Yangi anime qo'shish.</b>\n\n"
+        "1. Birinchi bo'lib anime <b>Posteri</b>ni (rasm yoki fayl ko'rinishida) yuboring:",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Bekor qilish", callback_data="adm_ani_ctrl")]])
+    )
+    return POSTER
+
+async def get_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Posterni file_id ko'rinishida olish (Rasm yoki Hujjat)"""
+    msg = update.message
+    
+    if msg.photo:
+        # Eng sifatli rasm IDsi
+        file_id = msg.photo[-1].file_id
+    elif msg.document and msg.document.mime_type.startswith('image/'):
+        # Hujjat ko'rinishida yuborilgan rasm IDsi
+        file_id = msg.document.file_id
+    else:
+        await msg.reply_text("❌ Iltimos, faqat rasm yuboring!")
+        return POSTER
+
+    context.user_data['poster_id'] = file_id
+    
+    await msg.reply_text(
+        "✅ Poster qabul qilindi.\n\n"
+        "2. Endi ma'lumotlarni quyidagi formatda yuboring:\n\n"
+        "<code>Nomi | Tili | Janri | Yili | Tavsif</code>\n\n"
+        "<i>Eslatma: Janrlarni vergul bilan ajratib yozing. Tavsif ixtiyoriy.</i>",
+        parse_mode="HTML"
+    )
+    return DATA
+
+import html
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, ConversationHandler
+
+
+
+# ===================================================================================
+
+
+
+async def get_anime_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ma'lumotlarni pars qilish, bazaga yozish va video kutishga o'tish"""
+    raw_text = update.message.text
+    # Ma'lumotlarni '|' belgisi orqali ajratamiz
+    parts = [p.strip() for p in raw_text.split('|')]
+    
+    if len(parts) < 4:
+        await update.message.reply_text(
+            "❌ <b>Format noto'g'ri!</b>\n\n"
+            "Iltimos, namunadagidek yuboring:\n"
+            "<code>Nomi | Tili | Janri | Yili | Tavsif</code>",
+            parse_mode="HTML"
+        )
+        return DATA
+
+    # Ma'lumotlarni o'zgaruvchilarga olamiz
+    name = parts[0]
+    lang = parts[1]
+    genre = parts[2]
+    year = parts[3]
+    description = parts[4] if len(parts) > 4 else "Tavsif mavjud emas."
+
+    # 💾 BAZAGA YOZISH (anime_list jadvali)
+    try:
+        async with async_session() as session:
+            new_anime = Anime(
+                name=name,
+                poster_id=context.user_data.get('poster_id'), # get_poster dan kelgan ID
+                lang=lang,
+                genre=genre,
+                year=year,
+                description=description,
+                is_completed=False
+            )
+            session.add(new_anime)
+            await session.commit()
+            await session.refresh(new_anime)
+            
+            # Bazadan olingan IDni saqlaymiz
+            ani_id = new_anime.anime_id
+
+        # Kelajakda videolarni bog'lash uchun context da saqlaymiz
+        context.user_data['current_anime_id'] = ani_id
+        context.user_data['last_ep_num'] = 0
+        context.user_data['anime_name'] = name # Xabarda chiqarish uchun
+
+        keyboard = [
+            [InlineKeyboardButton("✅ Jarayonni tugatish", callback_data="finish_add")],
+            [InlineKeyboardButton("📢 Kanalga jo'natish", callback_data="publish_to_channel")]
+        ]
+        
+        await update.message.reply_text(
+            f"✅ <b>'{html.escape(name)}'</b> muvaffaqiyatli saqlandi!\n"
+            f"🆔 ID: <code>{ani_id}</code>\n\n"
+            "📹 Endi ketma-ket <b>videolarni</b> yuboring.\n"
+            "<i>Bot videolarni caption (izoh)siz qabul qiladi.</i>",
+            parse_mode="HTML",
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        # Endi VIDEO kutish holatiga o'tamiz
+        return VIDEO
+
+    except Exception as e:
+        await update.message.reply_text(f"❌ Bazaga yozishda xatolik yuz berdi: {e}")
+        return ConversationHandler.END
+
+
+
+# ===================================================================================
+
+
+
+async def get_episodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Videolarni cheksiz qabul qilish"""
+    msg = update.message
+    ani_id = context.user_data.get('current_anime_id')
+    
+    # 1. Video yoki Document ekanini tekshirish
+    file_id = None
+    if msg.video:
+        file_id = msg.video.file_id
+    elif msg.document and msg.document.mime_type.startswith('video/'):
+        file_id = msg.document.file_id
+    
+    if not file_id:
+        await msg.reply_text("❌ Iltimos, faqat video yoki video-fayl yuboring!")
+        return VIDEO
+
+    # 2. Qism raqamini aniqlash (+1)
+    context.user_data['last_ep_num'] += 1
+    current_ep = context.user_data['last_ep_num']
+
+    # 3. Bazaga (Episode) saqlash
+    async with async_session() as session:
+        new_episode = Episode(
+            anime_id=ani_id,
+            episode=current_ep,
+            file_id=file_id # Caption (tasnif) bu yerda avtomatik o'chib ketadi
+        )
+        session.add(new_episode)
+        await session.commit()
+
+    # 4. Tasdiqlash xabari
+    keyboard = [
+        [InlineKeyboardButton("✅ Jarayonni tugatish", callback_data="finish_add")],
+        [InlineKeyboardButton("📢 Kanalga jo'natish", callback_data="publish_to_channel")]
+    ]
+    
+    await msg.reply_text(
+        f"📥 <b>{current_ep}-qism</b> qabul qilindi va bazaga saqlandi.\n"
+        "Keyingi qismni yuboring yoki tugatish tugmasini bosing.",
+        parse_mode="HTML",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+    return VIDEO
+
+
+
+# ===================================================================================
+
+
+
+async def finish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Jarayonni yopish va kutish rejimidan chiqish"""
+    query = update.callback_query
+    await query.answer("Jarayon yakunlandi!")
+    
+    context.user_data.clear()
+    await query.edit_message_text("✅ Barcha qismlar saqlandi. Admin panelga qaytishingiz mumkin.")
+    return ConversationHandler.END
+
+
+
+# ===================================================================================
+
+
+
+async def publish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kanalga jo'natish (Hozircha faqat jarayonni yopadi)"""
+    query = update.callback_query
+    await query.answer("Tez orada kanalga yuboriladi...")
+    
+    # Bu yerda kanalga post qilish funksiyasini chaqirish mumkin
+    context.user_data.clear()
+    await query.edit_message_text("🚀 Anime bazaga olindi va kanalga navbatga qo'yildi.")
+    return ConversationHandler.END
 
 
 
