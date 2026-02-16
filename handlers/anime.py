@@ -31,7 +31,7 @@ async def show_anime_details(update: Update, context: ContextTypes.DEFAULT_TYPE,
         await session.commit()
 
         geren = anime.genre if anime.genre else "Noma'lum"
-        yil = anime.yil if anime.yil else "Noma'lum"
+        yil =  anime.year if anime.year else "Noma'lum"
         fandubn = anime.fandub if anime.fandub else "Noma'lum"
         langn = anime.lang if anime.lang else "O'zbek"
         qismn = anime.episodes_count if anime.episodes_count else "Qismlar tez orada qo'shiladi"
@@ -536,6 +536,7 @@ async def publish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     await query.edit_message_text("🚀 Anime bazaga olindi va kanalga navbatga qo'yildi.")
     return ConversationHandler.END
+
 
 
 
