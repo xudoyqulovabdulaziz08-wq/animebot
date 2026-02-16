@@ -1,10 +1,12 @@
-
 from sqlalchemy import func, select
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from database.db import async_session
 from database.models import Anime, Episode
-from telegram.ext import ContextTypes
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters
 
+
+POSTER, DATA, VIDEO,  = range(2)
 # ===================================================================================
 
 
@@ -511,6 +513,7 @@ async def publish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     await query.edit_message_text("🚀 Anime bazaga olindi va kanalga navbatga qo'yildi.")
     return ConversationHandler.END
+
 
 
 
