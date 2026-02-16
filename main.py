@@ -29,9 +29,7 @@ from handlers.admin import (
     admin_panel_handler
 
 )
-from keyboard.admin_kb import(
-     get_admin_kb
-)
+
 from keyboard.anime_kb import(
     anime_control_menu
 )
@@ -104,6 +102,7 @@ if __name__ == "__main__":
         asyncio.run(start_bot())
     except Exception as e:
         print(f"❌ Xatolik yuz berdi: {e}")
+
 
 
 
