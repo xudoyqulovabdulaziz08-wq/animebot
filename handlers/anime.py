@@ -15,7 +15,7 @@ async def show_anime_details(update: Update, context: ContextTypes.DEFAULT_TYPE,
     target = update.callback_query.message if is_callback else update.message
 
     async with async_session() as session:
-        # Anime va uning epizodlari sonini bitta so'rovda olish (optimizatsiya)
+        # 1. Animeni olish
         stmt = select(Anime).where(Anime.anime_id == anime_id)
         res = await session.execute(stmt)
         anime = res.scalar_one_or_none()
@@ -25,21 +25,36 @@ async def show_anime_details(update: Update, context: ContextTypes.DEFAULT_TYPE,
             if is_callback: await update.callback_query.answer(msg)
             else: await target.reply_text(msg)
             return
-
-        # Ko'rishlar sonini oshirish (Ixtiyoriy lekin tavsiya etiladi)
+        
+        # 2. Ko'rishlar sonini oshirish
         anime.views_week += 1
         await session.commit()
 
-        geren = anime.genre if anime.genre else "Noma'lum"
-        yil =  anime.year if anime.year else "Noma'lum"
-        fandubn = anime.fandub if anime.fandub else "Noma'lum"
-        langn = anime.lang if anime.lang else "O'zbek"
-        qismn = anime.episodes_count if anime.episodes_count else "Qismlar tez orada qo'shiladi"
-        haftan = anime.views_week if anime.views_week else 0
+        # 3. Qismlar sonini sanash
+        ep_count_stmt = select(func.count(Episode.id)).where(Episode.anime_id == anime_id)
+        ep_count_res = await session.execute(ep_count_stmt)
+        qismlar_soni = ep_count_res.scalar() or 0
+
+        # 4. Ma'lumotlarni tayyorlash
+        # MUHIM: descriptionni birinchi e'lon qilamiz
+        full_description = anime.description or 'Mazmun qo\'shilmagan.'
+        if len(full_description) > 500:
+            description = full_description[:500].rsplit(' ', 1)[0] + "..."
+        else:
+            description = full_description
+
+        geren = anime.genre or "Noma'lum"
+        yil = anime.year or "Noma'lum"
+        fandubn = anime.fandub or "Noma'lum"
+        langn = anime.lang or "O'zbek"
+        haftan = anime.views_week
         holatin = "Tugallangan" if anime.is_completed else "Davom etmoqda"
-        reyting = f"{anime.rating_sum / anime.rating_count:.1f}" if anime.rating_count > 0 else "Hali reyting berilmagan"
-        if len(description) > 500: # 500 belgidan uzun bo'lsa, qisqartiramiz
-            description = description[:500].rsplit(' ', 1)[0] + "..."
+        
+        # Reytingni hisoblash
+        if anime.rating_count > 0:
+            reyting = f"{anime.rating_sum / anime.rating_count:.1f}"
+        else:
+            reyting = "Hali baholanmagan"
 
         caption = (
             f"🎬 <b>{anime.name}</b>\n"
@@ -49,10 +64,10 @@ async def show_anime_details(update: Update, context: ContextTypes.DEFAULT_TYPE,
             f"🎙 <b>Fandub:</b> {fandubn}\n"
             f"🌐 <b>Til:</b> {langn}\n"
             f"👁 <b>Ko‘rishlar:</b> {haftan}\n"
-            f"▶️ <b>Qismlar:</b> {qismn}\n"
+            f"▶️ <b>Qismlar:</b> {qismlar_soni}\n"
             f"📊 <b>Reyting:</b> ⭐ {reyting}\n"
             f"✅ <b>Holati:</b> {holatin}\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📢 <b>Kanal:</b> <a href='https://t.me/aninovuz'>@aninovuz</a>\n"
             f"━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📖 <b>Qisqacha mazmuni:</b>\n<i>{description}</i>"
@@ -536,6 +551,7 @@ async def publish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     await query.edit_message_text("🚀 Anime bazaga olindi va kanalga navbatga qo'yildi.")
     return ConversationHandler.END
+
 
 
 
