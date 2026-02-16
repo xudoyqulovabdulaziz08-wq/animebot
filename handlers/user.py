@@ -146,7 +146,7 @@ async def search_anime_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     
     text = (
         "<b>🔍 Qidiruv usulini tanlang:</b>\n\n"
-        "<i>Kerakli usulni tanlang va ma'lumotni yuboring.</i>"
+        "<i>Kerakli usulni tanlang va ma'lumotni yuboring. Eslatim ozamiz bizning botimiz hali toliq ishga tushgani yoq ba'zi bir tugmalar ishlmasligi mumkin</i>"
     )
 
     # 2. ENG MUHIM JOYI: Qanday javob berishni aniqlash
@@ -360,6 +360,7 @@ async def process_random_search(update: Update, context: ContextTypes.DEFAULT_TY
     """Tasodifiy anime qidirish (Hozircha vaqtinchalik javob)"""
     query = update.callback_query
     await query.answer("🎲 Tasodifiy anime qidirish tez kunda qo'shiladi...")
+
 
 
 
