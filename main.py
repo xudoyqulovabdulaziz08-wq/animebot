@@ -70,7 +70,7 @@ async def start_bot():
     application.add_handler(CallbackQueryHandler(show_episodes, pattern=r"^show_episodes_|^episodes_"))
     application.add_handler(CallbackQueryHandler(video_handler, pattern=r"^video_"))
     application.add_handler(CallbackQueryHandler(show_anime_details_callback, pattern=r"^info_"))
-    application.add_handler(CallbackQueryHandler(admin_panel_handler, pattern=r"^adm_"))
+    application.add_handler(CallbackQueryHandler(admin_panel_handler, pattern=r"^adm_|^admin_menu$"))
     application.add_handler(CallbackQueryHandler(lambda u, c: u.callback_query.message.delete(), pattern="delete_msg"))
 
     # 4. Umumiy matn ushlagich (Catch-all text)
@@ -102,6 +102,7 @@ if __name__ == "__main__":
         asyncio.run(start_bot())
     except Exception as e:
         print(f"❌ Xatolik yuz berdi: {e}")
+
 
 
 
