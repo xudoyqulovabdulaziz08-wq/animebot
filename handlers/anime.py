@@ -11,69 +11,92 @@ POSTER, DATA, VIDEO,  = range(3)
 
 
 async def show_anime_details(update: Update, context: ContextTypes.DEFAULT_TYPE, anime_id: int):
-    
     is_callback = update.callback_query is not None
     target = update.callback_query.message if is_callback else update.message
 
     async with async_session() as session:
+        # Anime va uning epizodlari sonini bitta so'rovda olish (optimizatsiya)
         stmt = select(Anime).where(Anime.anime_id == anime_id)
         res = await session.execute(stmt)
         anime = res.scalar_one_or_none()
 
         if not anime:
-            await target.reply_text("❌ Kechirasiz, bu anime haqida ma'lumot topilmadi.")
+            msg = "❌ Kechirasiz, bu anime haqida ma'lumot topilmadi."
+            if is_callback: await update.callback_query.answer(msg)
+            else: await target.reply_text(msg)
             return
-        description = anime.description or 'Mazmun qoshilmagan'
-        if len(description) > 500:
-            description = description[:500] + "..."
-        # Matnni shakllantiramiz
-        genren = anime.genre if anime.genre else "Noma'lum"
-        yearn = anime.year if anime.year else "Noma'lum"
+
+        # Ko'rishlar sonini oshirish (Ixtiyoriy lekin tavsiya etiladi)
+        anime.views_week += 1
+        await session.commit()
+
+        geren = anime.genre if anime.genre else "Noma'lum"
+        yil = anime.yil if anime.yil else "Noma'lum"
         fandubn = anime.fandub if anime.fandub else "Noma'lum"
-        langn = anime.lang if anime.lang  else "O'zbek"
+        langn = anime.lang if anime.lang else "O'zbek"
+        qismn = anime.episodes_count if anime.episodes_count else "Qismlar tez orada qo'shiladi"
+        haftan = anime.views_week if anime.views_week else 0
+        holatin = "Tugallangan" if anime.is_completed else "Davom etmoqda"
+        reyting = f"{anime.rating_sum / anime.rating_count:.1f}" if anime.rating_count > 0 else "Hali reyting berilmagan"
+        if len(description) > 500: # 500 belgidan uzun bo'lsa, qisqartiramiz
+            description = description[:500].rsplit(' ', 1)[0] + "..."
+
         caption = (
-            f"🎬 <b>{anime.name}</b>\n\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n"
-            f"🎭 <b>Janr:</b> {genren}\n"
-            f"📅 <b>Yil:</b> {yearn}\n"
+            f"🎬 <b>{anime.name}</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"🎭 <b>Janr:</b> {geren}\n"
+            f"📅 <b>Yil:</b> {yil}\n"
             f"🎙 <b>Fandub:</b> {fandubn}\n"
             f"🌐 <b>Til:</b> {langn}\n"
-            f"📊 <b>Reyting:</b> ⭐ {anime.rating_sum or 0}\n"
-            f"✅ <b>Holati:</b> {'Tugallangan' if anime.is_completed else 'Davom etmoqda'}\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👁 <b>Ko‘rishlar:</b> {haftan}\n"
+            f"▶️ <b>Qismlar:</b> {qismn}\n"
+            f"📊 <b>Reyting:</b> ⭐ {reyting}\n"
+            f"✅ <b>Holati:</b> {holatin}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━\n"
             f"📢 <b>Kanal:</b> <a href='https://t.me/aninovuz'>@aninovuz</a>\n"
-            f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-            f"📖 <b>Qisqacha mazmuni:</b>\n{description}"
-)
+            f"━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"📖 <b>Qisqacha mazmuni:</b>\n<i>{description}</i>"
+        )
 
-        # Tugmalar (Qismlar va Sevimlilar)
         buttons = [
-            [InlineKeyboardButton("🎞 Qismlarni ko'rish", callback_data=f"show_episodes{anime_id}")],
+            [InlineKeyboardButton("🎞 Qismlarni ko'rish", callback_data=f"show_episodes_{anime_id}")],
             [
-                InlineKeyboardButton("🌟 Sevimlilarga qo'shish", callback_data=f"fav_{anime_id}"),
-                InlineKeyboardButton("❌ Yopish", callback_data="delete_msg")
-            ]
+                InlineKeyboardButton("🌟 Sevimlilar", callback_data=f"fav_{anime_id}"),
+                InlineKeyboardButton("✍️ Sharhlar", callback_data=f"comments_{anime_id}")
+            ],
+            [InlineKeyboardButton("⬅️ Orqaga", callback_data="main_menu")]
         ]
         keyboard = InlineKeyboardMarkup(buttons)
 
-        # Poster yuborish
         try:
+            if is_callback:
+                # Agar callback bo'lsa, xabarni o'chirib yangisini yuborish o'rniga, 
+                # foydalanuvchiga "yuklanmoqda" effekti uchun answer query yuboramiz
+                await update.callback_query.answer()
+            
             if anime.poster_id:
-                await target.reply_photo(
+                await target.get_bot().send_photo(
+                    chat_id=target.chat_id,
                     photo=anime.poster_id,
                     caption=caption,
                     reply_markup=keyboard,
                     parse_mode="HTML"
                 )
             else:
-                await target.reply_text(caption, reply_markup=keyboard, parse_mode="HTML")
+                await target.get_bot().send_message(
+                    chat_id=target.chat_id,
+                    text=caption,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
             
-            # Agar bu tugma bosish orqali kelgan bo'lsa, eski ro'yxatni o'chirib tashlaymiz
+            # Eski ro'yxatni o'chirish
             if is_callback:
                 await update.callback_query.message.delete()
+
         except Exception as e:
-            print(f"Xatolik (Anime ko'rsatishda): {e}")
-            await target.reply_text("⚠️ Xatolik: Rasmni yuborib bo'lmadi, lekin ma'lumotlar yuqorida.")
+            print(f"Xatolik: {e}")
+            await target.reply_text("⚠️ Ma'lumotni yuklashda xatolik yuz berdi.")
 
 
 
@@ -513,6 +536,7 @@ async def publish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     await query.edit_message_text("🚀 Anime bazaga olindi va kanalga navbatga qo'yildi.")
     return ConversationHandler.END
+
 
 
 
