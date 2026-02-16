@@ -18,7 +18,7 @@ async def anime_control_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
             InlineKeyboardButton("🗑 Animeni o'chirish", callback_data="admin_delete_anime"),
             InlineKeyboardButton("🧨 Epizodni o'chirish", callback_data="admin_delete_episode")
         ],
-        [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_admin_main")]
+        [InlineKeyboardButton("⬅️ Orqaga", callback_data="admin_menu")]
     ])
     
     await query.edit_message_text(
@@ -28,3 +28,4 @@ async def anime_control_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
         reply_markup=keyboard,
         parse_mode="HTML"
     )
+
