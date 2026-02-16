@@ -6,7 +6,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters
 
 
-POSTER, DATA, VIDEO,  = range(2)
+POSTER, DATA, VIDEO,  = range(3)
 # ===================================================================================
 
 
@@ -513,6 +513,7 @@ async def publish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     await query.edit_message_text("🚀 Anime bazaga olindi va kanalga navbatga qo'yildi.")
     return ConversationHandler.END
+
 
 
 
