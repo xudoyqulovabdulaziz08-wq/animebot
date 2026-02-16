@@ -12,7 +12,7 @@ from database.db import async_session
 
 async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
-    query = update.callback_query # Tugma bosilganini tekshirish
+    query = update.callback_query
     
     async with async_session() as session:
         status = await get_user_status(session, user_id, MAIN_ADMIN_ID)
@@ -21,36 +21,48 @@ async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
             is_main = (status == "main_admin")
             admin_info = "👑 <b>Bosh Admin Paneli</b>" if is_main else "👨‍💻 <b>Admin Paneli</b>"
             
+            # Har safar matn ozgina farq qilishi uchun vaqt qo'shamiz (Message is not modified xatosini oldini oladi)
+            now = datetime.now().strftime("%H:%M:%S")
             text = (
                 f"{admin_info}\n\n"
-                "Botni boshqarish va statistika bilan tanishish uchun quyidagi bo'limlardan birini tanlang:\n\n"
-                "   <i>Eslatma: Tizim barqaror ishlamoqda.</i>"
+                f"Bo'limni tanlang:\n"
+                f"🕒 Yangilandi: {now}"
             )
             
             keyboard = get_admin_kb(is_main)
 
-            if query:
-                # 1. Agar "Orqaga" tugmasi orqali kelgan bo'lsa - tahrirlaymiz
-                await query.answer() # "Soat"ni to'xtatish
-                await query.edit_message_text(
-                    text=text,
-                    reply_markup=keyboard,
-                    parse_mode="HTML"
-                )
-            else:
-                # 2. Agar /admin komandasi bo'lsa - yangi xabar yuboramiz
-                await update.effective_message.reply_text(
-                    text=text,
-                    reply_markup=keyboard,
-                    parse_mode="HTML"
-                )
-        else:
-            # Ruxsat bo'lmasa
-            message = "❌ <b>Sizda ushbu bo'limga kirish huquqi yo'q!</b>"
-            if query:
-                await query.answer(text=message, show_alert=True)
-            else:
-                await update.effective_message.reply_text(text=message, parse_mode="HTML")
+            try:
+                if query:
+                    await query.answer()
+                    await query.edit_message_text(
+                        text=text,
+                        reply_markup=keyboard,
+                        parse_mode="HTML"
+                    )
+                else:
+                    await update.effective_message.reply_text(
+                        text=text,
+                        reply_markup=keyboard,
+                        parse_mode="HTML"
+                    )
+            except Exception as e:
+                # AGAR XATO BERSA, SHU YERDA ANIQLAYMIZ
+                error_msg = str(e)
+                print(f"❌ Telegram xatosi: {error_msg}")
+                
+                # Agar HTMLdan bo'lsa, oddiy matnda yuboramiz
+                if "Can't parse entities" in error_msg:
+                    safe_text = "👑 Admin Paneli (Formatlash xatosi bor)"
+                    if query:
+                        await query.edit_message_text(text=safe_text, reply_markup=keyboard)
+                    else:
+                        await update.effective_message.reply_text(text=safe_text, reply_markup=keyboard)
+                
+                # Agar matn o'zgarmagan bo'lsa, foydalanuvchiga bildirishnoma ko'rsatamiz
+                elif "Message is not modified" in error_msg:
+                    if query:
+                        await query.answer("Siz allaqachon shu bo'limdasiz.")
+
 
 
 
