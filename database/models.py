@@ -79,21 +79,5 @@ class Comment(Base):
 
 # database/db.py fayliga qo'shing
 
-async def init_databases():
-    """Barcha 7 ta bazada jadvallarni yaratish"""
-    from database.models import Base  # Modellarni import qilamiz
-    
-    print("⏳ Jadvallar yaratilmoqda, kuting...")
-    
-    for name, engine in engines.items():
-        try:
-            async with engine.begin() as conn:
-                # Base.metadata ichida hamma jadvallar bor
-                # U har bir bazada kerakli jadvallarni (users, anime_list va h.k.) yaratadi
-                await conn.run_sync(Base.metadata.create_all)
-            print(f"✅ Baza muvaffaqiyatli tayyorlandi: {name}")
-        except Exception as e:
-            print(f"❌ {name} bazasida xatolik: {e}")
 
-    print("🚀 Barcha bazalar ishga tushishga tayyor!")
     
