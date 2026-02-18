@@ -1,11 +1,11 @@
 import html
 from sqlalchemy import func, select
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from database.db import get_anime_session, sessions  # Router va sessiyalar
+from database.db import get_anime_session, session_factories   # Router va sessiyalar
 from database.models import Anime, Episode
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler, MessageHandler, filters
-from database.db import sessions  # 7 ta sessiya fabrikasi
+ # 7 ta sessiya fabrikasi
 from database.models import Anime, Episode
 POSTER, DATA, VIDEO,  = range(3)
 # ===================================================================================
@@ -20,7 +20,7 @@ async def show_anime_details(update: Update, context: ContextTypes.DEFAULT_TYPE,
 
     # 1. 🔍 3 ta anime bazasidan qidirish (A1, A2, A3)
     for key in ["a1", "a2", "a3"]:
-        async with sessions[key]() as session:
+        async with session_factories[key]() as session:
             stmt = select(Anime).where(Anime.anime_id == anime_id)
             res = await session.execute(stmt)
             found_anime = res.scalar_one_or_none()
@@ -137,7 +137,7 @@ async def show_episodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # (Eslatma: Anime va uning epizodlari bitta bazada bo'ladi)
     found_in_db = None
     for key in ["a1", "a2", "a3"]:
-        async with sessions[key]() as session:
+        async with session_factories[key]() as session:
             stmt = select(Episode).where(Episode.anime_id == anime_id).order_by(Episode.episode.asc())
             res = await session.execute(stmt)
             ep_list = res.scalars().all()
@@ -221,7 +221,7 @@ async def video_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # 1. 🔍 3 ta anime bazasidan joriy qismni qidiramiz
     for key in ["a1", "a2", "a3"]:
-        async with sessions[key]() as session:
+        async with session_factories[key]() as session:
             # Epizodni ID bo'yicha qidirish
             stmt = select(Episode).where(Episode.id == ep_db_id)
             res = await session.execute(stmt)
@@ -329,7 +329,7 @@ async def admin_list_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 1. 🔄 Hamma anime bazalarini (A1, A2, A3) aylanib chiqamiz
     for key in ["a1", "a2", "a3"]:
-        async with sessions[key]() as session:
+        async with session_factories[key]() as session:
             # Har bir bazadagi sonini sanaymiz
             count_stmt = select(func.count(Anime.anime_id))
             res_count = await session.execute(count_stmt)
@@ -394,7 +394,7 @@ async def admin_view_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 1. 🔍 3 ta anime bazasidan (A1, A2, A3) qidirish
     for key in ["a1", "a2", "a3"]:
-        async with sessions[key]() as session:
+        async with session_factories[key]() as session:
             # Animeni olish
             stmt = select(Anime).where(Anime.anime_id == anime_id)
             res = await session.execute(stmt)
@@ -534,7 +534,7 @@ async def get_episodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     current_ep = context.user_data['last_ep_num']
 
     # 💾 Animening o'zi qaysi bazada bo'lsa, qismlar ham o'sha yerga tushadi
-    async with sessions[db_key]() as session:
+    async with session_factories[db_key]() as session:
         new_episode = Episode(anime_id=ani_id, episode=current_ep, file_id=file_id)
         session.add(new_episode)
         await session.commit()
@@ -544,7 +544,8 @@ async def get_episodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("✅ Tugatish", callback_data="finish_add")]])
     )
-    return VIDEO
+    return VIDEO 
+
 
 
 
