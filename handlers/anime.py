@@ -464,6 +464,35 @@ async def start_add_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return POSTER
 
+# handlers/anime.py ichida
+
+async def get_poster(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Posterni file_id ko'rinishida olish (Rasm yoki Hujjat)"""
+    msg = update.message
+    
+    file_id = None
+    if msg.photo:
+        # Eng sifatli rasm IDsi
+        file_id = msg.photo[-1].file_id
+    elif msg.document and msg.document.mime_type.startswith('image/'):
+        # Hujjat ko'rinishida yuborilgan rasm IDsi
+        file_id = msg.document.file_id
+    else:
+        await msg.reply_text("❌ Iltimos, faqat rasm yuboring!")
+        return POSTER # POSTER holatida qolamiz
+
+    # Keyingi qadam uchun saqlaymiz
+    context.user_data['poster_id'] = file_id
+    
+    await msg.reply_text(
+        "✅ Poster qabul qilindi.\n\n"
+        "2. Endi ma'lumotlarni quyidagi formatda yuboring:\n\n"
+        "<code>Nomi | Tili | Janri | Yili | Fandub | Tavsif</code>\n\n"
+        "<i>Eslatma: Janrlarni vergul bilan ajratib yozing.</i>",
+        parse_mode="HTML"
+    )
+    return DATA # DATA holatiga o'tamiz
+ 
 # --- 2-QADAM: DATA (Router qo'shildi) ---
 async def get_anime_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
     raw_text = update.message.text
@@ -576,6 +605,7 @@ async def publish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
     return ConversationHandler.END
+
 
 
 
