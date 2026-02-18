@@ -4,6 +4,7 @@ import asyncio
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ConversationHandler
 from config import TOKEN
+from database.db import init_databases
 from handlers.user import (
     start,
     cabinet_handler,
@@ -38,21 +39,17 @@ from keyboard.anime_kb import(
     anime_control_menu
 )
 
-# Importni xavfsiz qilish
-try:
-    from database.db import engine
-except ImportError:
-    try:
-        from db import engine
-    except:
-        engine = None
-
-
 
 
 async def start_bot():
     """Botni sozlash va ishga tushirish funksiyasi"""
     
+    print("⏳ Bazalar tekshirilmoqda...")
+    # 1. 7 ta bazada jadvallarni avtomatik yaratish
+    await init_databases()
+    print("✅ Bazalar tayyor!")
+
+
     # Application yaratish
     application = ApplicationBuilder().token(TOKEN).build()
 
