@@ -1,7 +1,8 @@
 import select
+from flask import sessions
 from telegram import Update
 from telegram.ext import ContextTypes
-from database.db import async_session
+from database.db import get_user_session, get_anime_session
 from services.user_service import register_user, get_user_status
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from keyboard.default import get_main_kb # Menyuni import qilamiz
@@ -20,26 +21,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     tg_user = update.effective_user
     
-    # 2. Bazaga ulanish
-    async with async_session() as session:
+    # 2. Router orqali ID bo'yicha kerakli bazaga ulanish (0-3: U1, 4-6: U2, 7-9: U3)
+    async with get_user_session(tg_user.id) as session:
         try:
-            # Foydalanuvchini ro'yxatdan o'tkazish
+            # Foydalanuvchini aynan unga tegishli bazada ro'yxatdan o'tkazish
             user, is_new = await register_user(session, tg_user)
             
-            # Statusni aniqlash
+            # Statusni o'sha bazadan tekshirish
             status = await get_user_status(session, tg_user.id, MAIN_ADMIN_ID)
             
-            # Agar register_user yoki get_user_status ichida flush() qilinmagan bo'lsa, 
-            # barcha o'zgarishlarni bitta commit bilan yakunlaymiz
+            # O'zgarishlarni bazaga yozish
             await session.commit()
             
-            # Klaviatura menyusini olish (async bo'lsa await qo'shing)
+            # Klaviatura menyusini olish
             reply_markup = get_main_kb(status)
 
-            # joined_at xavfsiz formatlash
+            # joined_at formatlash
             joined_date = user.joined_at.strftime('%d.%m.%Y') if (user and user.joined_at) else "Noma'lum"
 
-            # 3. HTML formatidagi matn (Markdown-dan ancha barqaror)
+            # 3. HTML formatidagi matn
             if is_new:
                 text = (
                     f"👋 Xush kelibsiz, <b>{tg_user.full_name}</b>!\n"
@@ -66,7 +66,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             # Xatolik bo'lsa sessiyani orqaga qaytarish
             await session.rollback()
-            print(f"❌ Xatolik (Start): {e}")
+            print(f"❌ Xatolik (Start Router): {e}")
             await update.message.reply_text("⚠️ Tizimda bazaga ulanish bilan bog'liq xatolik yuz berdi.")
             
             
@@ -77,16 +77,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 
+from database.db import get_user_session  # Routerni chaqiramiz
+from config import MAIN_ADMIN_ID
+
 async def cabinet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # 1. Update va foydalanuvchini tekshirish
+    if not update.effective_user:
+        return
+        
     user_id = update.effective_user.id
     
-    async with async_session() as session:
+    # 2. Router orqali ID oxiriga qarab (0-3, 4-6, 7-9) kerakli bazani ochamiz
+    async with get_user_session(user_id) as session:
         try:
-            # 1. Foydalanuvchi ma'lumotlarini olish va statusni tekshirish
+            # 1. Foydalanuvchi ma'lumotlarini o'sha bazadan olish
+            # Register_user status o'zgargan bo'lsa yangilab beradi
             user, _ = await register_user(session, update.effective_user)
             status = await get_user_status(session, user_id, MAIN_ADMIN_ID)
             
-            # O'zgarishlarni (masalan, VIP muddati tugagan bo'lsa) saqlash
+            # O'zgarishlarni (masalan, VIP muddati tugab status o'zgargan bo'lsa) saqlash
             await session.commit()
 
             # 2. Ma'lumotlarni tayyorlash
@@ -101,7 +110,7 @@ async def cabinet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📅 <b>Ro'yxatdan o'tdingiz:</b> {joined_date}\n"
             )
             
-            # 3. VIP muddatini tekshirish (faqat VIP foydalanuvchilar uchun)
+            # 3. VIP muddatini tekshirish
             if status.lower() == 'vip' and user.vip_expire_date:
                 vip_date = user.vip_expire_date.strftime('%d.%m.%Y')
                 text += f"💎 <b>VIP muddati:</b> {vip_date}"
@@ -113,8 +122,9 @@ async def cabinet_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             
         except Exception as e:
+            # Xatolik bo'lsa faqat shu bazadagi sessiyani rollback qilamiz
             await session.rollback()
-            print(f"❌ Kabinet xatosi: {e}")
+            print(f"❌ Kabinet xatosi (Router): {e}")
             await update.message.reply_text("⚠️ Kabinet ma'lumotlarini yuklashda xatolik yuz berdi.")
             
 
@@ -146,7 +156,7 @@ async def search_anime_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     
     text = (
         "<b>🔍 Qidiruv usulini tanlang:</b>\n\n"
-        "<i>Kerakli usulni tanlang va ma'lumotni yuboring. Eslatim ozamiz bizning botimiz hali toliq ishga tushgani yoq ba'zi bir tugmalar ishlmasligi mumkin</i>"
+        "<i>Kerakli usulni tanlang va ma'lumotni yuboring.</i>"
     )
 
     # 2. ENG MUHIM JOYI: Qanday javob berishni aniqlash
@@ -258,6 +268,8 @@ async def search_callback_handler(update: Update, context: ContextTypes.DEFAULT_
 
 # ===================================================================================
 
+from telegram.constants import ChatAction # Typing status uchun
+
 async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mode = context.user_data.get("search_mode")
     if not mode or not update.message.text:
@@ -265,82 +277,73 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
     tg_user = update.effective_user
-    results = [] # Natijalarni har doim listda saqlash qulayroq
+    results = []
 
-    async with async_session() as session:
-        try:
-            if mode == "name":
+    # 1️⃣ "Yozmoqda..." statusini ko'rsatish
+    await context.bot.send_chat_action(chat_id=update.effective_chat.id, action=ChatAction.TYPING)
+
+    # 2️⃣ Vaqtinchalik "Qidirilmoqda..." xabarini yuborish
+    waiting_msg = await update.message.reply_text("🔎 <i>Bazadan qidirilmoqda...</i>", parse_mode="HTML")
+
+    try:
+        if mode == "name":
+            async with get_anime_session(text) as session:
                 stmt = select(Anime).where(Anime.name.ilike(f"%{text}%")).limit(10)
                 res = await session.execute(stmt)
                 results = res.scalars().all()
-                
-            elif mode == "id":
-                if text.isdigit():
-                    stmt = select(Anime).where(Anime.anime_id == int(text))
+        
+        elif mode == "id":
+            if text.isdigit():
+                anime_id = int(text)
+                for key in ["a1", "a2", "a3"]:
+                    async with sessions[key]() as session:
+                        res = await session.execute(select(Anime).where(Anime.anime_id == anime_id))
+                        anime = res.scalar_one_or_none()
+                        if anime:
+                            results = [anime]
+                            break
+
+        elif mode in ["genre", "fandub"]:
+            for key in ["a1", "a2", "a3"]:
+                async with sessions[key]() as session:
+                    column = Anime.genre if mode == "genre" else Anime.fandub
+                    stmt = select(Anime).where(column.ilike(f"%{text}%")).limit(5)
                     res = await session.execute(stmt)
-                    anime = res.scalar_one_or_none()
-                    if anime:
-                        results = [anime] # Bitta bo'lsa ham listga solamiz
-                
-            elif mode == "genre":
-                stmt = select(Anime).where(Anime.genre.ilike(f"%{text}%")).limit(10)
-                res = await session.execute(stmt)
-                results = res.scalars().all()
+                    results.extend(res.scalars().all())
 
-            elif mode == "fandub":
-                stmt = select(Anime).where(Anime.fandub.ilike(f"%{text}%")).limit(10)
-                res = await session.execute(stmt)
-                results = res.scalars().all()
-        except Exception as e:
-            print(f"🔍 Qidiruv xatosi: {e}")
-            await update.message.reply_text("⚠️ Qidiruv jarayonida xatolik yuz berdi.")
-            return
+    except Exception as e:
+        print(f"🔍 Qidiruv xatosi: {e}")
+        await waiting_msg.delete() # Xato bo'lsa kutish xabarini o'chirish
+        await update.message.reply_text("⚠️ Qidiruvda xatolik yuz berdi.")
+        return
 
-    # 2. AGAR NATIJA TOPILMASA
+    # 3️⃣ Qidiruv tugagach, kutish xabarini o'chiramiz
+    await waiting_msg.delete()
+
+    # --- NATIJANI CHIQARISH ---
     if not results:
-        # Rejimni o'chirmaymiz, balki foydalanuvchiga qayta urinish imkonini beramiz
         retry_kb = InlineKeyboardMarkup([
-        [
-            # Foydalanuvchini yana matn yozish rejimiga qaytaradi
-            InlineKeyboardButton("🔄 Qayta urinish", callback_data=f"search_type_{mode}"),
-            # Foydalanuvchini hamma qidiruv turlari bor menyuga qaytaradi
-            InlineKeyboardButton("⬅️ Asosiy menyu", callback_data="back_to_search_main")
-        ],
-        [InlineKeyboardButton("❌ Qidiruvni yopish", callback_data="cancel_search")]
-    ])
-
+            [InlineKeyboardButton("🔄 Qayta urinish", callback_data=f"search_type_{mode}"),
+             InlineKeyboardButton("⬅️ Asosiy menyu", callback_data="back_to_search_main")],
+            [InlineKeyboardButton("❌ Qidiruvni yopish", callback_data="cancel_search")]
+        ])
         await update.message.reply_text(
-            f"😔 Kechirasiz <b>{tg_user.full_name}</b>, <b>'{text}'</b> bo'yicha hech qanday natija topilmadi.\n\n"
-            f"<i>Imlo xatolarini tekshirib, qayta urinib ko'rishingiz mumkin.</i>",
-            reply_markup=retry_kb,
-            parse_mode="HTML"
+            f"😔 Kechirasiz <b>{tg_user.full_name}</b>, topilmadi.",
+            reply_markup=retry_kb, parse_mode="HTML"
         )
         return
 
-    # 3. NATIJA TOPILGANDA
-    # Qidiruv rejimi tugadi, endi holatni tozalaymiz
     context.user_data["search_mode"] = None 
 
-    # Agar ro'yxatda faqat bitta anime bo'lsa
-    if len(results) == 1:
-        await show_anime_details(update, context, results[0].anime_id)
-        return
-
-    # Agar natijalar ko'p bo'lsa
     buttons = []
-    for anime in results:
+    for anime in results[:15]:
         buttons.append([InlineKeyboardButton(f"🎬 {anime.name}", callback_data=f"info_{anime.anime_id}")])
     
-    # Orqaga qaytish tugmasini ham qo'shib qo'yamiz
     buttons.append([InlineKeyboardButton("⬅️ Qidiruvga qaytish", callback_data="back_to_search_main")])
     
-    reply_markup = InlineKeyboardMarkup(buttons)
-    
     await update.message.reply_text(
-        f"🔍 <b>'{text}'</b> bo'yicha <b>{len(results)}</b> ta natija topildi.\n"
-        f"<i>Kerakli animeni tanlang:</i>",
-        reply_markup=reply_markup,
-        parse_mode="HTML"
+        f"✅ <b>{len(results)}</b> ta natija topildi:",
+        reply_markup=InlineKeyboardMarkup(buttons), parse_mode="HTML"
     )
 
 # ===================================================================================
@@ -360,6 +363,7 @@ async def process_random_search(update: Update, context: ContextTypes.DEFAULT_TY
     """Tasodifiy anime qidirish (Hozircha vaqtinchalik javob)"""
     query = update.callback_query
     await query.answer("🎲 Tasodifiy anime qidirish tez kunda qo'shiladi...")
+
 
 
 
