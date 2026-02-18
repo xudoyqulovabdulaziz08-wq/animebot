@@ -54,6 +54,20 @@ for key, url in URLS.items():
     )
 
 # 4. ROUTER FUNKSIYALARI (3+3+1 Mantiqi)
+# 4. ROUTER FUNKSIYALARI (3+3+1 Mantiqi)
+
+def anime_router(name: str) -> str:
+    """Anime nomi bo'yicha qaysi bazaga (a1, a2, a3) tushishini aniqlaydi"""
+    if not name:
+        return "a3"
+    
+    char = name[0].upper()
+    if 'A' <= char <= 'I':
+        return "a1"
+    elif 'J' <= char <= 'R':
+        return "a2"
+    else:
+        return "a3"
 
 def get_user_session(user_id: int):
     """User ID oxirgi raqami bo'yicha: 0-3 (U1), 4-6 (U2), 7-9 (U3)"""
@@ -93,5 +107,6 @@ async def init_databases():
             print(f"❌ {name} bazasida xatolik: {e}")
 
     print("🚀 Barcha bazalar ishga tushishga tayyor!")
+
 
 
