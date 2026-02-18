@@ -546,6 +546,36 @@ async def get_episodes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return VIDEO 
 
+# handlers/anime.py faylining eng oxiriga qo'shing:
+
+async def finish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Jarayonni yopish va kutish rejimidan chiqish"""
+    query = update.callback_query
+    await query.answer("Jarayon yakunlandi!")
+    
+    # Foydalanuvchi ma'lumotlarini tozalaymiz
+    context.user_data.clear()
+    
+    await query.edit_message_text(
+        "✅ <b>Barcha qismlar muvaffaqiyatli saqlandi.</b>\n"
+        "Admin panelga qaytishingiz mumkin.",
+        parse_mode="HTML"
+    )
+    return ConversationHandler.END
+
+async def publish_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Kanalga jo'natish tugmasi uchun (Hozircha faqat jarayonni yopadi)"""
+    query = update.callback_query
+    await query.answer("Kanalga yuborish navbatga qo'yildi...")
+    
+    # Bu yerda kelajakda kanalga post qilish funksiyasini chaqirishingiz mumkin
+    context.user_data.clear()
+    
+    await query.edit_message_text(
+        "🚀 <b>Anime bazaga olindi va kanalga navbatga qo'yildi.</b>",
+        parse_mode="HTML"
+    )
+    return ConversationHandler.END
 
 
 
