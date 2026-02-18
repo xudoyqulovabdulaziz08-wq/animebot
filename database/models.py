@@ -1,11 +1,13 @@
-from sqlalchemy import BigInteger, String, Integer, Float, DateTime, Text, ForeignKey, Boolean, func, Numeric
+from sqlalchemy import BigInteger, String, Integer, Float, DateTime, Text, ForeignKey, Boolean, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from datetime import datetime
 from typing import List, Optional
+from database.db import engines
 
 class Base(DeclarativeBase):
     pass
 
+# --- 1. USER GURUHI (U1, U2, U3 bazalari uchun) ---
 class User(Base):
     __tablename__ = "users"
     
@@ -18,10 +20,22 @@ class User(Base):
     health_mode: Mapped[bool] = mapped_column(Boolean, default=True)
     referral_count: Mapped[int] = mapped_column(Integer, default=0)
 
-    # Relationships
-    favorites: Mapped[List["Anime"]] = relationship(secondary="favorites", back_populates="favorited_by")
-    comments: Mapped[List["Comment"]] = relationship(back_populates="author")
+class Favorite(Base):
+    __tablename__ = "favorites"
+    # Turli bazalar bo'lgani uchun ForeignKey ishlatmaymiz, faqat ID saqlaymiz
+    user_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    anime_id: Mapped[int] = mapped_column(Integer, primary_key=True)
 
+class History(Base):
+    __tablename__ = "history"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    anime_id: Mapped[int] = mapped_column(Integer)
+    last_episode: Mapped[int] = mapped_column(Integer)
+    watched_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+# --- 2. ANIME GURUHI (A1, A2, A3 bazalari uchun) ---
 class Anime(Base):
     __tablename__ = "anime_list"
     
@@ -38,9 +52,8 @@ class Anime(Base):
     views_week: Mapped[int] = mapped_column(Integer, default=0)
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False)
 
-    # Relationships
+    # Bir xil baza ichida relationship ishlaydi
     episodes: Mapped[List["Episode"]] = relationship(back_populates="anime", cascade="all, delete-orphan")
-    favorited_by: Mapped[List["User"]] = relationship(secondary="favorites", back_populates="favorites")
 
 class Episode(Base):
     __tablename__ = "anime_episodes"
@@ -52,29 +65,35 @@ class Episode(Base):
     
     anime: Mapped["Anime"] = relationship(back_populates="episodes")
 
-class Favorite(Base):
-    __tablename__ = "favorites"
-    
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id", ondelete="CASCADE"), primary_key=True)
-    anime_id: Mapped[int] = mapped_column(ForeignKey("anime_list.anime_id", ondelete="CASCADE"), primary_key=True)
 
-class History(Base):
-    __tablename__ = "history"
-    
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id", ondelete="CASCADE"), index=True)
-    anime_id: Mapped[int] = mapped_column(ForeignKey("anime_list.anime_id", ondelete="CASCADE"))
-    last_episode: Mapped[int] = mapped_column(Integer)
-    watched_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-
+# --- 3. FEEDBACK GURUHI (FB bazasi uchun) ---
 class Comment(Base):
     __tablename__ = "comments"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.user_id"))
-    anime_id: Mapped[int] = mapped_column(ForeignKey("anime_list.anime_id"))
+    user_id: Mapped[int] = mapped_column(BigInteger)
+    anime_id: Mapped[int] = mapped_column(Integer)
     comment_text: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
+# database/db.py fayliga qo'shing
+
+async def init_databases():
+    """Barcha 7 ta bazada jadvallarni yaratish"""
+    from database.models import Base  # Modellarni import qilamiz
     
-    author: Mapped["User"] = relationship(back_populates="comments")
+    print("⏳ Jadvallar yaratilmoqda, kuting...")
+    
+    for name, engine in engines.items():
+        try:
+            async with engine.begin() as conn:
+                # Base.metadata ichida hamma jadvallar bor
+                # U har bir bazada kerakli jadvallarni (users, anime_list va h.k.) yaratadi
+                await conn.run_sync(Base.metadata.create_all)
+            print(f"✅ Baza muvaffaqiyatli tayyorlandi: {name}")
+        except Exception as e:
+            print(f"❌ {name} bazasida xatolik: {e}")
+
+    print("🚀 Barcha bazalar ishga tushishga tayyor!")
     
