@@ -3,7 +3,7 @@ from datetime import datetime
 from services.user_service import get_user_status
 from telegram import  InlineKeyboardButton, InlineKeyboardMarkup, Update
 from config import MAIN_ADMIN_ID
-from database.db import async_session
+from database.db import get_user_session
 from telegram.ext import ContextTypes
 
 
@@ -48,8 +48,10 @@ async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     user_id = update.effective_user.id
     query = update.callback_query # Tugma bosilganini tekshirish
     
-    async with async_session() as session:
-        # Foydalanuvchi statusini tekshiramiz
+    # Hamma bazani aylanib chiqish shart emas!
+# user_id oxiri 5 bo'lsa, get_user_session avtomatik "u2" ni beradi.
+
+    async with get_user_session(user_id) as session:
         status = await get_user_status(session, user_id, MAIN_ADMIN_ID)
     
         if status in ["main_admin", "admin"]:
@@ -95,6 +97,7 @@ async def admin_panel_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
                 await query.answer(text=message, show_alert=True)
             else:
                 await update.effective_message.reply_text(text=message, parse_mode="HTML")
+
 
 
 
