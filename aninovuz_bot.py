@@ -55,30 +55,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ====== DATABASE SOZLAMALARI ======
 # ======Telegram bot tokeni va admin IDsi======
+
 # Bot tokenini Render Environment Variables'dan oladi
+
 BOT_TOKEN = os.getenv("BOT_TOKEN") 
+
 # Bu yerda group idsi yoziladi
+
 ADMIN_GROUP_ID = -5128040712 
-# Alohida o'zgaruvchilardan bitta URL yasaymiz
-
-
-
-
+# 1. Konfiguratsiyani yuklash
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "port": int(os.getenv("DB_PORT", 27624)),
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASS"),
-    "db": os.getenv("DB_NAME"), # <--- "database" edi, "db" bo'lishi shart!
+    "db": os.getenv("DB_NAME"),
     "autocommit": True,
-    # Quyidagi ikki qator aiomysql uchun standart emas, ularni olib tashlasangiz ham bo'ladi
-    "ssl_disabled": False, 
-    "ssl_mode": "REQUIRED" 
 }
-from sqlalchemy.engine import URL
 
-# DB_CONFIG dan foydalanib URL obyektini yasaymiz
+# 2. SQLAlchemy URL obyektini yaratish (Maxsus belgilar uchun xavfsiz usul)
+from sqlalchemy.engine import URL
 db_url = URL.create(
     drivername="mysql+aiomysql",
     username=DB_CONFIG['user'],
@@ -88,16 +86,17 @@ db_url = URL.create(
     database=DB_CONFIG['db']
 )
 
-# Endi engineni to'g'ridan-to'g'ri shu obyekt bilan yaratamiz
-engine = create_async_engine(db_url, pool_size=20)
-# Endi engineni shu URL bilan yaratamiz
+# 3. Engine yaratish (Faqat bitta engine yetarli)
 engine = create_async_engine(
-    DATABASE_URL,
-    pool_size=20,
-    max_overflow=10,
-    pool_recycle=3600,
-    echo=False
+    db_url,
+    pool_size=20,           # Bir vaqtning o'zida ochiq ulanishlar
+    max_overflow=10,        # Zarurat tug'ilganda qo'shimcha ulanishlar
+    pool_recycle=3600,      # Ulanishni har soatda yangilash
+    echo=False              # Loglarni productionda o'chirish
 )
+
+# 4. Session factory
+AsyncSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
 # ====================== CONVERSATION STATES ======================
 (
     # --- ADMIN & KANALLAR (0-5) ---
@@ -786,6 +785,7 @@ if __name__ == "__main__":
     # Botni ishga tushirish
 
     main()
+
 
 
 
