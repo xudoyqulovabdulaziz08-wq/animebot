@@ -63,17 +63,8 @@ ADMIN_GROUP_ID = -5128040712
 # Alohida o'zgaruvchilardan bitta URL yasaymiz
 
 
-# Endi URL'da encoded_pass ni ishlatamiz
-DATABASE_URL = f"mysql+aiomysql://{DB_CONFIG['user']}:{encoded_pass}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['db']}"
 
-# Endi engineni shu URL bilan yaratamiz
-engine = create_async_engine(
-    DATABASE_URL,
-    pool_size=20,
-    max_overflow=10,
-    pool_recycle=3600,
-    echo=False
-)
+
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "port": int(os.getenv("DB_PORT", 27624)),
@@ -85,7 +76,28 @@ DB_CONFIG = {
     "ssl_disabled": False, 
     "ssl_mode": "REQUIRED" 
 }
+from sqlalchemy.engine import URL
 
+# DB_CONFIG dan foydalanib URL obyektini yasaymiz
+db_url = URL.create(
+    drivername="mysql+aiomysql",
+    username=DB_CONFIG['user'],
+    password=DB_CONFIG['password'],
+    host=DB_CONFIG['host'],
+    port=DB_CONFIG['port'],
+    database=DB_CONFIG['db']
+)
+
+# Endi engineni to'g'ridan-to'g'ri shu obyekt bilan yaratamiz
+engine = create_async_engine(db_url, pool_size=20)
+# Endi engineni shu URL bilan yaratamiz
+engine = create_async_engine(
+    DATABASE_URL,
+    pool_size=20,
+    max_overflow=10,
+    pool_recycle=3600,
+    echo=False
+)
 # ====================== CONVERSATION STATES ======================
 (
     # --- ADMIN & KANALLAR (0-5) ---
@@ -774,6 +786,7 @@ if __name__ == "__main__":
     # Botni ishga tushirish
 
     main()
+
 
 
 
