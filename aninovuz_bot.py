@@ -61,7 +61,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 # Bu yerda group idsi yoziladi
 ADMIN_GROUP_ID = -5128040712 
 # Alohida o'zgaruvchilardan bitta URL yasaymiz
-DATABASE_URL = f"mysql+aiomysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', 27624)}/{os.getenv('DB_NAME')}"
+SQLALCHEMY_URL = f"mysql+aiomysql://{DB_CONFIG['user']}:{DB_CONFIG['password']}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['db']}"
 
 # Endi engineni shu URL bilan yaratamiz
 engine = create_async_engine(
@@ -770,3 +770,4 @@ if __name__ == "__main__":
     # Botni ishga tushirish
 
     main()
+
