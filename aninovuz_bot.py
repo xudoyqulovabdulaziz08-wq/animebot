@@ -61,8 +61,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 # Bu yerda group idsi yoziladi
 ADMIN_GROUP_ID = -5128040712 
 # Alohida o'zgaruvchilardan bitta URL yasaymiz
-# Parolni xavfsiz formatga o'tkazamiz
-encoded_pass = urllib.parse.quote_plus(DB_CONFIG['password'])
+
 
 # Endi URL'da encoded_pass ni ishlatamiz
 DATABASE_URL = f"mysql+aiomysql://{DB_CONFIG['user']}:{encoded_pass}@{DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['db']}"
@@ -775,6 +774,7 @@ if __name__ == "__main__":
     # Botni ishga tushirish
 
     main()
+
 
 
 
