@@ -61,6 +61,8 @@ logger = logging.getLogger(__name__)
 # Bot tokenini Render Environment Variables'dan oladi
 
 BOT_TOKEN = os.getenv("BOT_TOKEN") 
+# Global o'zgaruvchini oldindan aniqlab qo'yamiz
+db_pool = None 
 
 # Bu yerda group idsi yoziladi
 
@@ -798,6 +800,7 @@ if __name__ == "__main__":
     # Botni ishga tushirish
 
     main()
+
 
 
 
