@@ -184,7 +184,7 @@ def index():
 # === baza jadvalari ma'lumotlari ===
 # 1. Engine sozlamalari (Optimallashtirilgan)
 engine = create_async_engine(
-    os.getenv("DATABASE_URL"),
+    os.getenv("db_url,"),
     pool_size=20,           # Bir vaqtning o'zida ochiq ulanishlar
     max_overflow=10,        # Zarurat tug'ilganda qo'shimcha ulanishlar
     pool_recycle=3600,      # Ulanishni har soatda yangilash (MySQL timeout uchun)
@@ -785,6 +785,7 @@ if __name__ == "__main__":
     # Botni ishga tushirish
 
     main()
+
 
 
 
