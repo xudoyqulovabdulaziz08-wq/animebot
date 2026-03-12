@@ -182,17 +182,19 @@ def index():
     return "Bot is running!"
 #=======================================================================================================
 # === baza jadvalari ma'lumotlari ===
-# 1. Engine sozlamalari (Optimallashtirilgan)
+# 3. Engine yaratish (FAQAT SHU BITTA QOLSIN)
 engine = create_async_engine(
-    os.getenv("db_url,"),
-    pool_size=20,           # Bir vaqtning o'zida ochiq ulanishlar
-    max_overflow=10,        # Zarurat tug'ilganda qo'shimcha ulanishlar
-    pool_recycle=3600,      # Ulanishni har soatda yangilash (MySQL timeout uchun)
-    echo=False              # Productionda loglarni o'chirish tezlikni oshiradi
+    db_url,
+    pool_size=20,
+    max_overflow=10,
+    pool_recycle=3600,
+    echo=False
 )
 
-# 2. Session factory
+# 4. Session factory
 AsyncSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
+
+
 
 class Base(DeclarativeBase):
     pass
@@ -291,14 +293,25 @@ async def init_db_pool():
         ctx.check_hostname = False
         ctx.verify_mode = ssl.CERT_NONE
         
+        # 1. DB_CONFIG dan nusxa olamiz va aiomysql tanimaydigan kalitlarni o'chiramiz
+        pool_config = DB_CONFIG.copy()
+        pool_config.pop('autocommit', None)  # aiomysql pool buni tanimaydi
+        pool_config.pop('ssl_disabled', None) 
+        pool_config.pop('ssl_mode', None)
+
+        # 2. Pool yaratish
         db_pool = await aiomysql.create_pool(
-            **DB_CONFIG,
+            **pool_config,
             minsize=5, 
             maxsize=25,
             pool_recycle=300,
             cursorclass=aiomysql.DictCursor,
-            ssl=ctx
+            ssl=ctx,
+            autocommit=True # Autocommitni shu yerda alohida berish xavfsizroq
         )
+        
+        # ... qolgan CREATE TABLE so'rovlari ...
+        
         
         async with db_pool.acquire() as conn:
             async with conn.cursor() as cur:
@@ -785,6 +798,7 @@ if __name__ == "__main__":
     # Botni ishga tushirish
 
     main()
+
 
 
 
