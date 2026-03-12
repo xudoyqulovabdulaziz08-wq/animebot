@@ -452,7 +452,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = user.id
     username = (user.username or user.first_name or "User")[:50]
     
-    # 1. Deep Link tahlili (Deep linking)
+    # 1. Deep Link tahlili
     ref_id = None
     if context.args:
         arg = context.args[0]
@@ -461,21 +461,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif arg.isdigit() and int(arg) != uid:
             ref_id = int(arg)
 
-    # 2. Foydalanuvchini tekshirish va ro'yxatga olish (execute_query orqali)
-    new_user_bonus = False
-    existing_user = await execute_query("SELECT user_id FROM users WHERE user_id = %s", (uid,), fetch="one")
+    # 2. Foydalanuvchini bazadan tekshirish
+    existing_user = await execute_query("SELECT user_id, status FROM users WHERE user_id = %s", (uid,), fetch="one")
+    is_new_user = False
 
     if not existing_user:
-        # Yangi foydalanuvchini qo'shish (10 ball bonus)
+        # Yangi foydalanuvchini ro'yxatdan o'tkazish
+        is_new_user = True
         await execute_query(
             "INSERT INTO users (user_id, username, points) VALUES (%s, %s, %s)",
             (uid, username, 10)
         )
-        new_user_bonus = True
-        
-        # Referral tizimi
+        # Referral bonus (faqat yangi foydalanuvchi uchun)
         if ref_id:
-            # Taklif qilganga 20 ball va referral_count + 1
             await execute_query(
                 "UPDATE users SET points = points + 20, referral_count = referral_count + 1 WHERE user_id = %s",
                 (ref_id,)
@@ -488,38 +486,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             except: pass
 
-    # 3. Obunani tekshirish (Check Subscription)
+    # 3. Majburiy obunani tekshirish
     not_joined = await check_sub(uid, context.bot)
     if not_joined:
+        # Agar yangi bo'lsa, balli haqidagi xabarni keyinga saqlab qo'yamiz
+        if is_new_user:
+            context.user_data['show_bonus_msg'] = True
+            
         keyboard = [[InlineKeyboardButton(f"Obuna bo'lish ➕", url=f"https://t.me/{c.strip('@')}")] for c in not_joined]
         keyboard.append([InlineKeyboardButton("Tekshirish ✅", callback_data="recheck")])
         
-        msg = "🎬 <b>Animelarni ko'rish uchun</b> quyidagi kanallarga a'zo bo'lishingiz kerak:" if 'pending_anime' in context.user_data else "👋 <b>Botdan foydalanish uchun</b> quyidagi kanallarga a'zo bo'ling:"
-        
-        return await update.message.reply_text(
-            msg, 
-            reply_markup=InlineKeyboardMarkup(keyboard), 
-            parse_mode="HTML"
-        )
+        msg = "🎬 <b>Animelarni ko'rish uchun</b> quyidagi kanallarga a'zo bo'lishingiz kerak:"
+        return await update.message.reply_text(msg, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="HTML")
 
-    # 4. Asosiy menyuni chiqarish
-    # User statusini aniqlash (VIP yoki oddiy)
-    user_data = await execute_query("SELECT status FROM users WHERE user_id = %s", (uid,), fetch="one")
-    status = user_data['status'] if user_data else "user"
-
-    welcome_msg = f"✨ Xush kelibsiz, <b>{user.first_name}</b>!\n"
-    if new_user_bonus:
-        welcome_msg += "💰 Sizga <b>10 ball</b> sovg'a qilindi!"
+    # 4. Xabar matnini shakllantirish
+    # Agar foydalanuvchi hozirgina obuna bo'lib qaytgan bo'lsa yoki is_new_user bo'lsa
+    if is_new_user or context.user_data.get('show_bonus_msg'):
+        welcome_msg = f"✨ Xush kelibsiz, <b>{user.first_name}</b>!\n💰 Botimizga ilk bor tashrif buyurganingiz uchun <b>10 ball</b> sovg'a qilindi!"
+        context.user_data.pop('show_bonus_msg', None) # Xabarni o'chirib tashlaymiz
     else:
-        welcome_msg += "Sizni yana ko'rib turganimizdan xursandmiz! 😊"
+        welcome_msg = f"Sizni yana ko'rib turganimizdan xursandmiz, <b>{user.first_name}</b>! 😊"
 
+    # 5. Menyu chiqarish
+    status = existing_user['status'] if existing_user else "user"
     await update.message.reply_text(
         welcome_msg, 
-        reply_markup=get_main_kb(status), # get_main_kb statusga qarab tugma berishi kerak
+        reply_markup=get_main_kb(status),
         parse_mode="HTML"
     )
     
     return ConversationHandler.END
+    
 
 
 #=======================================================================================================
@@ -800,6 +797,7 @@ if __name__ == "__main__":
     # Botni ishga tushirish
 
     main()
+
 
 
 
