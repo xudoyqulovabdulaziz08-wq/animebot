@@ -60,7 +60,17 @@ logger = logging.getLogger(__name__)
 BOT_TOKEN = os.getenv("BOT_TOKEN") 
 # Bu yerda group idsi yoziladi
 ADMIN_GROUP_ID = -5128040712 
+# Alohida o'zgaruvchilardan bitta URL yasaymiz
+DATABASE_URL = f"mysql+aiomysql://{os.getenv('DB_USER')}:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}:{os.getenv('DB_PORT', 27624)}/{os.getenv('DB_NAME')}"
 
+# Endi engineni shu URL bilan yaratamiz
+engine = create_async_engine(
+    DATABASE_URL,
+    pool_size=20,
+    max_overflow=10,
+    pool_recycle=3600,
+    echo=False
+)
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "port": int(os.getenv("DB_PORT", 27624)),
@@ -758,4 +768,5 @@ if __name__ == "__main__":
     flask_thread.start()
     
     # Botni ishga tushirish
+
     main()
