@@ -998,58 +998,98 @@ search_filter = filters.TEXT & ~filters.COMMAND & ~filters.Text(MENU_TEXTS)
 #=======================================================================================================
 
 
-# Botni ishga tushirish qismi
+# === 1. AVVAL FILTRLARNI ANIQLAB OLAMIZ ===
+MENU_TEXTS = [
+    "🔍 Anime qidirish 🎬", "🔥 Trenddagilar", 
+    "👤 Shaxsiy Kabinet", "🎁 Ballar & VIP",
+    "🤝 Muxlislar Klubi", "📂 Barcha animelar",
+    "✍️ Murojaat & Shikoyat", "📖 Qo'llanma ❓", "🛠 ADMIN PANEL"
+]
+
+# Faqat menyu tugmasi bo'lmagan matnlarni qabul qiluvchi filtr
+# Bu filtr qidiruv rejimida menyu tugmasi bosilsa, qidiruvni auto-stop qilish uchun kerak
+search_filter = filters.TEXT & ~filters.COMMAND & ~filters.Text(MENU_TEXTS)
+
+# === 2. MAIN FUNKSIYASI ===
 def main():
+    # Application yaratish
     application = (
         ApplicationBuilder()
         .token(BOT_TOKEN)
         .post_init(post_init)
         .build()
     )
-    
-    # 1. Inline Query Handler (Rasmda ko'rsatgan usulingiz uchun eng muhimi)
+
+    # --- HANDLERLARNI QO'SHISH TARTIBI MUHIM ---
+
+    # 1. Inline Query (Tezkor qidiruv uchun)
     application.add_handler(InlineQueryHandler(inline_query_search))
 
     # 2. Qidiruv bo'limi uchun ConversationHandler
-    search_conv = ConversationHandler
-    entry_points=[
-        MessageHandler(filters.Text("🔍 Anime qidirish 🎬"), handle_search_menu)
-    ],
-    states={
-        A_ANI_CONTROL: [CallbackQueryHandler(search_callback_handler, pattern="^search_")], 
-        
-        # Faqat menyu tugmasi bo'lmagan matnlarni qabul qiladi
-        A_SEARCH_BY_NAME: [MessageHandler(search_filter, process_search_by_name)],
-        A_SEARCH_BY_ID: [MessageHandler(search_filter, process_search_by_id)],
-        U_AI_PHOTO_SEARCH: [MessageHandler(filters.PHOTO, process_ai_photo_search)],
-    },
-    fallbacks=[
-        # Foydalanuvchi menyu tugmasini bossa, ConversationHandler avtomatik to'xtaydi
-        MessageHandler(filters.Text(MENU_TEXTS), start), 
-        CommandHandler("start", start),
-        CallbackQueryHandler(handle_search_menu, pattern="^cancel_search$")
-    ],
+    search_conv = ConversationHandler(
+        entry_points=[
+            # "🔍 Anime qidirish 🎬" tugmasi bosilganda boshlanadi
+            MessageHandler(filters.Text("🔍 Anime qidirish 🎬"), handle_search_menu)
+        ],
+        states={
+            # Holat: Tanlov menyusi (Nomi, ID yoki AI tugmalari)
+            A_ANI_CONTROL: [
+                CallbackQueryHandler(search_callback_handler, pattern="^search_"),
+                CallbackQueryHandler(handle_search_menu, pattern="^back_to_search$")
+            ],
+            
+            # Holat: Nomi bo'yicha matn kutish
+            A_SEARCH_BY_NAME: [
+                MessageHandler(search_filter, process_search_by_name)
+            ],
+            
+            # Holat: ID bo'yicha raqam kutish
+            A_SEARCH_BY_ID: [
+                MessageHandler(search_filter, process_search_by_id)
+            ],
+            
+            # Holat: Rasm kutish
+            U_AI_PHOTO_SEARCH: [
+                MessageHandler(filters.PHOTO, process_ai_photo_search)
+            ],
+        },
+        fallbacks=[
+            # Agar foydalanuvchi qidiruvdan chiqmoqchi bo'lib menyu tugmasini bossa
+            MessageHandler(filters.Text(MENU_TEXTS), start),
+            # /start komandasi har doim qidiruvni buzadi
+            CommandHandler("start", start),
+            # Bekor qilish tugmasi
+            CallbackQueryHandler(handle_search_menu, pattern="^cancel_search$")
+        ],
+        name="search_conversation",
+        persistent=False,
+        allow_reentry=True
+    )
 
+    # 3. Handlerlarni registratsiya qilish
     application.add_handler(search_conv)
-    # Start handler
-    application.add_handler(CommandHandler("start", start))
     
-    # Callbacklar (Tekshirish tugmasi uchun)
+    # Start va Recheck (Majburiy obuna) handlerlari
+    application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
     
-    # Anime qismlarini ko'rish va boshqa callbacklar uchun (pattern moslashuvchan)
-    # application.add_handler(CallbackQueryHandler(handle_callbacks)) 
+    # Ro'yxatdan anime tanlangandagi callback (select_ani_...)
+    # Bu search_conv dan tashqarida bo'lishi mumkin yoki ichiga qo'shish ham mumkin
+    application.add_handler(CallbackQueryHandler(search_callback_handler, pattern="^select_ani_"))
+    
+    # Qismlarni ko'rish va boshqa callbacklar uchun
+    # application.add_handler(CallbackQueryHandler(handle_all_callbacks))
 
+    # --- BOTNI ISHGA TUSHIRISH ---
     logger.info("🚀 Bot polling rejimida ishga tushdi...")
     application.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
-    # Flaskni fonda ishga tushirish
+    # Flask (Web server) fonda ishga tushadi (Render uchun kerak)
     flask_thread = Thread(target=lambda: app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000))), daemon=True)
     flask_thread.start()
     
     # Botni ishga tushirish
-
     main()
 
 
