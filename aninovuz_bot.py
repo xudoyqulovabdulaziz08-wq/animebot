@@ -41,6 +41,8 @@ from telegram import (
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
     InputMediaPhoto # Anime rasm qidiruvida natijani chiqarish uchun
 )
+import uuid
+from telegram import InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import (
     ApplicationBuilder, CommandHandler, MessageHandler, InlineQueryHandler,
     CallbackQueryHandler, ConversationHandler, filters, ContextTypes
@@ -137,7 +139,7 @@ AsyncSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
     A_REM_EP_ANI_LIST,    # 21: Qism o'chirish uchun anime tanlash
     A_REM_EP_NUM_LIST,    # 22: Qism tanlash
     
-    # === YANGI QO'SHILGAN STATUSLAR (23-35) ===
+    # === YANGI QO'SHILGAN STATUSLAR (23-36) ===
     
     # 20-band: Murojaatlar va Shikoyatlar
     U_FEEDBACK_SUBJ,      # 23: Shikoyat mavzusini tanlash
@@ -146,7 +148,7 @@ AsyncSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
     # 5-band: Izohlar tizimi
     U_ADD_COMMENT,        # 25: Animega izoh yozish holati
 
-    # 1-band: AI Qidiruv (Agar rasm yuborgandan keyin tasdiqlash kerak bo'lsa)
+    # 1-band: AI Qidiruv 
     U_AI_PHOTO_SEARCH,    # 26: AI uchun rasm kutish
 
     # 26-band: Avtomatik/Vaqtli Reklama qo'shish (Admin uchun)
@@ -163,8 +165,13 @@ AsyncSessionLocal = async_sessionmaker(bind=engine, expire_on_commit=False)
     U_CREATE_PROFILE,     # 31: Muxlis profilini yaratish
     U_CHAT_MESSAGE,       # 32: Boshqa muxlisga xabar yozish
 
-    A_MAIN                # 33: Main/Asosiy funksiya qaytishi
-) = range(34)
+    A_MAIN,               # 33: Main/Asosiy funksiya qaytishi
+
+    # Inline va qidiruv uchun yangi holatlar
+    A_SEARCH_BY_NAME,     # 34: Nomi bo'yicha qidirish
+    A_SEARCH_BY_ID,       # 35: ID bo'yicha qidirish
+    U_AI_PHOTO_SEARCH     # 36: AI rasm qidiruv
+) = range(37)
 
 # Loglash sozlamalari
 
@@ -772,54 +779,77 @@ def get_main_kb(status: str):
 # Qidiruv turi uchun inline tugmalar
 def get_search_kb():
     keyboard = [
-        [InlineKeyboardButton("🔍 Nomi boyicha qidirish", callback_data="search_name")],
-        [InlineKeyboardButton("🔢 ID bo'yicha", callback_data="search_id")],
-        [InlineKeyboardButton("🖼 AI (Rasm orqali)", callback_data="search_ai")],
-        [InlineKeyboardButton("⬅️ Orqaga", callback_data="back_to_main")]
+        # Eng ko'p ishlatiladigan tugmani kattaroq qilish
+        [InlineKeyboardButton("⚡ Tezkor qidiruv (Inline)", switch_inline_query_current_chat="")],
+        
+        # Ikkinchi darajali qidiruvlarni yonma-yon qo'yish (joy tejash uchun)
+        [
+            InlineKeyboardButton("📝 Nomi bilan", callback_data="search_name"),
+            InlineKeyboardButton("🔢 ID raqami", callback_data="search_id")
+        ],
+        
+        # Murakkab funksiyalarni alohida
+        [InlineKeyboardButton("🖼 AI: Rasmdan qidirish", callback_data="search_ai")],
+        
+        # Navigatsiya
+        [InlineKeyboardButton("⬅️ Orqaga qaytish", callback_data="back_to_main")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
+#=======================================================================================================
+
 async def handle_search_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = "🔍 **Anime qidirish bo'limi**\n\nQidiruv usulini tanlang:"
+    text = "🔍 Anime qidirish bo'limi\n\nQidiruv usulini tanlang:"
     await update.message.reply_text(text, reply_markup=get_search_kb(), parse_mode="HTML")
     return A_ANI_CONTROL # Keyingi holatga (tugma bosilishiga) o'tkazamiz
 #=======================================================================================================
 
-async def handle_search_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = "🔍 **Anime qidirish bo'limi**\n\nQidiruv usulini tanlang:"
-    await update.message.reply_text(text, reply_markup=get_search_kb(), parse_mode="HTML")
-    
-    return A_ANI_CONTROL # Keyingi holatga (tugma bosilishiga) o'tkazamiz
-    
 async def process_search_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query_text = update.message.text
     
+    # Global menyu tugmalarini tekshirish (Auto-stop)
+    if query_text in MENU_TEXTS:
+        return await start(update, context)
+
     if len(query_text) < 3:
         await update.message.reply_text("⚠️ Kamida 3 ta harf kiriting!")
         return A_SEARCH_BY_NAME
 
-    # Bazadan qidirish
-    sql = "SELECT anime_id, name, year FROM anime_list WHERE name LIKE %s LIMIT 10"
+    # Bazadan qidirish (Ko'proq ma'lumot olamiz: lang, fandub)
+    sql = "SELECT anime_id, name, year, fandub, lang FROM anime_list WHERE name LIKE %s LIMIT 15"
     results = await execute_query(sql, (f"%{query_text}%",), fetch="all")
 
     if not results:
-        await update.message.reply_text("😔 Kechirasiz, bunday nomli anime topilmadi. Boshqa nom kiritib ko'ring:")
+        retry_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔄 Qayta urinish", callback_data="search_name")],
+            [InlineKeyboardButton("❌ Chiqish", callback_data="cancel_search")]
+        ])
+        await update.message.reply_text(
+            "😔 Kechirasiz, bunday nomli anime topilmadi. Boshqa nom kiritib ko'ring:",
+            reply_markup=retry_kb
+        )
         return A_SEARCH_BY_NAME
 
+    # 1 tadan ko'p natija chiqsa, tanlash imkonini beramiz
     buttons = []
-    for anime in results:
-        btn_text = f"🎬 {anime['name']} ({anime['year']})"
-        # show_specific_anime_by_id funksiyasi sizda allaqachon bor
-        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"show_ani_{anime['anime_id']}")])
+    for ani in results:
+        # Fasllarni ajratish uchun matn: "Anime nomi (2023) [Animedia]"
+        btn_label = f"🎬 {ani['name']} ({ani['year']})"
+        if ani['fandub']:
+            btn_label += f" | {ani['fandub']}"
+            
+        buttons.append([InlineKeyboardButton(btn_label, callback_data=f"select_ani_{ani['anime_id']}")])
     
     buttons.append([InlineKeyboardButton("⬅️ Bekor qilish", callback_data="back_to_search")])
     
     await update.message.reply_text(
-        f"🔍 **'{query_text}' bo'yicha topilgan natijalar:**",
+        f"🔍 <b>'{query_text}'</b> bo'yicha {len(results)} ta natija topildi.\nKeraklisini tanlang:",
         reply_markup=InlineKeyboardMarkup(buttons),
         parse_mode="HTML"
     )
-    return ConversationHandler.END
+    return A_ANI_CONTROL # Bu yerda Conversation tugamaydi, tanlovni kutadi
+
+#=======================================================================================================
 
 async def process_search_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ani_id = update.message.text
@@ -836,6 +866,8 @@ async def process_ai_photo_search(update: Update, context: ContextTypes.DEFAULT_
     await update.message.reply_text("🖼 AI orqali qidiruv tizimi hozircha ishlab chiqilmoqda...")
     return ConversationHandler.END
 
+#=======================================================================================================
+
 async def search_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -849,6 +881,28 @@ async def search_callback_handler(update: Update, context: ContextTypes.DEFAULT_
     elif query.data == "search_ai":
         await query.edit_message_text("🖼 Anime epizodidan skrinshot yuboring:")
         return U_AI_PHOTO_SEARCH
+
+#=======================================================================================================  
+
+async def search_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+    await query.answer()
+
+    if data.startswith("select_ani_"):
+        ani_id = int(data.replace("select_ani_", ""))
+        # Bazadan to'liq ma'lumotni olish
+        anime_data = await execute_query("SELECT * FROM anime_list WHERE anime_id=%s", (ani_id,), fetch="one")
+        
+        if anime_data:
+            # Sizdagi tayyor funksiyani chaqiramiz
+            await show_anime_details(update, anime_data, context)
+            return ConversationHandler.END # Ko'rsatilgandan keyin qidiruv tugaydi
+        else:
+            await query.message.reply_text("❌ Ma'lumot topilmadi.")
+            return A_ANI_CONTROL
+
+    # ... boshqa qidiruv turlari (search_name, search_id) ...
 #=======================================================================================================
 # Inline qidiruv funksiyasi
 async def inline_query_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -888,6 +942,62 @@ async def inline_query_search(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 
 #=======================================================================================================
+
+async def process_search_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query_text = update.message.text
+    
+    # 1. Uzunlikni tekshirish
+    if len(query_text) < 3:
+        await update.message.reply_text("⚠️ Kamida 3 ta harf kiriting!")
+        return A_SEARCH_BY_NAME
+
+    # 2. Bazadan qidirish
+    sql = "SELECT anime_id, name, year FROM anime_list WHERE name LIKE %s LIMIT 10"
+    results = await execute_query(sql, (f"%{query_text}%",), fetch="all")
+
+    # 3. Agar natija topilmasa
+    if not results:
+        retry_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔄 Qayta urinish", callback_data="search_name")],
+            [InlineKeyboardButton("❌ Qidiruvni yopish", callback_data="cancel_search")]
+        ])
+        await update.message.reply_text(
+            "😔 Kechirasiz, bunday nomli anime topilmadi. Qiruvni qayta urunib koring yoki qidirishni toxtating.",
+            reply_markup=retry_kb
+        )
+        return A_SEARCH_BY_NAME # Holatni saqlab qolamiz
+
+    # 4. Natijalar topilsa
+    buttons = []
+    for anime in results:
+        btn_text = f"🎬 {anime['name']} ({anime['year']})"
+        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"show_ani_{anime['anime_id']}")])
+    
+    buttons.append([InlineKeyboardButton("⬅️ Bekor qilish", callback_data="back_to_search")])
+    
+    await update.message.reply_text(
+        f"🔍 <b>'{query_text}'</b> bo'yicha topilgan natijalar:",
+        reply_markup=InlineKeyboardMarkup(buttons),
+        parse_mode="HTML"
+    )
+    return A_ANI_CONTROL # Keyingi tanlov uchun holatga o'tkazamiz
+
+
+# Asosiy menyu tugmalari (Bular qidiruv matni sifatida qabul qilinmaydi)
+MENU_TEXTS = [
+    "🔍 Anime qidirish 🎬", "🔥 Trenddagilar", 
+    "👤 Shaxsiy Kabinet", "🎁 Ballar & VIP",
+    "🤝 Muxlislar Klubi", "📂 Barcha animelar",
+    "✍️ Murojaat & Shikoyat", "📖 Qo'llanma ❓", "🛠 ADMIN PANEL"
+]
+
+# Faqat menyuda yo'q matnlarni qabul qiluvchi filtr
+search_filter = filters.TEXT & ~filters.COMMAND & ~filters.Text(MENU_TEXTS)
+
+
+#=======================================================================================================
+
+
 # Botni ishga tushirish qismi
 def main():
     application = (
@@ -896,27 +1006,29 @@ def main():
         .post_init(post_init)
         .build()
     )
-
+    
     # 1. Inline Query Handler (Rasmda ko'rsatgan usulingiz uchun eng muhimi)
     application.add_handler(InlineQueryHandler(inline_query_search))
 
     # 2. Qidiruv bo'limi uchun ConversationHandler
-    search_conv = ConversationHandler(
-        entry_points=[
-            # Bu yerda handle_search_menu funksiyasi klaviaturani chiqarib beradi
-            MessageHandler(filters.Text("🔍 Anime qidirish 🎬"), handle_search_menu)
-        ],
-        states={
-            # Foydalanuvchi tugmalarni bosganda holatga o'tkazadi
-            A_ANI_CONTROL: [CallbackQueryHandler(handle_search_menu, pattern="^search_")], 
-            A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_search_by_name)],
-            A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_search_by_id)],
-            U_AI_PHOTO_SEARCH: [MessageHandler(filters.PHOTO, process_ai_photo_search)],
-        },
-        fallbacks=[CommandHandler("start", start)],
-        name="search_conversation",
-        persistent=False
-    )
+    search_conv = ConversationHandler
+    entry_points=[
+        MessageHandler(filters.Text("🔍 Anime qidirish 🎬"), handle_search_menu)
+    ],
+    states={
+        A_ANI_CONTROL: [CallbackQueryHandler(search_callback_handler, pattern="^search_")], 
+        
+        # Faqat menyu tugmasi bo'lmagan matnlarni qabul qiladi
+        A_SEARCH_BY_NAME: [MessageHandler(search_filter, process_search_by_name)],
+        A_SEARCH_BY_ID: [MessageHandler(search_filter, process_search_by_id)],
+        U_AI_PHOTO_SEARCH: [MessageHandler(filters.PHOTO, process_ai_photo_search)],
+    },
+    fallbacks=[
+        # Foydalanuvchi menyu tugmasini bossa, ConversationHandler avtomatik to'xtaydi
+        MessageHandler(filters.Text(MENU_TEXTS), start), 
+        CommandHandler("start", start),
+        CallbackQueryHandler(handle_search_menu, pattern="^cancel_search$")
+    ],
 
     application.add_handler(search_conv)
     # Start handler
