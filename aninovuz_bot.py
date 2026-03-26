@@ -791,7 +791,64 @@ async def handle_search_menu(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     return A_ANI_CONTROL # Keyingi holatga (tugma bosilishiga) o'tkazamiz
     
+async def process_search_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query_text = update.message.text
+    
+    if len(query_text) < 3:
+        await update.message.reply_text("⚠️ Kamida 3 ta harf kiriting!")
+        return A_SEARCH_BY_NAME
 
+    # Bazadan qidirish
+    sql = "SELECT anime_id, name, year FROM anime_list WHERE name LIKE %s LIMIT 10"
+    results = await execute_query(sql, (f"%{query_text}%",), fetch="all")
+
+    if not results:
+        await update.message.reply_text("😔 Kechirasiz, bunday nomli anime topilmadi. Boshqa nom kiritib ko'ring:")
+        return A_SEARCH_BY_NAME
+
+    buttons = []
+    for anime in results:
+        btn_text = f"🎬 {anime['name']} ({anime['year']})"
+        # show_specific_anime_by_id funksiyasi sizda allaqachon bor
+        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"show_ani_{anime['anime_id']}")])
+    
+    buttons.append([InlineKeyboardButton("⬅️ Bekor qilish", callback_data="back_to_search")])
+    
+    await update.message.reply_text(
+        f"🔍 **'{query_text}' bo'yicha topilgan natijalar:**",
+        reply_markup=InlineKeyboardMarkup(buttons),
+        parse_mode="HTML"
+    )
+    return ConversationHandler.END
+
+async def process_search_by_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ani_id = update.message.text
+    if not ani_id.isdigit():
+        await update.message.reply_text("⚠️ Iltimos, faqat raqam kiriting!")
+        return A_SEARCH_BY_ID
+    
+    # ID orqali ko'rsatish funksiyasini chaqiramiz
+    await show_specific_anime_by_id(update, context, int(ani_id))
+    return ConversationHandler.END
+
+async def process_ai_photo_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Bu yerda kelajakda AI logikasini yozishingiz mumkin
+    await update.message.reply_text("🖼 AI orqali qidiruv tizimi hozircha ishlab chiqilmoqda...")
+    return ConversationHandler.END
+
+async def search_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data == "search_name":
+        await query.edit_message_text("📝 Anime nomini kiriting:")
+        return A_SEARCH_BY_NAME
+    elif query.data == "search_id":
+        await query.edit_message_text("🔢 Anime ID raqamini yuboring:")
+        return A_SEARCH_BY_ID
+    elif query.data == "search_ai":
+        await query.edit_message_text("🖼 Anime epizodidan skrinshot yuboring:")
+        return U_AI_PHOTO_SEARCH
 #=======================================================================================================
 # Inline qidiruv funksiyasi
 async def inline_query_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
