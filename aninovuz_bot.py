@@ -34,20 +34,15 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 
 # Flask qismi
 from flask import Flask, app, render_template, Response, request, jsonify
-import uuid
-from telegram import InlineQueryResultArticle, InputTextMessageContent
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, 
-    CallbackQueryHandler, ConversationHandler, filters, ContextTypes
-)
+
 # Telegram Bot qismi
 from telegram import (
-    InlineQueryResultArticle,InlineQueryHandler, InputTextMessageContent, LabeledPrice, Update, InlineKeyboardButton, InlineKeyboardMarkup,
+    InlineQueryResultArticle, InputTextMessageContent, LabeledPrice, Update, InlineKeyboardButton, InlineKeyboardMarkup,
     ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove,
     InputMediaPhoto # Anime rasm qidiruvida natijani chiqarish uchun
 )
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, MessageHandler, 
+    ApplicationBuilder, CommandHandler, MessageHandler, InlineQueryHandler,
     CallbackQueryHandler, ConversationHandler, filters, ContextTypes
 )
 from telegram.error import Forbidden, TelegramError
