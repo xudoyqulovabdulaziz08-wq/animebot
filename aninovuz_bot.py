@@ -34,7 +34,12 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 
 # Flask qismi
 from flask import Flask, app, render_template, Response, request, jsonify
-
+import uuid
+from telegram import InlineQueryResultArticle, InputTextMessageContent
+from telegram.ext import (
+    ApplicationBuilder, CommandHandler, MessageHandler, 
+    CallbackQueryHandler, ConversationHandler, filters, ContextTypes
+)
 # Telegram Bot qismi
 from telegram import (
     InlineQueryResultArticle,InlineQueryHandler, InputTextMessageContent, LabeledPrice, Update, InlineKeyboardButton, InlineKeyboardMarkup,
@@ -851,7 +856,7 @@ def main():
         ],
         states={
             # Foydalanuvchi tugmalarni bosganda holatga o'tkazadi
-            A_ANI_CONTROL: [CallbackQueryHandler(search_callback_handler)], 
+            A_ANI_CONTROL: [CallbackQueryHandler(handle_search_menu, pattern="^search_")], 
             A_SEARCH_BY_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_search_by_name)],
             A_SEARCH_BY_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, process_search_by_id)],
             U_AI_PHOTO_SEARCH: [MessageHandler(filters.PHOTO, process_ai_photo_search)],
