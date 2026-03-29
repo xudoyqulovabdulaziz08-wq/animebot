@@ -821,29 +821,34 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         if data.startswith("select_ani_"):
             ani_id = data.replace("select_ani_", "")
+            # MUHIM: Bu funksiya ham edit qiladigan bo'lishi kerak
             return await show_specific_anime_by_id(query, context, ani_id)
         
-        # Rejimlarni sozlash
         modes = {
             "search_type_name": ("name", "🔍 Anime <b>nomini</b> kiriting:"),
             "search_type_id": ("id", "🆔 Anime <b>ID raqamini</b> kiriting:"),
-            "search_type_character": ("character", "👤 <b>Personaj</b> ismini  yozing:")
+            "search_type_character": ("character", "👤 <b>Personaj</b> ismini yozing:")
         }
         
         if data in modes:
             mode, msg = modes[data]
             context.user_data["search_mode"] = mode
-            await query.message.reply_text(msg, parse_mode="HTML", reply_markup=get_cancel_kb())
+            # Yangi xabar yubormaymiz, mavjud menyuni tahrirlaymiz
+            await query.edit_message_text(
+                text=msg, 
+                parse_mode="HTML", 
+                reply_markup=get_cancel_kb()
+            )
             return A_SEARCH_BY_NAME if mode != "id" else A_SEARCH_BY_ID
 
         elif data == "search_type_random":
-            # Tasodifiy anime (execute_query orqali)
             res = await execute_query("SELECT anime_id FROM anime_list ORDER BY RAND() LIMIT 1", fetch="one")
             if res:
-                return await show_specific_anime_by_id(update, context, res['anime_id'])
+                # Update emas, query yuboramiz (edit ishlashi uchun)
+                return await show_specific_anime_by_id(query, context, res['anime_id'])
             return A_MAIN
 
-    # 2. MESSAGE (Matn yozilganda)
+    # 2. MESSAGE (Foydalanuvchi matn yozganda)
     if not update.message or not update.message.text:
         return
 
@@ -853,10 +858,17 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user_data = await execute_query("SELECT status FROM users WHERE user_id=%s", (uid,), fetch="one")
     status = user_data['status'] if user_data else "user"
 
-    # AUTO-STOP: Menyu tugmasi bosilsa qidiruvni to'xtatish
-    if text in MENU_TEXTS or text in ["❌ Bekor qilish", "⬅️ Orqaga"]:
-        await update.message.reply_text("🏠 Asosiy menyu", reply_markup=get_main_kb(status))
-        return ConversationHandler.END
+    if data in modes:
+            mode, msg = modes[data]
+            context.user_data["search_mode"] = mode
+            
+            # reply_text o'rniga edit_message_text
+            await query.edit_message_text(
+                text=msg, 
+                parse_mode="HTML", 
+                reply_markup=get_cancel_kb() # Yangi inline tugma
+            )
+            return A_SEARCH_BY_NAME if mode != "id" else A_SEARCH_BY_ID
 
     # Qidiruv rejimi (default: name)
     search_type = context.user_data.get("search_mode", "name")
@@ -881,13 +893,22 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         await update.message.reply_text(f"😔 <b>'{text}'</b> bo'yicha natija topilmadi.", reply_markup=kb, parse_mode="HTML")
         return # Rejimdan chiqmaydi
 
-    # NATIJALARNI QAYTA ISHLASH
+    results = await execute_query(sql, params, fetch="all")
+
+    if not results:
+        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔄 Qayta qidirish", callback_data="search_type_name")]])
+        await update.message.reply_text(f"😔 <b>'{text}'</b> topilmadi.", reply_markup=kb, parse_mode="HTML")
+        
+
+    # NATIJALARNI CHIQARISH
     if len(results) == 1:
-        # Bitta natija bo'lsa, ID orqali tafsilotlarni ko'rsatamiz
-        return await show_specific_anime_by_id(update, context, results[0]['anime_id'])
+        # Matn yozilganda ham edit bo'lishi uchun xabarni yuboramiz
+        return await show_specific_anime_by_id(update.message, context, results[0]['anime_id'])
 
     # Bir nechta natija bo'lsa, ro'yxat chiqaramiz
+
     buttons = []
+
     for ani in results:
         # Reytingni xavfsiz formatlash
         try:
@@ -895,12 +916,12 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
             r_count = ani.get('rating_count', 0)
             rating = f"⭐ {r_sum/r_count:.1f}" if r_count > 0 else "🌑"
         except: rating = "🌑"
-        
         btn_text = f"🎬 {ani['name']} | {rating}"
         buttons.append([InlineKeyboardButton(btn_text, callback_data=f"select_ani_{ani['anime_id']}")])
 
+    # Matn yozilganda yangi xabar chiqadi, lekin bu xabar KEYIN tahrirlanadi
     await update.message.reply_text(
-        f"🔍 <b>'{text}'</b> bo'yicha topilgan natijalar:",
+        f"🔍 <b>'{text}'</b> bo'yicha natijalar:",
         reply_markup=InlineKeyboardMarkup(buttons),
         parse_mode="HTML"
     )
@@ -1086,6 +1107,186 @@ async def inline_query_search(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 #=======================================================================================================
 
+async def show_user_cabinet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Foydalanuvchi shaxsiy kabinetini ko'rsatish"""
+    uid = update.effective_user.id
+    query = update.callback_query
+    
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor(dictionary=True) as cur:
+                # 1. Foydalanuvchi asosiy ma'lumotlari
+                await cur.execute("""
+                    SELECT points, status, health_mode, joined_at 
+                    FROM users WHERE user_id = %s
+                """, (uid,))
+                user = await cur.fetchone()
+                
+                if not user:
+                    await (query.answer("❌ Profil topilmadi", show_alert=True) if query else update.message.reply_text("❌ Profil topilmadi."))
+                    return
+
+                # 2. Tarixiy ma'lumotlarni hisoblash
+                await cur.execute("SELECT COUNT(*) as total FROM history WHERE user_id = %s", (uid,))
+                hist_res = await cur.fetchone()
+                history_count = hist_res['total']
+
+        # 3. Vizual formatlash
+        status_icon = "💎 <b>VIP</b>" if user['status'] == 'vip' else "👤 <b>Oddiy foydalanuvchi</b>"
+        health_status = "✅ <b>Yoqilgan</b>" if user['health_mode'] == 1 else "❌ <b>O'chirilgan</b>"
+        
+        text = (
+            f"<b>🏠 SHAXSIY KABINET</b>\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"🆔 <b>Sizning ID:</b> <code>{uid}</code>\n"
+            f"🌟 <b>Status:</b> {status_icon}\n"
+            f"💰 <b>Ballaringiz:</b> <code>{user['points']}</code> ball\n"
+            f"🎬 <b>Ko'rilgan animelar:</b> <b>{history_count}</b> ta\n"
+            f"🌙 <b>Sog'liq rejimi:</b> {health_status}\n"
+            f"📅 <b>Ro'yxatdan o'tgan:</b> <code>{user['joined_at'].strftime('%d.%m.%Y')}</code>\n\n"
+            f"────────────────────\n"
+            f"💡 <i>Sog'liq rejimi tunda botdan ko'p foydalansangiz, dam olishni eslatib turish uchun kerak.</i>"
+        )
+
+        # 4. Klaviatura
+        kb = [
+            
+            [InlineKeyboardButton("🔙 Asosiy menyu", callback_data="back_to_main")]
+        ]
+        reply_markup = InlineKeyboardMarkup(kb)
+
+        # 5. Xabarni yuborish yoki tahrirlash
+        if query:
+            await query.answer()
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode="HTML")
+        else:
+            await update.message.reply_text(text, reply_markup=reply_markup, parse_mode="HTML")
+
+    except Exception as e:
+        logger.error(f"Cabinet error: {e}")
+        error_msg = "🛑 Kabinetni yuklashda xatolik yuz berdi."
+        if query: await query.answer(error_msg, show_alert=True)
+        else: await update.message.reply_text(error_msg)
+
+
+async def feedback_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Murojaat turini tanlash (Conversation boshlanishi)"""
+    # 7-BAND: Obunani tekshirish (faqat a'zolar murojaat qila olishi uchun)
+    uid = update.effective_user.id
+    
+    keyboard = [
+        [
+            InlineKeyboardButton("⚠️ Shikoyat", callback_data="subj_shikoyat"),
+            InlineKeyboardButton("💡 Taklif", callback_data="subj_taklif")
+        ],
+        [InlineKeyboardButton("❓ Savol", callback_data="subj_savol")],
+        [InlineKeyboardButton("🔙 Bekor qilish", callback_data="cancel_feedback")]
+    ]
+    
+    await update.message.reply_text(
+        "<b>Murojaat turini tanlang:</b>\n\n"
+        "Adminlarimiz sizning fikringizni diqqat bilan o'rganib chiqishadi. "
+        "Iltimos, xabaringizni bitta xabarda batafsil yozing.",
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="HTML"
+    )
+    return U_FEEDBACK_SUBJ
+
+#=======================================================================================================
+
+async def feedback_subject_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mavzuni eslab qolish va matnli xabarni kutish holatiga o'tish"""
+    query = update.callback_query
+    # Callback format: subj_taklif
+    subject = query.data.split("_")[1]
+    
+    # Sessiyada mavzuni saqlaymiz
+    context.user_data['fb_subject'] = subject
+    
+    # Mavzularga qarab turli emojilar
+    emojis = {"shikoyat": "⚠️", "taklif": "💡", "savol": "❓"}
+    current_emoji = emojis.get(subject, "📝")
+
+    await query.answer()
+    await query.edit_message_text(
+        f"{current_emoji} <b>Tanlangan yo'nalish:</b> {subject.capitalize()}\n\n"
+        f"Endi murojaatingiz matnini yozib yuboring. Matn 10 ta belgidan kam bo'lmasligi kerak:",
+        parse_mode="HTML"
+    )
+    return U_FEEDBACK_MSG
+
+#=======================================================================================================
+
+async def feedback_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Murojaatni qabul qilish, bazaga yozish va adminga tugma bilan yuborish"""
+    user = update.effective_user
+    text = update.message.text.strip()
+    subject = context.user_data.get('fb_subject', 'Umumiy')
+    admin_chat_id = os.getenv("ADMIN_ID") # Admin yoki Maxsus Gruppa ID si
+
+    # 1. Validatsiya: Juda qisqa xabarlarni rad etamiz
+    if len(text) < 10:
+        await update.message.reply_text(
+            "❌ <b>Xabar juda qisqa!</b>\n"
+            "Murojaatingiz tushunarli bo'lishi uchun kamida 10 ta belgi yozing.",
+            parse_mode="HTML"
+        )
+        return U_FEEDBACK_MSG
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                # 2. Bazaga saqlash
+                await cur.execute(
+                    "INSERT INTO feedback (user_id, subject, message, created_at) VALUES (%s, %s, %s, %s)",
+                    (user.id, subject, text, datetime.datetime.now())
+                )
+                await conn.commit()
+
+        # 3. Admin uchun chiroyli formatlangan xabar
+        admin_text = (
+            f"📩 <b>YANGI MUROJAAT</b>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"👤 <b>Kimdan:</b> {user.mention_html()}\n"
+            f"🆔 <b>User ID:</b> <code>{user.id}</code>\n"
+            f"📌 <b>Mavzu:</b> #{subject.upper()}\n"
+            f"📝 <b>Xabar:</b> <code>{text}</code>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🕒 <i>Vaqti: {datetime.datetime.now().strftime('%H:%M | %d.%m')}</i>"
+        )
+        
+        # 4. Adminga javob berish tugmasini qo'shish
+        # Bu tugma admin bosganida foydalanuvchi ID sini avtomatik reply sifatida oladi
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✍️ Javob berish", callback_data=f"reply_to_{user.id}")]
+        ])
+
+        await context.bot.send_message(
+            chat_id=admin_chat_id, 
+            text=admin_text, 
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+        
+        # 5. Foydalanuvchiga tasdiqlash
+        await update.message.reply_text(
+            "✅ <b>Xabaringiz muvaffaqiyatli yuborildi!</b>\n\n"
+            "Adminlarimiz tez orada siz bilan bog'lanishadi yoki "
+            "bot orqali javob yuborishadi. Rahmat!",
+            parse_mode="HTML"
+        )
+        
+        # Sessiyani tozalash
+        context.user_data.pop('fb_subject', None)
+        return A_MAIN
+
+    except Exception as e:
+        logger.error(f"Feedback send error: {e}")
+        await update.message.reply_text("⚠️ Xatolik yuz berdi. Keyinroq urinib ko'ring.")
+        return ConversationHandler.END
+
+#=======================================================================================================
+
 async def process_search_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query_text = update.message.text
     
@@ -1124,9 +1325,6 @@ async def process_search_by_name(update: Update, context: ContextTypes.DEFAULT_T
         parse_mode="HTML"
     )
     return A_ANI_CONTROL # Keyingi tanlov uchun holatga o'tkazamiz
-
-
-
 
 
 #=======================================================================================================
