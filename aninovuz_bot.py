@@ -1576,75 +1576,57 @@ def main():
         .build()
     )
 
-    # --- HANDLERLARNI QO'SHISH TARTIBI MUHIM ---
+    # --- HANDLERLARNI QO'SHISH (TARTIB MUHIM!) ---
 
-    # 1. Inline Query (Tezkor qidiruv uchun)
+    # A. Buyruqlar va Inline
+    application.add_handler(CommandHandler("start", start))
     application.add_handler(InlineQueryHandler(inline_query_search))
+    application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
 
-    # 2. Qidiruv bo'limi uchun ConversationHandler
+    # B. Asosiy Menyu Tugmalari (Conversationdan tepada turgani yaxshi)
+    application.add_handler(MessageHandler(filters.Text("👤 Shaxsiy Kabinet"), show_user_cabinet))
+    application.add_handler(MessageHandler(filters.Text("✍️ Murojaat & Shikoyat"), feedback_start))
+    # Boshqa tugmalarni ham shu yerga qo'shing...
+
+    # C. Qidiruv Conversation (Murakkab mantiq)
     search_conv = ConversationHandler(
         entry_points=[
-            # "🔍 Anime qidirish 🎬" tugmasi bosilganda boshlanadi
             MessageHandler(filters.Text("🔍 Anime qidirish 🎬"), search_menu_cmd)
         ],
         states={
-            # Holat: Tanlov menyusi (Nomi, ID yoki AI tugmalari)
             A_ANI_CONTROL: [
                 CallbackQueryHandler(search_anime_logic, pattern="^search_type_"),
                 CallbackQueryHandler(search_menu_cmd, pattern="^back_to_search$")
             ],
             A_SEARCH_BY_ID: [
-                # select_ani_ pattern koddagi buttons.append ga moslandi
                 CallbackQueryHandler(search_anime_logic, pattern="^select_ani_"), 
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Text(MENU_TEXTS), search_anime_logic),
             ],
             A_SEARCH_BY_NAME: [
                 CallbackQueryHandler(search_anime_logic, pattern="^select_ani_"), 
-                MessageHandler(filters.TEXT & ~filters.COMMAND & ~menu_filter, search_anime_logic),
+                MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.Text(MENU_TEXTS), search_anime_logic),
             ],
-            
-            # Holat: Rasm kutish
-            
         },
         fallbacks=[
-            # Agar foydalanuvchi qidiruvdan chiqmoqchi bo'lib menyu tugmasini bossa
-            MessageHandler(filters.Text(MENU_TEXTS), start),
-            # /start komandasi har doim qidiruvni buzadi
-            CommandHandler("start", start),
-            # Bekor qilish tugmasi
+            # Agar menyu tugmalari bosilsa, qidiruvni yopib o'sha bo'limga o'tadi
+            MessageHandler(filters.Text(MENU_TEXTS), start), 
             CallbackQueryHandler(search_menu_cmd, pattern="^cancel_search$")
         ],
-        name="search_conversation",
-        persistent=False,
         allow_reentry=True
     )
-
-    # 3. Handlerlarni registratsiya qilish
     application.add_handler(search_conv)
-    
-    # Start va Recheck (Majburiy obuna) handlerlari
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(CallbackQueryHandler(recheck_callback, pattern="^recheck$"))
-    
-    # Ro'yxatdan anime tanlangandagi callback (select_ani_...)
-    # Bu search_conv dan tashqarida bo'lishi mumkin yoki ichiga qo'shish ham mumkin
-    application.add_handler(CallbackQueryHandler(search_anime_logic, pattern="^select_ani_"))
-    # 1. Anime haqida ma'lumot (Tavsif, rasm, janr)
-    # Bu handler sizning bazadan animeni topish kodingizda bo'ladi
-    application.add_handler(CallbackQueryHandler(show_anime_details, pattern=r"^show_anime_"))
 
-    # 2. "Qismlarni ko'rish" tugmasi bosilganda
+    # D. Qolgan Callbacklar
+    application.add_handler(CallbackQueryHandler(show_anime_callback_handler, pattern=r"^show_anime_"))
     application.add_handler(CallbackQueryHandler(show_episodes_list, pattern=r"^show_episodes_"))
-
-    # 3. Varaqlash (Keyingi/Oldingi) tugmalari bosilganda
     application.add_handler(CallbackQueryHandler(handle_pagination, pattern=r"^page_"))
-
-    # 4. Epizod tanlanganda (Video yuborish)
     application.add_handler(CallbackQueryHandler(get_episode_handler, pattern=r"^get_ep_"))
-    
-    
+    # select_ani_ uchun alohida handler (Conversation tashqarisida ham ishlashi uchun)
+    application.add_handler(CallbackQueryHandler(search_anime_logic, pattern="^select_ani_"))
 
-    # --- BOTNI ISHGA TUSHIRISH ---
+    # E. Xatolarni ushlash
+    # application.add_error_handler(error_handler) # Agar error_handler funksiyangiz bo'lsa
+
     logger.info("🚀 Bot polling rejimida ishga tushdi...")
     application.run_polling(drop_pending_updates=True)
 
