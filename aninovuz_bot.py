@@ -1,3 +1,4 @@
+from email.mime import application
 import os
 import uuid
 import requests
@@ -26,7 +27,7 @@ import io # Grafik rasmlarni xotirada saqlash uchun
 
 from typing import List, Optional
 from datetime import datetime
-from sqlalchemy import BigInteger, Integer, String, DateTime, Text, Boolean, Float, ForeignKey, func
+from sqlalchemy import BigInteger, Integer, String, DateTime, Text, Boolean, Float, ForeignKey, func, update
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 # ========================================
@@ -745,6 +746,116 @@ async def show_anime_details(update_or_query, anime_data, context: ContextTypes.
     except Exception as e:
         logger.error(f"❌ show_anime_details xatosi: {e}")
         await context.bot.send_message(chat_id=chat_id, text="⚠️ Ma'lumotni yuklashda texnik xatolik yuz berdi.")
+
+#=======================================================================================================
+
+async def handle_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    # Tugma bosilgani haqida darhol javob beramiz (soat belgisi yo'qolishi uchun)
+    await query.answer()
+    
+    data_parts = query.data.split("_")
+    if len(data_parts) < 3:
+        return 
+
+    anime_id = data_parts[1]
+    offset = int(data_parts[2])
+    limit = 12 # Sahifadagi qismlar soni
+
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                # Faqat ushbu animega tegishli barcha qismlarni olish
+                # ORDER BY episode ASC muhim, qismlar aralashib ketmasligi uchun
+                await cur.execute(
+                    "SELECT id, episode FROM anime_episodes WHERE anime_id=%s ORDER BY episode ASC", 
+                    (anime_id,)
+                )
+                episodes = await cur.fetchall()
+
+        if not episodes:
+            return await query.answer("❌ Epizodlar topilmadi", show_alert=True)
+
+        total = len(episodes)
+        # Sahifada ko'rsatiladigan qismlarni ajratish
+        display_eps = episodes[offset : offset + limit]
+        
+        keyboard = []
+        row = []
+        for ep in display_eps:
+            # Cursor tipiga qarab ma'lumot olish (Dict vs Tuple)
+            is_dict = isinstance(ep, dict)
+            ep_num = ep['episode'] if is_dict else ep[1]
+            ep_db_id = ep['id'] if is_dict else ep[0]
+            
+            row.append(InlineKeyboardButton(text=f"{ep_num}", callback_data=f"get_ep_{ep_db_id}"))
+            if len(row) == 4: # Bir qatorda 4 tadan tugma
+                keyboard.append(row)
+                row = []
+        if row: keyboard.append(row)
+
+        # Navigatsiya tugmalari (Pagination bar)
+        nav_row = []
+        # Orqaga tugmasi
+        if offset > 0:
+            nav_row.append(InlineKeyboardButton("⬅️", callback_data=f"page_{anime_id}_{max(0, offset - limit)}"))
+        
+        # Markaziy ma'lumot: Masalan "13-24 / 50"
+        current_range = f"{offset + 1}-{min(offset + limit, total)}"
+        nav_row.append(InlineKeyboardButton(f"{current_range} / {total}", callback_data="ignore"))
+        
+        # Oldinga tugmasi
+        if offset + limit < total:
+            nav_row.append(InlineKeyboardButton("➡️", callback_data=f"page_{anime_id}_{offset + limit}"))
+        
+        if nav_row:
+            keyboard.append(nav_row)
+
+        # Qismlardan anime sahifasiga qaytish
+        keyboard.append([InlineKeyboardButton("🔙 Anime sahifasiga qaytish", callback_data=f"show_anime_{anime_id}")])
+
+        # Faqat klaviaturani yangilaymiz
+        await query.edit_message_reply_markup(reply_markup=InlineKeyboardMarkup(keyboard))
+        new_caption = "<b>📺 Qismlar ro'yxati</b>\n\nMarhamat, ko'rmoqchi bo'lgan qismingizni tanlang:"
+        try:
+            # Agar rasm bo'lsa edit_message_caption, rasm bo'lmasa edit_message_text
+            await query.edit_message_caption(
+                caption=new_caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        except Exception:
+            # Agar xabar rasm bo'lmasa (fallback)
+            await query.edit_message_text(
+                text=new_caption,
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="HTML"
+            )
+        
+        await query.answer()
+
+    except Exception as e:
+        logger.error(f"Pagination Error: {e}")
+        # Xatolik yuz bersa foydalanuvchiga xabar beramiz
+        await query.answer("⚠️ Ma'lumot yangilashda xatolik.", show_alert=True)
+
+#=======================================================================================================
+
+async def show_episodes_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Anime tafsilotlaridan epizodlar ro'yxatiga o'tish (Start pagination)"""
+    query = update.callback_query
+    # callback_data: show_episodes_{anime_id}
+    anime_id = query.data.split("_")[2]
+    
+    # pagination funksiyasini 0-offset bilan chaqiramiz
+    # Biz kodingizni qayta ishlatish uchun query.data ni o'zgartirib yuboramiz
+    query.data = f"page_{anime_id}_0"
+    return await handle_pagination(update, context)
+
+#=======================================================================================================
+
+
+
 #=======================================================================================================
 
 # Asosiy menyu tugmalari (statusga qarab o'zgaradi)
@@ -814,14 +925,27 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     uid = update.effective_user.id
     query = update.callback_query
     
-    # 1. CALLBACK QUERY (Tugmalar bosilganda)
+  
+    if update.message and update.message.text:
+        text = update.message.text.strip()
+
+        # Agar yozilgan matn asosiy menyu tugmalaridan biri bo'lsa
+        if text in MENU_TEXTS:
+         # Qidiruv holatidan chiqamiz va o'sha bo'limga tegishli javobni berish uchun 
+            # END qaytaramiz. Shunda keyingi bosqichda bot matnli handlerga o'tadi.
+            await update.message.reply_text("🔍 Qidiruv to'xtatildi.")
+            return ConversationHandler.END
+
+    # 2. CALLBACK QUERY (Tugmalar bosilganda)
     if query:
         data = query.data
         await query.answer()
 
+        if data == "cancel_search":
+            return await search_menu_cmd(update, context)
+
         if data.startswith("select_ani_"):
             ani_id = data.replace("select_ani_", "")
-            # MUHIM: Bu funksiya ham edit qiladigan bo'lishi kerak
             return await show_specific_anime_by_id(query, context, ani_id)
         
         modes = {
@@ -833,56 +957,35 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
         if data in modes:
             mode, msg = modes[data]
             context.user_data["search_mode"] = mode
-            # Yangi xabar yubormaymiz, mavjud menyuni tahrirlaymiz
             await query.edit_message_text(
                 text=msg, 
                 parse_mode="HTML", 
-                reply_markup=get_cancel_kb()
+                reply_markup=get_cancel_kb() # Bu yerda Inline bo'lishi shart
             )
+            # Rejimga qarab state o'zgaradi
             return A_SEARCH_BY_NAME if mode != "id" else A_SEARCH_BY_ID
 
         elif data == "search_type_random":
             res = await execute_query("SELECT anime_id FROM anime_list ORDER BY RAND() LIMIT 1", fetch="one")
             if res:
-                # Update emas, query yuboramiz (edit ishlashi uchun)
                 return await show_specific_anime_by_id(query, context, res['anime_id'])
-            return A_MAIN
+            return A_ANI_CONTROL
 
-    # 2. MESSAGE (Foydalanuvchi matn yozganda)
+    # 3. QIDIRUV MANTIQI (Matn yozilganda davom etadi)
     if not update.message or not update.message.text:
         return
 
     text = update.message.text.strip()
-    
-    # Foydalanuvchi statusini olish
-    user_data = await execute_query("SELECT status FROM users WHERE user_id=%s", (uid,), fetch="one")
-    status = user_data['status'] if user_data else "user"
-
-    if data in modes:
-            mode, msg = modes[data]
-            context.user_data["search_mode"] = mode
-            
-            # reply_text o'rniga edit_message_text
-            await query.edit_message_text(
-                text=msg, 
-                parse_mode="HTML", 
-                reply_markup=get_cancel_kb() # Yangi inline tugma
-            )
-            return A_SEARCH_BY_NAME if mode != "id" else A_SEARCH_BY_ID
-
-    # Qidiruv rejimi (default: name)
     search_type = context.user_data.get("search_mode", "name")
     
-    # SQL so'rovini bazaga moslash
+    # SQL so'rovlari (O'zgarishsiz)
     if search_type == "id" and text.isdigit():
         sql = "SELECT * FROM anime_list WHERE anime_id = %s"
         params = (int(text),)
     elif search_type == "character":
-        # Personaj ismini tavsif yoki janr ichidan qidirish
         sql = "SELECT * FROM anime_list WHERE description LIKE %s OR genre LIKE %s LIMIT 20"
         params = (f"%{text}%", f"%{text}%")
     else:
-        # Faqat nomi bo'yicha (original_name yo'qligi uchun)
         sql = "SELECT * FROM anime_list WHERE name LIKE %s LIMIT 20"
         params = (f"%{text}%",)
 
@@ -891,35 +994,21 @@ async def search_anime_logic(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not results:
         kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔄 Qayta qidirish", callback_data="search_type_name")]])
         await update.message.reply_text(f"😔 <b>'{text}'</b> bo'yicha natija topilmadi.", reply_markup=kb, parse_mode="HTML")
-        return # Rejimdan chiqmaydi
+        return A_ANI_CONTROL # Qidiruvda qoladi, foydalanuvchi boshqa nom yozishi mumkin
 
-    results = await execute_query(sql, params, fetch="all")
-
-    if not results:
-        kb = InlineKeyboardMarkup([[InlineKeyboardButton("🔄 Qayta qidirish", callback_data="search_type_name")]])
-        await update.message.reply_text(f"😔 <b>'{text}'</b> topilmadi.", reply_markup=kb, parse_mode="HTML")
-        
-
-    # NATIJALARNI CHIQARISH
+    # Natijalarni chiqarish (O'zgarishsiz)
     if len(results) == 1:
-        # Matn yozilganda ham edit bo'lishi uchun xabarni yuboramiz
         return await show_specific_anime_by_id(update.message, context, results[0]['anime_id'])
 
-    # Bir nechta natija bo'lsa, ro'yxat chiqaramiz
-
     buttons = []
-
     for ani in results:
-        # Reytingni xavfsiz formatlash
         try:
-            r_sum = ani.get('rating_sum', 0)
-            r_count = ani.get('rating_count', 0)
+            r_sum, r_count = ani.get('rating_sum', 0), ani.get('rating_count', 0)
             rating = f"⭐ {r_sum/r_count:.1f}" if r_count > 0 else "🌑"
         except: rating = "🌑"
-        btn_text = f"🎬 {ani['name']} | {rating}"
-        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"select_ani_{ani['anime_id']}")])
+        
+        buttons.append([InlineKeyboardButton(f"🎬 {ani['name']} | {rating}", callback_data=f"select_ani_{ani['anime_id']}")])
 
-    # Matn yozilganda yangi xabar chiqadi, lekin bu xabar KEYIN tahrirlanadi
     await update.message.reply_text(
         f"🔍 <b>'{text}'</b> bo'yicha natijalar:",
         reply_markup=InlineKeyboardMarkup(buttons),
@@ -1015,14 +1104,218 @@ async def show_selected_anime(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 #=======================================================================================================
 
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def show_anime_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
-    uid = query.from_user.id
-    data = query.data
+    anime_id = query.data.replace("show_anime_", "")
+    # Bazadan ma'lumotni olib, keyin show_anime_details ni chaqirish kerak
+    anime = await execute_query("SELECT * FROM anime_list WHERE anime_id=%s", (anime_id,), fetch="one")
+    if anime:
+        await show_anime_details(query, anime, context)
+
+#=======================================================================================================
+
+
+#=======================================================================================================
+
+# Inline qidiruv funksiyasi
+async def inline_query_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.inline_query.query
+
+    # Bazadan qidirish (LIKE orqali)
+    sql = "SELECT * FROM anime_list WHERE name LIKE %s LIMIT 20"
+    results = await execute_query(sql, (f"%{query}%",), fetch="all")
+
+    inline_results = []
     
-    # get_user_status allaqachon aiomysql pool bilan ishlaydi (await shart)
-    status = await get_user_status(uid)
-    await query.answer()
+    if results:
+        for anime in results:
+            # Rasmda ko'rsatilgan format: Nomi, Reyting, Qismlar soni, Yili
+            r_sum = anime.get('rating_sum', 0)
+            r_count = anime.get('rating_count', 0)
+            rating = f"{r_sum / r_count:.1f}" if r_count > 0 else "0.0"
+            
+            description = (
+                f"⭐ {rating} • 📺 {anime.get('year')}-yil\n"
+                f"🎭 {anime.get('genre', 'Janrsiz')}"
+            )
+            
+            inline_results.append(
+                InlineQueryResultArticle(
+                    id=str(uuid.uuid4()),
+                    title=f"📕 {anime['name']}",
+                    description=description,
+                    thumbnail_url=anime.get('poster_id'), # Agar poster_id URL bo'lsa
+                    input_message_content=InputTextMessageContent(
+                        message_text=f"/start ani_{anime['anime_id']}" 
+                    )
+                )
+            )
+
+    await update.inline_query.answer(inline_results, cache_time=300)
+
+
+#=======================================================================================================
+
+
+
+#=======================================================================================================
+
+async def process_search_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query_text = update.message.text
+    
+    # 1. Uzunlikni tekshirish
+    if len(query_text) < 3:
+        await update.message.reply_text("⚠️ Kamida 3 ta harf kiriting!")
+        return A_SEARCH_BY_NAME
+
+    # 2. Bazadan qidirish
+    sql = "SELECT anime_id, name, year FROM anime_list WHERE name LIKE %s LIMIT 10"
+    results = await execute_query(sql, (f"%{query_text}%",), fetch="all")
+
+    # 3. Agar natija topilmasa
+    if not results:
+        retry_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔄 Qayta urinish", callback_data="search_name")],
+            [InlineKeyboardButton("❌ Qidiruvni yopish", callback_data="cancel_search")]
+        ])
+        await update.message.reply_text(
+            "😔 Kechirasiz, bunday nomli anime topilmadi. Qiruvni qayta urunib koring yoki qidirishni toxtating.",
+            reply_markup=retry_kb
+        )
+        return A_SEARCH_BY_NAME # Holatni saqlab qolamiz
+
+    # 4. Natijalar topilsa
+    buttons = []
+    for anime in results:
+        btn_text = f"🎬 {anime['name']} ({anime['year']})"
+        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"show_ani_{anime['anime_id']}")])
+    
+    buttons.append([InlineKeyboardButton("⬅️ Bekor qilish", callback_data="back_to_search")])
+    
+    await update.message.reply_text(
+        f"🔍 <b>'{query_text}'</b> bo'yicha topilgan natijalar:",
+        reply_markup=InlineKeyboardMarkup(buttons),
+        parse_mode="HTML"
+    )
+    return A_ANI_CONTROL # Keyingi tanlov uchun holatga o'tkazamiz
+
+#=======================================================================================================
+
+
+
+#=======================================================================================================
+
+async def get_episode_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    # callback_data formati: "get_ep_ROWID"
+    data = query.data.split("_") 
+    uid = update.effective_user.id
+    
+    if len(data) < 3: 
+        await query.answer("❌ Ma'lumot xatosi")
+        return
+        
+    row_id = data[2] 
+    
+    try:
+        async with db_pool.acquire() as conn:
+            async with conn.cursor() as cur:
+                # 1. Foydalanuvchi ma'lumotlarini olish
+                await cur.execute("SELECT health_mode, status FROM users WHERE user_id = %s", (uid,))
+                user_data = await cur.fetchone()
+
+                # 2. Video va Anime ma'lumotlarini olish (JOIN orqali)
+                await cur.execute("""
+                    SELECT e.file_id, e.episode, e.anime_id, a.name 
+                    FROM anime_episodes e 
+                    JOIN anime_list a ON e.anime_id = a.anime_id 
+                    WHERE e.id = %s
+                """, (row_id,))
+                res = await cur.fetchone()
+                
+                if not res:
+                    await query.answer("❌ Video topilmadi!", show_alert=True)
+                    return
+
+                # 3. KO'RISH TARIXI (History)
+                # INSERT ... ON DUPLICATE KEY UPDATE ishlatish qulayroq, 
+                # lekin sizning mantiqingiz ham to'g'ri.
+                await cur.execute("SELECT id FROM history WHERE user_id=%s AND anime_id=%s", (uid, res['anime_id']))
+                history_entry = await cur.fetchone()
+                
+                if history_entry:
+                    await cur.execute(
+                        "UPDATE history SET last_episode=%s, watched_at=NOW() WHERE id=%s", 
+                        (res['episode'], history_entry['id'])
+                    )
+                else:
+                    await cur.execute(
+                        "INSERT INTO history (user_id, anime_id, last_episode) VALUES (%s, %s, %s)", 
+                        (uid, res['anime_id'], res['episode'])
+                    )
+                # O'zgarishlarni saqlash
+                await conn.commit()
+
+                # 4. KEYINGI QISMNI QIDIRISH (Mavjudligini tekshirish uchun)
+                await cur.execute("""
+                    SELECT id FROM anime_episodes 
+                    WHERE anime_id = %s AND episode > %s 
+                    ORDER BY episode ASC LIMIT 1
+                """, (res['anime_id'], res['episode']))
+                next_ep = await cur.fetchone()
+                
+                # 5. REKLAMA (VIP bo'lmaganlar uchun)
+                ads_text = ""
+                if user_data and user_data['status'] != 'vip':
+                    await cur.execute("SELECT caption FROM advertisements WHERE is_active=1 ORDER BY RAND() LIMIT 1")
+                    ads = await cur.fetchone()
+                    if ads:
+                        ads_text = f"\n\n📢 <b>Reklama:</b> <i>{ads['caption']}</i>"
+
+        # 6. SOG'LIQ REJIMI (01:00 - 05:00)
+        current_hour = datetime.datetime.now().hour
+        if user_data and user_data.get('health_mode') == 1:
+            if 1 <= current_hour <= 5:
+                # Faqat ogohlantirish, videoni to'xtatmaydi (agar to'xtatmoqchi bo'lsangiz return qiling)
+                await context.bot.send_message(
+                    chat_id=uid,
+                    text="🌙 <b>Sog'ligingiz haqida qayg'uramiz!</b>\nTungi soat 01:00 dan o'tdi. Dam olishni tavsiya qilamiz! 😊",
+                    parse_mode="HTML"
+                )
+
+        # 7. TUGMALARNI SHAKLLANTIRISH
+        keyboard = []
+        if next_ep:
+            # next_ep['id'] DictCursor ishlatilgani uchun shunday olinadi
+            keyboard.append([InlineKeyboardButton("Keyingi qism ➡️", callback_data=f"get_ep_{next_ep['id']}")])
+        else:
+            keyboard.append([InlineKeyboardButton("⭐️ Animeni baholash", callback_data=f"rate_{res['anime_id']}")])
+            keyboard.append([InlineKeyboardButton("✅ Tugatish va Ball olish", callback_data=f"finish_{res['anime_id']}")])
+        
+        keyboard.append([InlineKeyboardButton("🔙 Anime sahifasiga", callback_data=f"show_anime_{res['anime_id']}")])
+
+        # 8. VIDEONI YUBORISH
+        # query.message.edit_reply_markup() orqali eski tugmani o'chirish yaxshi praktika
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except: pass
+
+        await query.message.reply_video(
+            video=res['file_id'],
+            caption=(
+                f"🎬 <b>{res['name']}</b>\n"
+                f"🔢 <b>{res['episode']}-qism</b>\n"
+                f"────────────────────\n"
+                f"✅ @Aninovuz{ads_text}"
+            ),
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="HTML"
+        )
+        await query.answer(f"Huzur qiling! {res['episode']}-qism")
+
+    except Exception as e:
+        print(f"Video yuborish xatosi: {e}") # Loger o'rniga oddiy print yoki o'z logeringiz
+        await query.answer("❌ Video yuborishda xatolik yuz berdi.", show_alert=True)
 
 #=======================================================================================================
 
@@ -1066,45 +1359,17 @@ async def get_user_status(uid: int):
     except Exception as e:
         logger.error(f"⚠️ Status aniqlashda (aiomysql) xato: {e}")
         return "user"
+
 #=======================================================================================================
 
-# Inline qidiruv funksiyasi
-async def inline_query_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.inline_query.query
-
-    # Bazadan qidirish (LIKE orqali)
-    sql = "SELECT * FROM anime_list WHERE name LIKE %s LIMIT 20"
-    results = await execute_query(sql, (f"%{query}%",), fetch="all")
-
-    inline_results = []
+async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    uid = query.from_user.id
+    data = query.data
     
-    if results:
-        for anime in results:
-            # Rasmda ko'rsatilgan format: Nomi, Reyting, Qismlar soni, Yili
-            r_sum = anime.get('rating_sum', 0)
-            r_count = anime.get('rating_count', 0)
-            rating = f"{r_sum / r_count:.1f}" if r_count > 0 else "0.0"
-            
-            description = (
-                f"⭐ {rating} • 📺 {anime.get('year')}-yil\n"
-                f"🎭 {anime.get('genre', 'Janrsiz')}"
-            )
-            
-            inline_results.append(
-                InlineQueryResultArticle(
-                    id=str(uuid.uuid4()),
-                    title=f"📕 {anime['name']}",
-                    description=description,
-                    thumbnail_url=anime.get('poster_id'), # Agar poster_id URL bo'lsa
-                    input_message_content=InputTextMessageContent(
-                        message_text=f"/start ani_{anime['anime_id']}" 
-                    )
-                )
-            )
-
-    await update.inline_query.answer(inline_results, cache_time=300)
-
-
+    # get_user_status allaqachon aiomysql pool bilan ishlaydi (await shart)
+    status = await get_user_status(uid)
+    await query.answer()
 #=======================================================================================================
 
 async def show_user_cabinet(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1284,49 +1549,6 @@ async def feedback_message_handler(update: Update, context: ContextTypes.DEFAULT
         logger.error(f"Feedback send error: {e}")
         await update.message.reply_text("⚠️ Xatolik yuz berdi. Keyinroq urinib ko'ring.")
         return ConversationHandler.END
-
-#=======================================================================================================
-
-async def process_search_by_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query_text = update.message.text
-    
-    # 1. Uzunlikni tekshirish
-    if len(query_text) < 3:
-        await update.message.reply_text("⚠️ Kamida 3 ta harf kiriting!")
-        return A_SEARCH_BY_NAME
-
-    # 2. Bazadan qidirish
-    sql = "SELECT anime_id, name, year FROM anime_list WHERE name LIKE %s LIMIT 10"
-    results = await execute_query(sql, (f"%{query_text}%",), fetch="all")
-
-    # 3. Agar natija topilmasa
-    if not results:
-        retry_kb = InlineKeyboardMarkup([
-            [InlineKeyboardButton("🔄 Qayta urinish", callback_data="search_name")],
-            [InlineKeyboardButton("❌ Qidiruvni yopish", callback_data="cancel_search")]
-        ])
-        await update.message.reply_text(
-            "😔 Kechirasiz, bunday nomli anime topilmadi. Qiruvni qayta urunib koring yoki qidirishni toxtating.",
-            reply_markup=retry_kb
-        )
-        return A_SEARCH_BY_NAME # Holatni saqlab qolamiz
-
-    # 4. Natijalar topilsa
-    buttons = []
-    for anime in results:
-        btn_text = f"🎬 {anime['name']} ({anime['year']})"
-        buttons.append([InlineKeyboardButton(btn_text, callback_data=f"show_ani_{anime['anime_id']}")])
-    
-    buttons.append([InlineKeyboardButton("⬅️ Bekor qilish", callback_data="back_to_search")])
-    
-    await update.message.reply_text(
-        f"🔍 <b>'{query_text}'</b> bo'yicha topilgan natijalar:",
-        reply_markup=InlineKeyboardMarkup(buttons),
-        parse_mode="HTML"
-    )
-    return A_ANI_CONTROL # Keyingi tanlov uchun holatga o'tkazamiz
-
-
 #=======================================================================================================
 
 # === 1. AVVAL FILTRLARNI ANIQLAB OLAMIZ ===
@@ -1407,9 +1629,20 @@ def main():
     # Ro'yxatdan anime tanlangandagi callback (select_ani_...)
     # Bu search_conv dan tashqarida bo'lishi mumkin yoki ichiga qo'shish ham mumkin
     application.add_handler(CallbackQueryHandler(search_anime_logic, pattern="^select_ani_"))
+    # 1. Anime haqida ma'lumot (Tavsif, rasm, janr)
+    # Bu handler sizning bazadan animeni topish kodingizda bo'ladi
+    application.add_handler(CallbackQueryHandler(show_anime_details, pattern=r"^show_anime_"))
+
+    # 2. "Qismlarni ko'rish" tugmasi bosilganda
+    application.add_handler(CallbackQueryHandler(show_episodes_list, pattern=r"^show_episodes_"))
+
+    # 3. Varaqlash (Keyingi/Oldingi) tugmalari bosilganda
+    application.add_handler(CallbackQueryHandler(handle_pagination, pattern=r"^page_"))
+
+    # 4. Epizod tanlanganda (Video yuborish)
+    application.add_handler(CallbackQueryHandler(get_episode_handler, pattern=r"^get_ep_"))
     
-    # Qismlarni ko'rish va boshqa callbacklar uchun
-    # application.add_handler(CallbackQueryHandler(handle_all_callbacks))
+    
 
     # --- BOTNI ISHGA TUSHIRISH ---
     logger.info("🚀 Bot polling rejimida ishga tushdi...")
