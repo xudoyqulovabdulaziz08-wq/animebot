@@ -1,0 +1,70 @@
+#=========== core.py ==========
+Database
+✅ asyncpg to‘g‘ri ulangan
+✅ URL auto-detect
+✅ SSL faqat remote uchun → perfect
+✅ pool config yaxshi
+🔹 Redis
+✅ connection pool
+✅ error throttling (5 min log) — 🔥 pro move
+✅ JSON decode protection — senior level
+🔹 Cache logic
+✅ read-through cache
+✅ corrupted cache auto delete
+✅ TTL ishlatilgan
+🔹 sync_user
+✅ atomic UPSERT
+✅ RETURNING ishlatilgan
+✅ cache bilan integratsiya
+🔹 lifecycle
+✅ startup → ping
+✅ shutdown → close + dispose
+
+
+
+
+
+#=============== untils.py ===============
+ ✅ HAMMASI TEKSHIRILDI
+1. increment_referral
+
+✔ transaction to‘g‘ri
+✔ atomic update bor
+✔ cache invalidation bor
+
+👉 perfect
+
+2. get_or_create_user
+
+✔ cache → DB fallback to‘g‘ri
+✔ upsert (ON CONFLICT) yaxshi yozilgan
+✔ username update logikasi OK
+✔ cache refresh ishlayapti
+✔ is_new = row[2] == 0 — workable
+
+👉 juda yaxshi yozilgan
+
+3. check_subscription
+
+✔ parallel request (asyncio.gather) — 🔥
+✔ cache hit/miss ishlaydi
+✔ fail-safe (checked_any) bor
+✔ Redis TTL to‘g‘ri (ttl=)
+✔ "0" / "1" cache logikasi clean
+
+👉 production daraja
+
+#========= models.py =========
+👉 bunda jiddiy xato YO‘Q
+👉 Alembic ham muammosiz ishlaydi
+👉 katta user loadga ham tayyor
+
+✅ NIMA IDEAL BO‘LDI
+
+✔️ nullable=False lar to‘g‘ri qo‘yildi
+✔️ History composite index qo‘shildi 🔥
+✔️ Boolean lar to‘g‘rilandi
+✔️ rating_count / views_week fix
+✔️ relationships clean
+
+👉 bu allaqachon real backend schema
