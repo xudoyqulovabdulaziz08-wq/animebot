@@ -1,10 +1,10 @@
-python-telegram-bot==20.8
+python-telegram-bot[rate-limiter]==20.8
+aiolimiter==1.1.0
 sqlalchemy>=2.0.35
-asyncpg>=0.30.0  # <--- Shuni o'zgartiring
-redis==5.0.4
-orjson==3.10.7
+asyncpg>=0.30.0
+redis
+orjson
 httpx>=0.26.0,<0.28.0
-python-dotenv==1.0.1
-gunicorn==21.2.0
-cryptography==42.0.5
-python-telegram-bot[rate-limiter]>=20.8
+python-dotenv
+gunicorn
+cryptography
