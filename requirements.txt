@@ -1,5 +1,5 @@
 python-telegram-bot==20.8
-sqlalchemy==2.0.20
+sqlalchemy>=2.0.35
 asyncpg>=0.30.0  # <--- Shuni o'zgartiring
 redis==5.0.4
 orjson==3.10.7
