@@ -1,10 +1,9 @@
 python-telegram-bot==20.8
 sqlalchemy==2.0.20
-asyncpg==0.29.0
+asyncpg>=0.30.0  # <--- Shuni o'zgartiring
 redis==5.0.4
 orjson==3.10.7
-httpx  # Versiyani olib tashlang (==0.27.0 ni o'chiring)
+httpx>=0.26.0,<0.28.0
 python-dotenv==1.0.1
 gunicorn==21.2.0
 cryptography==42.0.5
-
