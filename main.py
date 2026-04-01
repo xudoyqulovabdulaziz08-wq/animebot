@@ -3,7 +3,7 @@ import os
 from telegram import Update # Update alohida telegram modulidan olinadi
 from telegram.ext import ApplicationBuilder, CommandHandler, AIORateLimiter, Defaults, TypeHandler
 from telegram.constants import ParseMode
-
+from telegram import LinkPreviewOptions
 from handlers import start, health_check, error_handler, pre_handler
 from core import on_startup, on_shutdown
 
@@ -20,10 +20,7 @@ def run():
     if not WEBHOOK_URL:
         raise ValueError("WEBHOOK_URL topilmadi!")
 
-    defaults = Defaults(
-        parse_mode=ParseMode.HTML,
-        disable_web_page_preview=True
-    )
+    defaults = Defaults(link_preview_options=LinkPreviewOptions(is_disabled=True))
 
     app = (
         ApplicationBuilder()
