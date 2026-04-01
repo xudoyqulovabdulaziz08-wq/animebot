@@ -1,5 +1,7 @@
 import os
-from telegram.ext import ApplicationBuilder, CommandHandler, AIORateLimiter, Defaults, TypeHandler, Update
+
+from telegram import Update # Update alohida telegram modulidan olinadi
+from telegram.ext import ApplicationBuilder, CommandHandler, AIORateLimiter, Defaults, TypeHandler
 from telegram.constants import ParseMode
 
 from handlers import start, health_check, error_handler, pre_handler
