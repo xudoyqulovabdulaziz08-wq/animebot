@@ -75,9 +75,8 @@ async def publish_anime_to_channels_handler(callback: CallbackQuery, session: An
 
     # 4. Daxshat ramkali professional UX dizayn (Kanal uchun)
     channel_caption = (
-        f"╔══════════════════╗\n"
-        f"     🎬 <b>{title}</b>\n"
-        f"╚══════════════════╝\n\n"
+        
+        f"     🎬 <b>{title}</b>\n\n"
         f"📌 <b>Anime haqida ma'lumot:</b>\n"
         f"╔══════════════════╗\n"
         f"├ 🆔 Kod: <code>#{anime_id_val}</code>\n"  
@@ -86,9 +85,8 @@ async def publish_anime_to_channels_handler(callback: CallbackQuery, session: An
         f"├ 🌐 Til: <b>{languages_str}</b>\n"
         f"├ 🎙 Dubber: <b>{dubbers_str}</b>\n"
         f"╚══════════════════╝\n"
-        f"╔══════════════════╗\n"
-        f"  🔮 Janrlar: <i>{genres_str}</i>\n"
-        f"╚══════════════════╝\n\n"
+        f"  🔮 Janrlar: <i>{genres_str}</i>\n\n"
+        
         f"📝 <b>Tavsif:</b>\n"
         f"<blockquote expandable>{description}</blockquote>\n\n"
         f"🔥 <i>Barcha qismlarni tomosha qilish uchun quyidagi tugmani bosing:</i>"

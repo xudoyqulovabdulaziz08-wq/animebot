@@ -93,20 +93,19 @@ async def send_anime_card(message: Message, anime: dict, session: Any) -> bool:
 
     # Siz taqdim etgan UX dizayn qolipi (UMUMAN O'ZGARTIRILMADI)
     caption = (
-        f"╔══════════════════╗\n"
-        f"    🎬 <b>{title}</b>\n"
-        f"╚══════════════════╝\n\n"
+        
+        f"    🎬 <b>{title}</b>\n\n"
         f"📌 <b>Anime haqida ma'lumot:</b>\n"
-        f"╔══════════════════╗\n"
+        f"╔═══════════════╗\n"
         f"├ 🆔 Kod: <code>#{anime_id}</code>\n"  
         f"├ 📅 Yil: <b>{year}</b>\n"
         f"├ ▶️ Qism: <b>{episodes_count}</b> \n"
         f"├ 🌐 Til: <b>{languages_str}</b>\n"
         f"├ 🎙 Dubber: <b>{dubbers_str}</b>\n"
-        f"╚══════════════════╝\n"
-        f"╔══════════════════╗\n"
+        f"╚═══════════════╝\n"
+        f"╔═══════════════╗\n"
         f" 🔮 Janrlar: <i>{genres_str}</i>\n"
-        f"╚══════════════════╝\n\n"
+        f"╚═══════════════╝\n\n"
         f"📝 <b>Tavsif:</b>\n"
         f"<blockquote expandable>{description}</blockquote>"
     )
