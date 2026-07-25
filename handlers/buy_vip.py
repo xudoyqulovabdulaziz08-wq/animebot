@@ -60,7 +60,7 @@ async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
         text = (
             "💎 <b>VIP OBUNA</b>\n\n"
             "👤 <b>Status:</b> Oddiy foydalanuvchi\n\n"
-            "━━━━━━━━━━━━━━\n"
+            
 
             f"{benefits_text}"
             
