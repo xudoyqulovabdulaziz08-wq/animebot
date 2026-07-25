@@ -501,7 +501,13 @@ class OutboxEvent(Base):
 
 #========================================================================#
 MODELS_TO_WATCH = {
-    "DBUser", "Anime", "Episode", "Genre", "Channel, Dubber, Comment",
+    "DBUser",
+    "Anime",
+    "Episode",
+    "Genre",
+    "Channel",
+    "Dubber",
+    "Comment",
 }
 
 WATCHED_EVENTS = (

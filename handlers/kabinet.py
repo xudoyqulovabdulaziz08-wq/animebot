@@ -12,7 +12,7 @@ router = Router()
 
 
 
-@router.callback_query(F.data == "open_cabinet")
+@router.callback_query(F.data == "cabinet")
 @router.callback_query(F.data.startswith("refresh_web_code:"))
 async def open_cabinet_handler(callback: CallbackQuery, user_service: UserService):
     user_id = callback.from_user.id
