@@ -30,7 +30,7 @@ async def guide_menu(callback: CallbackQuery):
         inline_keyboard=[
             [
                 
-                InlineKeyboardButton(text="💬 Aloqa", callback_data="support")
+                InlineKeyboardButton(text="💬 Aloqa", callback_data="support", style="success")
             ],
             [
                 InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_start", style="danger")
