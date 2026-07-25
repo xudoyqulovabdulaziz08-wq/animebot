@@ -28,12 +28,12 @@ async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
     inline_keyboard = []
     # 📝 2. Umumiy imtiyozlar matni (Har ikkala status uchun ham ko'rinadi)
     benefits_text = (
-        "👑 <b>VIP IMTIYOZLAR:</b>\n"
+        "👑 <b>VIP IMTIYOZLAR:</b>\n\n"
         "<blockquote expandable> 🎬 Premyeralarni hammadan birinchi ko'rish</blockquote>\n"
-        "<blockquote expandable> 🚀 Animelarni  cheklovsiz yuklab olish </blockquote>\n"
+        "<blockquote expandable> 🚀 Animelarni  cheklovsiz yuklab olish va ulashish </blockquote>\n"
         "<blockquote expandable> 🚫 Mutlaqo reklamasiz botdan foydalanish </blockquote>\n"
         "<blockquote expandable> 🛑 Animelarni cheklovsiz boshqalar yubora olish </blockquote>\n"
-        "<blockquote expandable>🎧 Eksklyuziv funksiyalardan foydalanish</blockquote>\n\n"
+        "<blockquote expandable>🎧 Eksklyuziv funksiyalardan foydalanish va botni qulay ishlatish</blockquote>\n\n"
     )
     
     if is_vip:
@@ -50,7 +50,7 @@ async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
             "💎 <b>VIP OBUNA</b>\n\n"
             "✅ <b>Status:</b> <code>VIP Faol</code>\n"
             f"📅 <b>Tugash sanasi:</b> <code>{expire_str}</code>\n\n"
-            "━━━━━━━━━━━━━━\n"
+            
             f"{benefits_text}"
             "✨ <i>Obunangizni muddatidan oldin uzaytirishingiz ham mumkin:</i>"
         )
@@ -107,7 +107,7 @@ async def vip_payed(callback: CallbackQuery, user_service: UserService):
     rates_text = (
         "💳 <b>VIP  TARIFLARI:</b>\n\n"
         "📅 <b>1 Oylik VIP</b>\n"
-        "<blockquote expandable>💰 Narxi: 9,000 so'm</blockquote>\n"
+        "<blockquote expandable>💰 Narxi: 9,000 so'm (asl narx 💵)</blockquote>\n"
         "📅 <b>2 Oylik VIP</b>\n"
         "<blockquote expandable>💰 Narxi: 16,000 so'm (Chegirma! 🔥)</blockquote>\n"
         "📅 <b>3 Oylik VIP</b>\n"
@@ -203,7 +203,7 @@ async def process_vip_checkout(callback: CallbackQuery):
         f"🛒 <b>VIP BUYURTMANI RASMIYLASHTIRISH</b>\n\n"
         f"📅 Tanlangan tarif: <b>{duration} VIP</b>\n"
         f"💵 To'lov summasi: <code>{price}</code>\n\n"
-        f"🚨 <b>MUHIM OGOHLANTIRISH:</b>\n"
+        f"🚨 <b>MUHIM OGOHLANTIRISH:</b>\n\n"
         f"<i>Tizim xavfsizligi va firgarlikka qarshi kurashish maqsadida, botga har xil soxta (feyk) cheklarni tashlash mutlaqo taqiqlanadi! Soxta chek yuborgan foydalanuvchilar ogohlantirishsiz botdan abadiy <b>BAN</b> qilinadi.</i>\n\n"
         f"👇 Quyidagi tugmani bossangiz, siz uchun barcha ma'lumotlar tayyorlangan holda adminga xabar yuborish oynasi ochiladi. Admindan to'lov rekvizitlarini olib to'lovni amalga oshirasiz:"
     )
