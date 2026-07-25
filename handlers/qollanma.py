@@ -10,20 +10,20 @@ router = Router()
 async def guide_menu(callback: CallbackQuery):
     await callback.answer()
     
-    guide_image_file_id = "AgACAgIAAxkBAAI8r2o2yqRxEiN_ZhKFQPu58i9D0s13AAJyGWsbZ6WxSZJ088Ot-5S2AQADAgADdwADPAQ"
+    
     
     welcome_text = (
-        "╔═════════ 📚 ═════════╗\n"
-        "   <b>FOYDALANISH QO'LLANMASI</b>\n"
-        "╚═════════ 📚 ═════════╝\n\n"
-        "Bot imkoniyatlaridan to'g'ri foydalanish bo'yicha qisqacha yo‘riqnoma: 🌟\n\n"
-        "<b>1️⃣ Asosiy menyu</b>\n"
-        "<blockquote expandable>Bu yerda qidiruv, reklama, VIP va aloqa bo'limlari mavjud. Har bir bo'lim loyihadan to'liq foydalanish imkonini beradi.</blockquote>\n\n"
-        "<b>2️⃣ Qidiruv tizimi</b>\n"
-        "<blockquote expandable>Anime nomi, maxsus ID raqami yoki sevimli janrlaringiz bo'yicha tez va oson qidirib topishingiz mumkin.</blockquote>\n\n"
-        "<b>3️⃣ VIP imtiyozlar</b>\n"
-        "<blockquote expandable>VIP bo'lim orqali maxsus statusga ega bo'ling hamda botdagi eksklyuziv bonus va qulayliklarni birinchilardan bo'lib faollashtiring!</blockquote>\n\n"
-        "⚠️ Agar biror savol yoki muammo yuzaga kelsa, quyidagi tugma orqali yordam markaziga bog'laning."
+        "<b>📖 Foydalanish qo'llanmasi</b>"
+        "<b>🔍 Qidiruv</b>\n"
+        "<blockquote expandable>Anime nomi, ID yoki janr orqali qidiring. ✅</blockquote>\n"
+        "<b>🔔 Obunalar</b>"
+        "<blockquote expandable>Sevimli animelaringiz yangilanganda xabar oling. ✅</blockquote>\n"
+        "<b>👤 Kabinet</b>"
+        "<blockquote expandable>rofil, VIP va sozlamalarni boshqaring. ✅</blockquote>\n"
+        "<b>📢 Reklama</b>"
+        "<blockquote expandable>Reklamangizni joylashtirmoqchi bo'lsangiz admin bilan bo'g'lanish ✅</blockquote>\n"
+        "<b>💬 Yordam</b>"
+        "<blockquote expandable>Muammo yuzaga kelsa support bilan bog'laning. ✅</blockquote>\n"
     )
     
     guide_keyboard = InlineKeyboardMarkup(
@@ -39,12 +39,9 @@ async def guide_menu(callback: CallbackQuery):
     )
     
     try:
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=guide_image_file_id,
-                caption=welcome_text,
-                parse_mode="HTML"
-            ),
+        await callback.message.edit_caption(
+            caption=welcome_text,
+            parse_mode="HTML",
             reply_markup=guide_keyboard
         )
     except TelegramBadRequest as e:

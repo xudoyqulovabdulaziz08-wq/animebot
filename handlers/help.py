@@ -15,8 +15,7 @@ async def support_menu(callback: CallbackQuery):
     text = (
         "<b>💬 Yordam markazi</b>\n\n"
         "⚠️ Savolingiz yoki muammoingiz bormi?\n\n"
-        "Quyidagi tugma orqali support bilan bog'laning. "
-        "Imkon qadar muammoni batafsil yozsangiz, tezroq yordam bera olamiz."
+        "Quyidagi tugma orqali support bilan bog'laning. Imkon qadar muammoni batafsil yozsangiz, tezroq yordam bera olamiz."
     )
     
     kb = InlineKeyboardMarkup(
