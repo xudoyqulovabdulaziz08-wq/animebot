@@ -13,17 +13,17 @@ async def guide_menu(callback: CallbackQuery):
     
     
     welcome_text = (
-        "<b>📖 Foydalanish qo'llanmasi</b>"
+        "<b>📖 Foydalanish qo'llanmasi</b>\n"
         "<b>🔍 Qidiruv</b>\n"
-        "<blockquote expandable>Anime nomi, ID yoki janr orqali qidiring. ✅</blockquote>\n"
+        "<blockquote expandable>Anime nomi, ID yoki janr orqali qidiring. </blockquote>\n"
         "<b>🔔 Obunalar</b>"
-        "<blockquote expandable>Sevimli animelaringiz yangilanganda xabar oling. ✅</blockquote>\n"
+        "<blockquote expandable>Sevimli animelaringiz yangilanganda xabar oling. </blockquote>\n"
         "<b>👤 Kabinet</b>"
-        "<blockquote expandable>rofil, VIP va sozlamalarni boshqaring. ✅</blockquote>\n"
+        "<blockquote expandable>rofil, VIP va sozlamalarni boshqaring. </blockquote>\n"
         "<b>📢 Reklama</b>"
-        "<blockquote expandable>Reklamangizni joylashtirmoqchi bo'lsangiz admin bilan bo'g'lanish ✅</blockquote>\n"
+        "<blockquote expandable>Reklamangizni joylashtirmoqchi bo'lsangiz admin bilan bo'g'lanish </blockquote>\n"
         "<b>💬 Yordam</b>"
-        "<blockquote expandable>Muammo yuzaga kelsa support bilan bog'laning. ✅</blockquote>\n"
+        "<blockquote expandable>Muammo yuzaga kelsa support bilan bog'laning. </blockquote>\n"
     )
     
     guide_keyboard = InlineKeyboardMarkup(
