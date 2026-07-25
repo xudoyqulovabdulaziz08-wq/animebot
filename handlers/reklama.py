@@ -9,23 +9,23 @@ router = Router()
 async def advertise_menu(callback: CallbackQuery):
     await callback.answer()
     
-    # 🖼 Reklama bo'limi uchun rasm (Startdagi rasmni qoldirdik, o'zgartirmoqchi bo'lsangiz yangi file_id qo'yasiz)
-    advertise_image_file_id = "AgACAgIAAxkBAAI8rWo2yOOJrbYjf6oN-0buXgcqrr91AAJqGWsbZ6WxSdfP89-yJYeKAQADAgADdwADPAQ"
+    
     
     text = (
-        "╔═════════ 📢 ═════════╗\n"
-        "   <b>REKLAMA BO'LIMI</b>\n"
-        "╚═════════ 📢 ═════════╝\n\n"
-        "Reklama bo'limiga xush kelibsiz! 🌟\n\n"
-        "<blockquote expandable><b>Reklama berish</b></blockquote>\n"
-        "<blockquote expandable><b>Reklama narxlari</b></blockquote>\n"
-        "<blockquote expandable><b>Reklama shartlari</b></blockquote>\n"
-        
+        "<b>📢 Reklama</b>\n\n"
+        "Aninovuz orqali reklamangizni anime ixlosmandlariga yetkazing.\n\n"
+        "<b>📌 Xizmatlar</b>\n"
+        "• Telegram bot reklamasi\n"
+        "• Anime loyihalari reklamasi\n"
+        "• Hamkorlik takliflari\n\n"
+        "<b>ℹ️ Muhim</b>\n"
+        "Narxlar va reklama shartlari administrator tomonidan taqdim etiladi.\n\n"
+        "Quyidagi tugmani bosib reklama so'rovini yuboring."
     )
     
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="📢 Reklama berish", callback_data="advertise_submit")],
+            [InlineKeyboardButton(text="📢 Reklama berish", callback_data="advertise_submit", style="success")],
             
             # ⬇️ "Orqaga" tugmasi start.py faylidagi 'back_to_start' handleriga ulandi!
             [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_start", style="danger")]
@@ -34,12 +34,9 @@ async def advertise_menu(callback: CallbackQuery):
     
     try:
         # Matn o'rniga Media va Klaviatura birga chiroyli edit bo'ladi
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=advertise_image_file_id,
-                caption=text,
-                parse_mode="HTML"
-            ),
+        await callback.message.edit_caption(
+            caption=text,
+            parse_mode="HTML",
             reply_markup=kb
         )
     except TelegramBadRequest as e:
@@ -65,17 +62,16 @@ async def advertise_submit(callback: CallbackQuery):
     advertise_image_file_id = "AgACAgIAAxkBAAI8rWo2yOOJrbYjf6oN-0buXgcqrr91AAJqGWsbZ6WxSdfP89-yJYeKAQADAgADdwADPAQ"
 
     text = (
-        "╔═════════ 📢 ═════════╗\n"
-        "   <b>REKLAMA BERISH</b>\n"
-        "╚═════════ 📢 ═════════╝\n\n"
-        "Reklama berish bo'limiga xush kelibsiz! 🌟\n\n"
-        "<blockquote expandable> Agar siz botimizda reklama berishni xohlasangiz, iltimos, quyidagi tugmani bosing va biz bilan bog'laning. </blockquote>\n"
-        "<b>🛑 Reklama berish shartlari</b>\n"
-        "<blockquote expandable> 1️⃣ Reklama 18+ kontentni o'z ichiga olmasligi kerak.</blockquote>\n"
-        "<blockquote expandable> 2️⃣ Qimor, noqonuniy faoliyat yoki zararli dasturlarni targ'ib qilmasligi kerak.</blockquote>\n"
-        "<blockquote expandable> 3️⃣ Reklama mazmuni foydalanuvchilarni aldaydigan yoki zarar yetkazadigan bo'lmasligi kerak.</blockquote>\n"
-        "<blockquote expandable> 4️⃣ Reklama mazmuni Telegramning xizmat ko'rsatish shartlariga zid bo'lmasligi kerak.</blockquote>\n"
-        "<blockquote expandable> 5️⃣ Reklama mazmuni boshqa foydalanuvchilarni tahqirlash yoki kamsitish bo'lmasligi kerak.</blockquote>\n"
+        
+        "📢 Reklama berish\n\n"
+        "Botimiz orqali reklama joylashtirmoqchimisiz❓\n\n"
+        "<blockquote expandable>⚠️ Quyidagi tugma orqali administrator bilan bog'laning. Reklama mazmuni avval ko'rib chiqiladi. </blockquote>\n"
+        "<b>🛑 Reklama shartlari</b>\n"
+        "<blockquote expandable> 1️⃣ 18+ kontent qabul qilinmaydi.</blockquote>\n"
+        "<blockquote expandable> 2️⃣ Qimor, noqonuniy faoliyat yoki zararli dasturlar reklamasi taqiqlanadi.</blockquote>\n"
+        "<blockquote expandable> 3️⃣ Yolg'on yoki foydalanuvchini chalg'ituvchi reklama qabul qilinmaydi.</blockquote>\n"
+        "<blockquote expandable> 4️⃣ Telegram qoidalariga zid reklama joylashtirilmaydi.</blockquote>\n"
+        "<blockquote expandable> 5️⃣ Tahqirlovchi yoki kamsituvchi mazmundagi reklama qabul qilinmaydi.</blockquote>\n"
     )
 
     url_admin = "https://t.me/Khudoyqulov_pg"

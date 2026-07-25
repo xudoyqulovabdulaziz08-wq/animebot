@@ -13,7 +13,7 @@ async def guide_menu(callback: CallbackQuery):
     
     
     welcome_text = (
-        "<b>📖 Foydalanish qo'llanmasi</b>\n"
+        "<b>📖 Foydalanish qo'llanmasi</b>\n\n"
         "<b>🔍 Qidiruv</b>\n"
         "<blockquote expandable>Anime nomi, ID yoki janr orqali qidiring. </blockquote>\n"
         "<b>🔔 Obunalar</b>"
