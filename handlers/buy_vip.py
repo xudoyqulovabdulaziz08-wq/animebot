@@ -16,7 +16,7 @@ ADMIN_USERNAME = "Khudoyqulov_pg"
 async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
     await callback.answer()
     
-    vip_image_file_id = "AgACAgIAAxkBAAI8tmo2zpXedWfk2pHIT5yhD3bo3ksoAAKFGWsbZ6WxSZsBcZaddInXAQADAgADdwADPAQ"
+    
     
     # 💎 1. Kesh-first orqali foydalanuvchi ma'lumotlarini olamiz va VIP muddatini tekshiramiz
     user_data = await user_service.get_user(callback.from_user.id)
@@ -35,9 +35,6 @@ async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
         "<blockquote expandable>🎧 Eksklyuziv funksiyalardan foydalanish</blockquote>\n\n"
     )
     
-    # 🎰 3. Statusga qarab dinamik matn va klaviaturani shakllantiramiz
-    inline_keyboard = []
-    
     if is_vip:
         # Sanani chiroyli formatga keltiramiz
         expire_str = "Noma'lum"
@@ -49,28 +46,27 @@ async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
                 expire_str = str(vip_expire)
                 
         text = (
-            "╔═════════ 💎 ═════════╗\n"
-            "   <b>VIP STATUSINGIZ FAOL</b>\n"
-            "╚═════════ 💎 ═════════╝\n\n"
-            f"👤 Status: <code>💎 VIP Obunachi</code>\n"
-            f"⏰ Amal qilish muddati: <b>{expire_str}</b> gacha\n\n"
+            "💎 <b>VIP OBUNA</b>\n\n"
+            "✅ <b>Status:</b> <code>VIP Faol</code>\n"
+            f"📅 <b>Tugash sanasi:</b> <code>{expire_str}</code>\n\n"
+            "━━━━━━━━━━━━━━\n"
             f"{benefits_text}"
             "✨ <i>Obunangizni muddatidan oldin uzaytirishingiz ham mumkin:</i>"
         )
         # VIP foydalanuvchilar uchun uzaytirish tugmasi
-        inline_keyboard.append([InlineKeyboardButton(text="🔄 VIP Obunani uzaytirish", callback_data="purchase_vip", style="primary")])
+        inline_keyboard.append([InlineKeyboardButton(text="🔄 VIP uzaytirish", callback_data="purchase_vip", style="primary")])
     else:
         text = (
-            "╔═════════ 💎 ═════════╗\n"
-            "    <b>VIP OBUNA BO'LISH</b>\n"
-            "╚═════════ 💎 ═════════╝\n\n"
-            f"👤 Status: <code>👤 Oddiy foydalanuvchi</code>\n\n"
+            "💎 <b>VIP OBUNA</b>\n\n"
+            "👤 <b>Status:</b> Oddiy foydalanuvchi\n\n"
+            "━━━━━━━━━━━━━━\n"
+
             f"{benefits_text}"
             
-            "⚠️ Sizda VIP status faol emas. Obuna bo'lishni xohlaysizmi?"
+            "💳 <b>VIP obuna olib barcha imkoniyatlarni oching.</b>"
         )
         # Oddiy foydalanuvchilar uchun sotib olish tugmasi
-        inline_keyboard.append([InlineKeyboardButton(text="💳 VIP Sotib olish", callback_data="purchase_vip", style="primary")])
+        inline_keyboard.append([InlineKeyboardButton(text="💳 VIP olish", callback_data="purchase_vip", style="primary")])
         
     # ⬅️ Har doim eng tagida turadigan ORQAGA tugmasi
     inline_keyboard.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_start", style="danger")])
@@ -79,12 +75,9 @@ async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
     
     # 📸 4. Mediani va matnni bitta oynada silliq edit qilamiz
     try:
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=vip_image_file_id,
-                caption=text,
-                parse_mode="HTML"
-            ),
+        await callback.message.edit_caption(
+            caption=text,
+            parse_mode="HTML",
             reply_markup=kb
         )
     except TelegramBadRequest as e:
@@ -94,13 +87,16 @@ async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
             logger.error(f"❌ Kutilmagan BadRequest xatoligi: {e}")
     except Exception as e:
         logger.error(f"❌ Umumiy xatolik: {e}")
-
+ 
+    # 🎰 3. Statusga qarab dinamik matn va klaviaturani shakllantiramiz
+    inline_keyboard = []
+   
 
 @router.callback_query(F.data == "purchase_vip")
 async def vip_payed(callback: CallbackQuery, user_service: UserService):
     await callback.answer()
     
-    vip_image_file_id = "AgACAgIAAxkBAAI8tmo2zpXedWfk2pHIT5yhD3bo3ksoAAKFGWsbZ6WxSZsBcZaddInXAQADAgADdwADPAQ"
+    
     
     # 💎 1. Kesh-first orqali foydalanuvchi ma'lumotlarini olamiz
     user_data = await user_service.get_user(callback.from_user.id)
@@ -109,7 +105,7 @@ async def vip_payed(callback: CallbackQuery, user_service: UserService):
 
     # 📊 2. Tariflar ro'yxati (Chiroyli UI formatda va HTML xatolarsiz)
     rates_text = (
-        "💳 <b>VIP SUBSCRIPTION TARIFLARI:</b>\n\n"
+        "💳 <b>VIP  TARIFLARI:</b>\n\n"
         "📅 <b>1 Oylik VIP</b>\n"
         "<blockquote expandable>💰 Narxi: 9,000 so'm</blockquote>\n"
         "📅 <b>2 Oylik VIP</b>\n"
@@ -153,12 +149,9 @@ async def vip_payed(callback: CallbackQuery, user_service: UserService):
     
     # 📸 5. Mediani va matnni bitta oynada silliq edit qilamiz
     try:
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=vip_image_file_id,
-                caption=full_caption,
-                parse_mode="HTML"
-            ),
+        await callback.message.edit_caption(
+            caption=full_caption,
+            parse_mode="HTML",
             reply_markup=kb
         )
     except TelegramBadRequest as e:
@@ -176,7 +169,7 @@ async def vip_payed(callback: CallbackQuery, user_service: UserService):
 async def process_vip_checkout(callback: CallbackQuery):
     await callback.answer()
     
-    vip_image_file_id = "AgACAgIAAxkBAAI8tmo2zpXedWfk2pHIT5yhD3bo3ksoAAKFGWsbZ6WxSZsBcZaddInXAQADAgADdwADPAQ"
+    
     
     # 💎 1. Callback datadan muddatni (oyni) ajratib olamiz
     months = callback.data.split(":")[1]
@@ -219,23 +212,19 @@ async def process_vip_checkout(callback: CallbackQuery):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             # Bu tugma bosilganda telegram avtomatik admin bilan chatni ochadi va pastdagi yozuv tayyor turadi
-            InlineKeyboardButton(text="💬 Admin bilan bog'lanish", url=admin_url, style="success")
+            InlineKeyboardButton(text="💬 Bog'lanish", url=admin_url, style="success")
         ],
         [
             # Tariflar bo'limiga qaytarish
-            InlineKeyboardButton(text="⬅️ Tariflarga qaytish", callback_data="purchase_vip", style="danger")
+            InlineKeyboardButton(text="⬅️ Orqaga", callback_data="purchase_vip", style="danger")
         ]
     ])
     
     # 📸 6. Mediani va matnni bitta oynada silliq edit qilamiz
     try:
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=vip_image_file_id,
-                caption=checkout_caption,
-                parse_mode="HTML"
-            ),
-            reply_markup=kb
+        await callback.message.edit_caption(
+            caption=checkout_caption,
+            parse_mode="HTML",
         )
     except TelegramBadRequest as e:
         if "message is not modified" in str(e).lower():
