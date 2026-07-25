@@ -32,15 +32,18 @@ async def send_or_edit_start_menu(target: Message | CallbackQuery, user_id: int,
     
     start_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔍 Qidiruv bo'limi", callback_data="search_menu", style="primary")],
+            [InlineKeyboardButton(text="🔍 Qidiruv", callback_data="search_menu", style="primary")],
             [
-                InlineKeyboardButton(text="Reklama berish 📢", callback_data="advertise", style="primary"),
-                InlineKeyboardButton(text="Qo'llanma 📖", callback_data="guide", style="primary")
+                InlineKeyboardButton(text="👤 Kabinet", callback_data="open_cabinet", style="primary"),
+                InlineKeyboardButton(text="🔔 Obunalar", callback_data="subscribe_to_anime", style="primary")
+                
             ],
-            [InlineKeyboardButton(text="VIP 💎", callback_data="buy_vip", style="success")],
+            [
+                InlineKeyboardButton(text="📖 Qo'llanma", callback_data="guide", style="success"),
+                InlineKeyboardButton(text="💬 Yordam", callback_data="support", style="success")
+            ],
 
-            [InlineKeyboardButton(text="🖥 Shaxsiy Kabinet", callback_data="open_cabinet", style="primary")],
-            [InlineKeyboardButton(text="💬 Yordam", callback_data="support", style="danger")]
+            [InlineKeyboardButton(text="📢 Reklama", callback_data="advertise", style="primary")]
         ]
     )
 

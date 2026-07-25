@@ -13,15 +13,15 @@ async def support_menu(callback: CallbackQuery):
     support_image_file_id = "AgACAgIAAxkBAAI8tGo2zRs85gamwlBSbIpQSyz3hfQQAAKAGWsbZ6WxSaBJmU2Y6WwRAQADAgADdwADPAQ"
     
     text = (
-        "╔═════════ 💬 ═════════╗\n"
-        "   <b>ALOQA BO'LIMI</b>\n"
-        "╚═════════ 💬 ═════════╝\n\n"
-        "Agar sizda muammo yoki savol bo'lsa, iltimos, quyidagi tugmani bosing va biz bilan bog'laning. 🌟\n\n"
+        "<b>💬 Yordam markazi</b>\n\n"
+        "⚠️ Savolingiz yoki muammoingiz bormi?\n\n"
+        "Quyidagi tugma orqali support bilan bog'laning. "
+        "Imkon qadar muammoni batafsil yozsangiz, tezroq yordam bera olamiz."
     )
     
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="💬 Biz bilan bog'lanish", url="https://t.me/Khudoyqulov_pg")],
+            [InlineKeyboardButton(text="💬 Bog'lanish", url="https://t.me/Khudoyqulov_pg", style="success")],
             # ⬇️ "Orqaga" tugmasi start.py faylidagi 'back_to_start' handleriga ulandi!
             [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_start", style="danger")]
         ]
@@ -29,12 +29,9 @@ async def support_menu(callback: CallbackQuery):
     
     try:
         # Matn o'rniga Media va Klaviatura birga chiroyli edit bo'ladi
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=support_image_file_id,
-                caption=text,
-                parse_mode="HTML"
-            ),
+        await callback.message.edit_caption(
+            caption=text,
+            parse_mode="HTML",
             reply_markup=kb
         )
     except TelegramBadRequest as e:

@@ -1,0 +1,12 @@
+aiogram
+sqlalchemy[asyncio]
+alembic
+redis
+python-dotenv
+pydantic
+orjson
+pytz
+matplotlib
+oracledb
+SQLAlchemy
+asyncpg
