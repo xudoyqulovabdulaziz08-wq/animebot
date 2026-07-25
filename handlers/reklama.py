@@ -59,7 +59,7 @@ async def advertise_menu(callback: CallbackQuery):
 @router.callback_query(lambda c: c.data == "advertise_submit")
 async def advertise_submit(callback: CallbackQuery):
     await callback.answer()
-    advertise_image_file_id = "AgACAgIAAxkBAAI8rWo2yOOJrbYjf6oN-0buXgcqrr91AAJqGWsbZ6WxSdfP89-yJYeKAQADAgADdwADPAQ"
+    
 
     text = (
         
@@ -83,12 +83,9 @@ async def advertise_submit(callback: CallbackQuery):
 
     )
     try:
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=advertise_image_file_id,
-                caption=text,
-                parse_mode="HTML"
-            ),
+        await callback.message.edit_caption(
+            caption=text,
+            parse_mode="HTML",
             reply_markup=kb
         )
     except TelegramBadRequest as e:
