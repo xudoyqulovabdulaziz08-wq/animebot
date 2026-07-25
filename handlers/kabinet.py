@@ -7,15 +7,22 @@ from services.user_service import UserService  # O'zingizning service yo'lingiz
 logger = logging.getLogger("CabinetHandler")
 router = Router()
 
-# ==================================================
-# 🖥 SHAXSIY KABINET TUGMASI BOSILGANDA (Yoki Yangilanganda)
-# ==================================================
+
+
+
+
+
 @router.callback_query(F.data == "open_cabinet")
 @router.callback_query(F.data.startswith("refresh_web_code:"))
 async def open_cabinet_handler(callback: CallbackQuery, user_service: UserService):
     user_id = callback.from_user.id
-    current_data = callback.data
+    user_data = await user_service.get_user(callback.from_user.id)
+    user_data = user_service._ensure_fresh_vip_status(user_data)
     
+    is_vip = user_data.get("is_vip", False)
+    vip_expire = user_data.get("vip_expire_date") # ISO string formatda keladi
+
+    current_data = callback.data
     # Yuklanish holati anomal ko'rinmasligi uchun chiroyli eslatma
     await callback.answer("⏳ Shaxsiy kabinet yuklanmoqda...")
 
@@ -42,16 +49,23 @@ async def open_cabinet_handler(callback: CallbackQuery, user_service: UserServic
         )
         return
 
-    # 3. Interfeys matni (Premium, toza vizual uslubda)
+    status = "💎 VIP" if is_vip else "👤 Oddiy"
+
     cabinet_text = (
-        f"🖥 {html.bold('SHAXSIY KABINET')}\n\n"
-        f"Aninov.uz saytiga istalgan qurilmadan (telefon, kompyuter yoki smart TV) "
-        f"kirish uchun quyidagi bir martalik maxsus ma'lumotlardan foydalaning:\n\n"
-        f"🆔 {html.bold('Telegram ID:')} <code>{user_id}</code>\n"
-        f"🔑 {html.bold('Maxsus Parol:')} <code>{password}</code>\n\n"
-        f"⏳ {html.italic('Amal qilish muddati: 15 daqiqa.')}\n"
-        f"⚠️ {html.italic('Eslatma: ID va Parol ustiga bir marta bossangiz, avtomatik nusxalanadi.')}\n\n"
-        f"🔒 {html.italic('Agarda parolingizni begona shaxs bilib qolgan deb o\'ylasangiz, quyidagi tugma orqali uni darhol yangilashingiz mumkin.')}"
+        f"👤 <b>SHAXSIY KABINET</b>\n\n"
+
+        f"🌐 <b>Aninov.uz</b> saytiga kirish uchun:\n\n"
+
+        f"🆔 <b>Telegram ID</b>\n"
+        f"<code>{user_id}</code>\n\n"
+
+        f"🔑 <b>Bir martalik parol</b>\n"
+        f"<code>{password}</code>\n\n"
+
+        f"💎 <b>Status:</b> {status}\n\n"
+
+        f"⏳ <i>Parol 15 daqiqa amal qiladi.</i>\n"
+        f"📋 <i>ID yoki parol ustiga bosib nusxalashingiz mumkin.</i>"
     )
 
     # 4. Inline tugmalar (Faqat bitta joyda chiroyli joylashuv)
@@ -59,14 +73,23 @@ async def open_cabinet_handler(callback: CallbackQuery, user_service: UserServic
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="🔄 Parolni yangilash", 
-                    callback_data=f"refresh_web_code:{user_id}"
+                    text="🔄 Parolni yangilash",
+                    callback_data=f"refresh_web_code:{user_id}",
+                    style="primary"
                 )
             ],
             [
                 InlineKeyboardButton(
-                    text="⬅️ Bosh menyuga qaytish", 
-                    callback_data="back_to_start"
+                    text="💎 VIP bo'limi",
+                    callback_data="buy_vip",
+                    style="success"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Bosh menyu",
+                    callback_data="back_to_start",
+                    style="danger"
                 )
             ]
         ]

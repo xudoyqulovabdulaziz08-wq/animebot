@@ -34,7 +34,7 @@ async def send_or_edit_start_menu(target: Message | CallbackQuery, user_id: int,
         inline_keyboard=[
             [InlineKeyboardButton(text="🔍 Qidiruv", callback_data="search_menu", style="primary")],
             [
-                InlineKeyboardButton(text="👤 Kabinet", callback_data="open_cabinet", style="primary"),
+                InlineKeyboardButton(text="👤 Kabinet", callback_data="cabinet", style="primary"),
                 InlineKeyboardButton(text="🔔 Obunalar", callback_data="subscribe_to_anime", style="primary")
                 
             ],
