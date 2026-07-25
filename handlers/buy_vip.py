@@ -24,7 +24,8 @@ async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
     
     is_vip = user_data.get("is_vip", False)
     vip_expire = user_data.get("vip_expire_date") # ISO string formatda keladi
-    
+    # 🎰 3. Statusga qarab dinamik matn va klaviaturani shakllantiramiz
+    inline_keyboard = []
     # 📝 2. Umumiy imtiyozlar matni (Har ikkala status uchun ham ko'rinadi)
     benefits_text = (
         "👑 <b>VIP IMTIYOZLAR:</b>\n"
@@ -88,8 +89,7 @@ async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
     except Exception as e:
         logger.error(f"❌ Umumiy xatolik: {e}")
  
-    # 🎰 3. Statusga qarab dinamik matn va klaviaturani shakllantiramiz
-    inline_keyboard = []
+    
    
 
 @router.callback_query(F.data == "purchase_vip")
@@ -225,6 +225,7 @@ async def process_vip_checkout(callback: CallbackQuery):
         await callback.message.edit_caption(
             caption=checkout_caption,
             parse_mode="HTML",
+            reply_markup=kb
         )
     except TelegramBadRequest as e:
         if "message is not modified" in str(e).lower():
