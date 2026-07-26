@@ -44,7 +44,7 @@ async def process_select_advert_target(callback: CallbackQuery, state: FSMContex
         target_group=target_group, 
         group_title=title, 
         main_msg_id=callback.message.message_id,
-        buttons=[] # [[button1], [button2]] shaklida yig'iladi
+        buttons=[] 
     )
     await state.set_state(AdminAdvertSG.waiting_for_ad)
 
@@ -55,7 +55,7 @@ async def process_select_advert_target(callback: CallbackQuery, state: FSMContex
     await callback.message.edit_text(
         text=f"🎯 Target guruh: <b>{title}</b>\n\n"
              f"📥 <b>Iltimos, reklama postini yuboring:</b>\n"
-             f"<i>(Matn, rasm, video yoki fayl bo'lishi mumkin. Formatingizda &lt;a href="..."&gt;matn&lt;/a&gt; shaklida HTML ishlatishingiz mumkin)</i>",
+             f"<i>(Matn, rasm, video yoki fayl bo'lishi mumkin. Formatingizda &lt;a href='...'\n&gt;matn&lt;/a&gt; shaklida HTML ishlatishingiz mumkin)</i>",
         reply_markup=cancel_kb,
         parse_mode="HTML"
     )
