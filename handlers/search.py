@@ -10,9 +10,10 @@ async def search_menu(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
     
-    
+    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA3MAAz0E"
     
     text = (
+        
         "🔍 <b>ANIME QIDIRISH</b>\n\n"
         "Qidiruv menyusiga xush kelibsiz! 🌟\n\n"
         "<blockquote expandable>📝 Anime nomi bo'yicha qidirish tezkor</blockquote>\n"
@@ -36,9 +37,12 @@ async def search_menu(callback: CallbackQuery, state: FSMContext):
     
     try:
         # Matn o'rniga Media va Klaviatura birga chiroyli edit bo'ladi
-        await callback.message.edit_caption(
-            caption=text,
-            parse_mode="HTML",
+        await callback.message.edit_media(
+            media=InputMediaPhoto(
+                media=SEARCH_COVER,
+                caption=text,
+                parse_mode="HTML"
+            ),
             reply_markup=kb
         )
     except TelegramBadRequest as e:
