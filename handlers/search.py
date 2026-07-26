@@ -9,25 +9,23 @@ router = Router()
 async def search_menu(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
-    # 🖼 Qidiruv bo'limi uchun rasm (Startdagi rasmni qoldirdik, o'zgartirmoqchi bo'lsangiz yangi file_id qo'yasiz)
-    search_image_file_id = "AgACAgIAAxkBAAI8pmo2wwmGj_SoELEjURiyUyabzhwoAAI5GWsbZ6WxSUf3FNSMy6ajAQADAgADdwADPAQ"
+    
+    
     
     text = (
-        "╔═════════ 🔍 ═════════╗\n"
-        "   <b>ANIME QIDIRISH</b>\n"
-        "╚═════════ 🔍 ═════════╝\n\n"
+        "🔍 <b>ANIME QIDIRISH</b>\n\n"
         "Qidiruv menyusiga xush kelibsiz! 🌟\n\n"
-        "<blockquote expandable><b>Nomi bo'yicha qidirish</b></blockquote>\n"
-        "<blockquote expandable><b>ID bo'yicha qidirish</b></blockquote>\n"
-        "<blockquote expandable><b>Janr bo'yicha qidirish</b></blockquote>\n"
-        
+        "📝 Anime nomi bo'yicha\n"
+        "🔢 Anime ID raqami bo'yicha\n"
+        "🎭 Janr bo'yicha\n\n"
+        "👇 Qidiruv usulini tanlang."
     )
     
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔍 Nomi bo'yicha qidirish", callback_data="search_by_name", style="primary")],
-            [InlineKeyboardButton(text="🔢 ID bo'yicha qidirish", callback_data="search_by_id", style="primary")],
-            [InlineKeyboardButton(text="🎭 Janr bo'yicha qidirish", callback_data="search_by_genre", style="primary")],
+            [InlineKeyboardButton(text="🔍 Nomi ", callback_data="search_by_name", style="primary")],
+            [InlineKeyboardButton(text="🔢 ID ", callback_data="search_by_id", style="primary")],
+            [InlineKeyboardButton(text="🎭 Janr", callback_data="search_by_genre", style="primary")],
             # ⬇️ "Orqaga" tugmasi start.py faylidagi 'back_to_start' handleriga ulandi!
             [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_start", style="danger")]
         ]
@@ -35,12 +33,9 @@ async def search_menu(callback: CallbackQuery, state: FSMContext):
     
     try:
         # Matn o'rniga Media va Klaviatura birga chiroyli edit bo'ladi
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=search_image_file_id,
-                caption=text,
-                parse_mode="HTML"
-            ),
+        await callback.message.edit_caption(
+            caption=text,
+            parse_mode="HTML",
             reply_markup=kb
         )
     except TelegramBadRequest as e:

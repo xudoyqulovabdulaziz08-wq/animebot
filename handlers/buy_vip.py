@@ -70,7 +70,7 @@ async def buy_vip_menu(callback: CallbackQuery, user_service: UserService):
         inline_keyboard.append([InlineKeyboardButton(text="💳 VIP olish", callback_data="purchase_vip", style="primary")])
         
     # ⬅️ Har doim eng tagida turadigan ORQAGA tugmasi
-    inline_keyboard.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_start", style="danger")])
+    inline_keyboard.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="cabinet", style="danger")])
     
     kb = InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
     
