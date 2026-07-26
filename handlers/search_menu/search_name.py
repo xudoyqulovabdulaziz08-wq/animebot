@@ -176,7 +176,6 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
         return
 
     # 2. Darhol foydalanuvchiga jarayon ketayotganini bildiramiz
-    
     await callback.answer()
 
     # 3. Nomi bo'yicha qidiruv natijalari turgan eski xabarni (tugmalari bilan) o'chirib tashlaymiz
@@ -191,8 +190,6 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
     anime = await anime_service.get_anime(anime_id)
 
     if not anime:
-        
-
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="🔁 Qayta urinish", callback_data="search_by_name", style="success")],
@@ -200,12 +197,12 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
             ]
         )
         await callback.message.answer(
-            text=f"❌ Kechirasiz, ushbu anime ma'lumotlar bazasidan topilmadi.",
+            text="❌ Kechirasiz, ushbu anime ma'lumotlar bazasidan topilmadi.",
             reply_markup=kb,
             parse_mode="HTML"
         )
         return
 
     # 🚀 DAXSHAT UNIVERSAL DIZAYNGA YUBORAMIZ:
-    # waiting_msg uzatiladi, send_anime_card ichidagi .delete() "🔍 Yuborilmoqda..."ni o'chirib, o'rniga ramkali poster chiqaradi!
-    await send_anime_card( anime, session)
+    # ✅ TO'G'RILANDI: 3 ta argument to'liq uzatildi (message, anime, session)
+    await send_anime_card(callback.message, anime, session)

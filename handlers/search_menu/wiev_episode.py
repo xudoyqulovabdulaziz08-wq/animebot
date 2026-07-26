@@ -119,16 +119,16 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
         if current_page > 1:
             nav_row.append(InlineKeyboardButton(text="⬅️", callback_data=f"play_ep_page:{anime_id}:{current_ep_num}:{current_page - 1}", style="primary"))
         else:
-            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noop", style="primary"))
+            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noopa", style="primary"))
 
         # 📄 O'rta tugma (Har doim turadi va nechanchi sahifaligini ko'rsatadi: masalan 1/5)
-        nav_row.append(InlineKeyboardButton(text=f"📄 {current_page}/{total_pages}", callback_data="noop", style="primary"))
+        nav_row.append(InlineKeyboardButton(text=f"📄 {current_page}/{total_pages}", callback_data="noopg", style="primary"))
 
         # ➡️ O'ng tugma (Keyingi sahifa bo'lsa ishlaydi)
         if current_page < total_pages:
             nav_row.append(InlineKeyboardButton(text="➡️", callback_data=f"play_ep_page:{anime_id}:{current_ep_num}:{current_page + 1}", style="primary"))
         else:
-            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noop",style="primary"))
+            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noopa",style="primary"))
 
         buttons.append(nav_row)
 
@@ -137,7 +137,7 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
         buttons.append([InlineKeyboardButton(text="📥 Barcha yuklash", callback_data=f"download_all_vip:{anime_id},", style="success"  )])
     
     # Orqaga qaytish
-    buttons.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"user_g_view_{anime_id}", style="danger")])
+    buttons.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"back_to_card:{anime_id}", style="danger")])
     
     player_kb = InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -260,3 +260,27 @@ async def process_download_all_vip(callback: CallbackQuery, session: Any):
         )
 
         
+
+
+@router.callback_query(F.data == "noopa")
+async def process_noop_callback(callback: CallbackQuery):
+    """
+    Faol bo'lmagan tugmalar (masalan, joriy sahifa yoki ⏹️ tugmasi) 
+    bosilganda foydalanuvchiga alert chiqarish handleri.
+    """
+    await callback.answer(
+        text="⚠️ Boshqa sahifa afsuski topilmadi",
+        show_alert=True
+    )
+
+@router.callback_query(F.data == "noopg")
+async def process_noop_callback(callback: CallbackQuery):
+    """
+    Faol bo'lmagan tugmalar (masalan, joriy sahifa yoki ⏹️ tugmasi) 
+    bosilganda foydalanuvchiga alert chiqarish handleri.
+    """
+    await callback.answer(
+        text="🛑 Bu tugma sahifa korsatish uchun",
+        show_alert=True
+    )
+
