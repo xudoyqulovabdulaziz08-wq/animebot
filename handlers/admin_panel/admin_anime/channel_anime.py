@@ -24,7 +24,7 @@ def _build_channel_selection_kb(anime_id: int, channels: list, selected_ids: set
 
     rows.append([
         InlineKeyboardButton(text=f"🚀 Yuborish ({len(selected_ids)})", callback_data=f"pub_confirm:{anime_id}", style="success"),
-        InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data="admin_panel", style="danger"),
+        InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data=f"v_anime:{anime_id}:{page}", style="danger"),
     ])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
@@ -37,7 +37,9 @@ async def show_channel_selection_handler(callback: CallbackQuery, session: Any):
     await callback.answer()
     _, anime_id_str = callback.data.split(":")
     anime_id = int(anime_id_str)
-
+    parts = callback.data.split(":")
+    anime_id = int(parts[1])
+    page = int(parts[2]) if len(parts) > 2 else 1
     from services.channel_service import ChannelService
     channel_service = ChannelService(session=session)
     channels = await channel_service.get_active_channels()
@@ -204,7 +206,21 @@ async def publish_anime_to_channels_handler(callback: CallbackQuery, session: An
 
     state.pending_publish_selections.pop(key, None)  # tozalash
 
+    back_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="⬅️ Kanal tanlovga qaytish",
+            callback_data=f"publish_episodes_chan:{anime_id_val}",
+            style="danger"
+        )]
+    ])
+
     if success_count > 0:
-        await callback.message.edit_text(f"🚀 Anime muvaffaqiyatli {success_count} ta kanalga e'lon qilindi!")
+        await callback.message.edit_text(
+            f"🚀 Anime muvaffaqiyatli {success_count} ta kanalga e'lon qilindi!",
+            reply_markup=back_kb
+        )
     else:
-        await callback.message.edit_text("❌ E'lon qilishda xatolik! Bot kanalda admin ekanligini tekshiring.")
+        await callback.message.edit_text(
+            "❌ E'lon qilishda xatolik! Bot kanalda admin ekanligini tekshiring.",
+            reply_markup=back_kb
+        )
