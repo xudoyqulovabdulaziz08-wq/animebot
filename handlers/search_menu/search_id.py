@@ -70,13 +70,9 @@ async def search_by_id(callback: CallbackQuery, state: FSMContext): # state qo's
 async def process_anime_id_search(message: Message, state: FSMContext, session: Any):
     raw_text = message.text.strip().replace("#", "")
     
-    # 🌟 "🔍 So'rov bajarilmoqda..." xabari yuboriladi (Bot qotib qolmasligi uchun)
-    
-    
     # Raqam ekanligini tekshirish
     if not raw_text.isdigit():
         try:
-            
             await message.delete()
         except:
             pass
@@ -98,13 +94,10 @@ async def process_anime_id_search(message: Message, state: FSMContext, session: 
     # 🌟 ANIME TOPILMASA: Chatni tozalab, yangi toza xato xabarini chiqaramiz
     if not anime:
         try:
-            # 1. Vaqtinchalik "🔍 So'rov bajarilmoqda..." xabarini o'chiramiz
-            
-            
-            # 2. Foydalanuvchi yuborgan xato ID matnini o'chiramiz
+            # 1. Foydalanuvchi yuborgan xato ID matnini o'chiramiz
             await message.delete()
             
-            # 3. Orqada qolib ketgan "ID BO'YICHA QIDIRISH" rasmli interfeysini o'chiramiz
+            # 2. Orqada qolib ketgan "ID BO'YICHA QIDIRISH" rasmli interfeysini o'chiramiz
             if last_menu_id:
                 await message.bot.delete_message(chat_id=message.chat.id, message_id=last_menu_id)
         except Exception as e:
@@ -125,20 +118,17 @@ async def process_anime_id_search(message: Message, state: FSMContext, session: 
         )
         return
 
-    # 🌟 ANIME TOPILSA: Tozalash mantig'ini yurgizib, kartani yuboramiz
+    # 🌟 ANIME TOPILSA: Eski menyuni o'chiramiz
     try:
-        # Foydalanuvchi yozgan ID xabarini chatdan o'chiramiz (Netflix'da ortiqcha xabarlar turmaydi)
-        await message.delete()
-        
-        # Eski "ID BO'YICHA QIDIRISH" rasmli interfeysini ham o'chiramiz
+        # Eski "ID BO'YICHA QIDIRISH" rasmli interfeysini o'chiramiz
         if last_menu_id:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=last_menu_id)
     except Exception as e:
         logger.warning(f"⚠️ Anime topilganda eski xabarlarni o'chirishda xatolik: {e}")
 
-    # 🚀 Universal funksiyaga o'chib ketishi uchun waiting_msg berib yuboriladi
-    # send_anime_card funksiyasi o'sha vaqtinchalik xabarni o'chirib, o'rniga daxshatli posterni joylaydi!
-    await send_anime_card( anime, session)
+    # ✅ TO'G'RI CHAQIRILISh: 1-argument sifatida foydalanuvchining 'message' obyektini uzatamiz
+    # Eslatma: send_anime_card o'zi ichida message.delete() qilib foydalanuvchi yozgan ID xabarini o'chirib tashlaydi.
+    await send_anime_card(message, anime, session)
     
     # Qidiruv muvaffaqiyatli tugagani uchun holatni tozalaymiz
     await state.clear()

@@ -14,7 +14,7 @@ logger = logging.getLogger()
 
 
 
-async def send_anime_card(message: Message, anime: dict, session: Any) -> bool:
+async def send_anime_card(anime: dict, session: Any) -> bool:
     """
     Foydalanuvchiga animeni daxshat ramkali dizaynda va 
     kerakli tugmalar bilan ko'rsatuvchi yagona universal funksiya.
