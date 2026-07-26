@@ -84,7 +84,7 @@ async def process_anime_name_search(message: Message, state: FSMContext, session
     search_query = message.text.strip().lower()
     
     # 🌟 Foydalanuvchiga jarayon ketayotganini bildirish
-    waiting_msg = await message.answer("🔍 Qidirilmoqda...")
+    
     
     # 1. Keshdan barcha animelarning qidiruv xaritasi (ID va Nomlari) olinadi
     from services.anime_service import AnimeService
@@ -102,8 +102,7 @@ async def process_anime_name_search(message: Message, state: FSMContext, session
     last_menu_id = user_data.get("last_search_menu_id")
     
     try:
-        # Vaqtinchalik "🔍 Qidirilmoqda..." xabarini o'chiramiz
-        await waiting_msg.delete()
+       
         
         # Foydalanuvchi yozgan matnli xabarni o'chiramiz
         await message.delete()
@@ -189,11 +188,7 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
     anime = await anime_service.get_anime(anime_id)
 
     if not anime:
-        # Agar kutilmaganda topilmasa, "Yuborilmoqda..." xabarini o'chirib, xato tugmalarini chiqaramiz
-        try:
-            await waiting_msg.delete()
-        except:
-            pass
+        
 
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
@@ -210,4 +205,4 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
 
     # 🚀 DAXSHAT UNIVERSAL DIZAYNGA YUBORAMIZ:
     # waiting_msg uzatiladi, send_anime_card ichidagi .delete() "🔍 Yuborilmoqda..."ni o'chirib, o'rniga ramkali poster chiqaradi!
-    await send_anime_card(waiting_msg, anime, session)
+    await send_anime_card( anime, session)

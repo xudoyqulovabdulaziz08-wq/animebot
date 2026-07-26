@@ -135,7 +135,7 @@ async def process_anime_id_search(message: Message, state: FSMContext, session: 
 
     # 🚀 Universal funksiyaga o'chib ketishi uchun waiting_msg berib yuboriladi
     # send_anime_card funksiyasi o'sha vaqtinchalik xabarni o'chirib, o'rniga daxshatli posterni joylaydi!
-    await send_anime_card(waiting_msg, anime, session)
+    await send_anime_card( anime, session)
     
     # Qidiruv muvaffaqiyatli tugagani uchun holatni tozalaymiz
     await state.clear()
