@@ -112,8 +112,8 @@ async def send_anime_card(message: Message, anime: dict, session: Any) -> bool:
 
     # Inline tugmalar (style parametrlariga tegilmadi)
     user_anime_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📹 Qismlarni tomosha qilish", callback_data=f"show_episodes_user:{anime_id}", style="primary")],
-        [InlineKeyboardButton(text="⬅️ Bosh menyuga qaytish", callback_data="back_to_start", style="danger")]
+        [InlineKeyboardButton(text="▶️ Tomosha qilish", callback_data=f"show_episodes_user:{anime_id}", style="primary")],
+        [InlineKeyboardButton(text="🏠 Bosh menu", callback_data="back_to_start", style="danger")]
     ])
 
     # Silliq o'chirish

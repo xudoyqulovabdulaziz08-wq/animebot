@@ -41,14 +41,18 @@ class SearchStates(StatesGroup):
 async def search_by_name(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     
-    search_image_file_id = "AgACAgIAAxkBAAI8pmo2wwmGj_SoELEjURiyUyabzhwoAAI5GWsbZ6WxSUf3FNSMy6ajAQADAgADdwADPAQ"
+    
     
     text = (
-        "╔═════════ 🔍 ═════════╗\n"
-        "   <b>NOMI BO'YICHA QIDIRISH</b>\n"
-        "╚═════════ 🔍 ═════════╝\n\n"
+        "🔎 <b>NOMI BO'YICHA QIDIRISH</b>\n\n"
+        "Anime nomini quyidagi chatga yuboring.\n\n"
         "✍️ Iltimos, qidirayotgan anime nomini  yozib yuboring.\n\n"
-        "⚠️ <b>Eslatma:</b> Nomni qanchalik to'g'ri va aniq yozsangiz, uni topish shunchalik oson bo'ladi!"
+        "<blockquote expandable>"
+        "• To'liq yoki qisman nom yozishingiz mumkin.\n"
+        "• O'zbek, Ingliz yoki Yapon nomlari qo'llab-quvvatlanadi.\n"
+        "• Natijalar moslik bo'yicha saralanadi."
+        "</blockquote>\n\n"
+        "⌨️ <b>Anime nomini yuboring.</b>"
     )
     
     kb = InlineKeyboardMarkup(
@@ -59,12 +63,9 @@ async def search_by_name(callback: CallbackQuery, state: FSMContext):
     
     try:
         # Eski xabarni yangi rasm va matnga silliqqina o'zgartiramiz
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=search_image_file_id,
-                caption=text,
-                parse_mode="HTML"
-            ),
+        await callback.message.edit_caption(
+            caption=text,
+            parse_mode="HTML",
             reply_markup=kb
         )
     except TelegramBadRequest as e:
@@ -141,7 +142,7 @@ async def process_anime_name_search(message: Message, state: FSMContext, session
         )])
         
     # Pastiga bosh menyuga qaytish tugmasi
-    buttons.append([InlineKeyboardButton(text="⬅️ Qidiruv menyusi", callback_data="search_menu", style="danger")])
+    buttons.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="search_menu", style="danger")])
     
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
     

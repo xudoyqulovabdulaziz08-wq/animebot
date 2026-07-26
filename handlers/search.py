@@ -15,9 +15,9 @@ async def search_menu(callback: CallbackQuery, state: FSMContext):
     text = (
         "🔍 <b>ANIME QIDIRISH</b>\n\n"
         "Qidiruv menyusiga xush kelibsiz! 🌟\n\n"
-        "<blockquote expandable>📝 Anime nomi bo'yicha</blockquote>\n"
-        "<blockquote expandable>🔢 Anime ID raqami bo'yicha</blockquote>\n"
-        "<blockquote expandable>🎭 Janr  bo'yicha saralash</blockquote>\n\n"
+        "<blockquote expandable>📝 Anime nomi bo'yicha qidirish tezkor</blockquote>\n"
+        "<blockquote expandable>🔢 Anime ID raqami bo'yicha qidirish</blockquote>\n"
+        "<blockquote expandable>🎭 Janr  bo'yicha animeni saralash </blockquote>\n\n"
         "👇 Qidiruv usulini tanlang."
     )
     
