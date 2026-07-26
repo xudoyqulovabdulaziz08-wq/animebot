@@ -74,7 +74,7 @@ async def process_anime_id_search(message: Message, state: FSMContext, session: 
     if not raw_text.isdigit():
         try:
             await message.delete()
-        except:
+        except Exception:
             pass
             
         await message.answer("⚠️ Iltimos, faqat raqamlardan iborat ID kiriting!")
@@ -91,19 +91,18 @@ async def process_anime_id_search(message: Message, state: FSMContext, session: 
     user_data = await state.get_data()
     last_menu_id = user_data.get("last_search_menu_id")
 
-    # 🌟 ANIME TOPILMASA: Chatni tozalab, yangi toza xato xabarini chiqaramiz
+    # 🌟 ANIME TOPILMASA
     if not anime:
         try:
-            # 1. Foydalanuvchi yuborgan xato ID matnini o'chiramiz
+            # Foydalanuvchi yuborgan xato ID xabarini o'chiramiz
             await message.delete()
             
-            # 2. Orqada qolib ketgan "ID BO'YICHA QIDIRISH" rasmli interfeysini o'chiramiz
+            # Orqada qolib ketgan "ID BO'YICHA QIDIRISH" rasmli interfeysini o'chiramiz
             if last_menu_id:
                 await message.bot.delete_message(chat_id=message.chat.id, message_id=last_menu_id)
         except Exception as e:
             logger.warning(f"⚠️ ID qidiruvida xabarlarni tozalashda xatolik: {e}")
 
-        # Yangitdan toza xabar ko'rinishida xatolik oynasini yuboramiz
         kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="🔁 Qayta urinish", callback_data="search_by_id", style="success")],
@@ -118,17 +117,22 @@ async def process_anime_id_search(message: Message, state: FSMContext, session: 
         )
         return
 
-    # 🌟 ANIME TOPILSA: Eski menyuni o'chiramiz
+    # 🌟 ANIME TOPILSA: Chatni darhol tozalaymiz!
     try:
-        # Eski "ID BO'YICHA QIDIRISH" rasmli interfeysini o'chiramiz
+        # 1. Foydalanuvchi yuborgan ID xabarini (masalan, "#123") DARHOL o'chiramiz
+        await message.delete()
+    except Exception as e:
+        logger.warning(f"⚠️ Foydalanuvchi xabarini o'chirishda xato: {e}")
+
+    try:
+        # 2. Eski "ID BO'YICHA QIDIRISH" rasmli interfeysini o'chiramiz
         if last_menu_id:
             await message.bot.delete_message(chat_id=message.chat.id, message_id=last_menu_id)
     except Exception as e:
-        logger.warning(f"⚠️ Anime topilganda eski xabarlarni o'chirishda xatolik: {e}")
+        logger.warning(f"⚠️ Eski menyuni o'chirishda xatolik: {e}")
 
-    # ✅ TO'G'RI CHAQIRILISh: 1-argument sifatida foydalanuvchining 'message' obyektini uzatamiz
-    # Eslatma: send_anime_card o'zi ichida message.delete() qilib foydalanuvchi yozgan ID xabarini o'chirib tashlaydi.
+    # 3. Karta yuboriladi
     await send_anime_card(message, anime, session)
     
-    # Qidiruv muvaffaqiyatli tugagani uchun holatni tozalaymiz
+    # State'ni tozalaymiz
     await state.clear()
