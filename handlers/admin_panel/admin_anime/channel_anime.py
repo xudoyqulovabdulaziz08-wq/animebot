@@ -92,11 +92,13 @@ async def publish_anime_to_channels_handler(callback: CallbackQuery, session: An
 # =========================================================================
 @router.callback_query(F.data.startswith("pub_confirm:"))
 async def publish_anime_to_channels_handler(callback: CallbackQuery, session: Any, bot: Bot):
-    _, anime_id_str = callback.data.split(":")
+    _, anime_id_str, page_str = callback.data.split(":")
     anime_id = int(anime_id_str)
+    page = int(page_str)
 
     key = (callback.from_user.id, anime_id)
     selected_ids = state.pending_publish_selections.get(key, set())
+    
 
     if not selected_ids:
         await callback.answer("⚠️ Kamida bitta kanal tanlang!", show_alert=True)
