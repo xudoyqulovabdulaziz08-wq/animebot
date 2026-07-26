@@ -25,7 +25,7 @@ class SearchStates(StatesGroup):
 @router.callback_query(lambda c: c.data == "search_by_id")
 async def search_by_id(callback: CallbackQuery, state: FSMContext): # state qo'shildi
     await callback.answer()
-    
+    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA3MAAz0E"
     
     
     text = (
@@ -43,9 +43,12 @@ async def search_by_id(callback: CallbackQuery, state: FSMContext): # state qo's
     )
     
     try:
-        await callback.message.edit_caption(
-            caption=text,
-            parse_mode="HTML",
+        await callback.message.edit_media(
+            media=InputMediaPhoto(
+                media=SEARCH_COVER,
+                caption=text,
+                parse_mode="HTML"
+            ),
             reply_markup=kb
         )
     except TelegramBadRequest as e:
