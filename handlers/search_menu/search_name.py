@@ -44,15 +44,11 @@ async def search_by_name(callback: CallbackQuery, state: FSMContext):
     
     
     text = (
-        "🔎 <b>NOMI BO'YICHA QIDIRISH</b>\n\n"
-        "Anime nomini quyidagi chatga yuboring.\n\n"
+        "🔎 <b>NOMI BO'YICHA QIDIRISH</b>\n"
+        "═════════════════\n"
+        "⚠️ Anime nomini aniq yuborsangiz qidiriv natijlari ham tez va aniq boladi\n\n"
         "✍️ Iltimos, qidirayotgan anime nomini  yozib yuboring.\n\n"
-        "<blockquote expandable>"
-        "• To'liq yoki qisman nom yozishingiz mumkin.\n"
-        "• O'zbek, Ingliz yoki Yapon nomlari qo'llab-quvvatlanadi.\n"
-        "• Natijalar moslik bo'yicha saralanadi."
-        "</blockquote>\n\n"
-        "⌨️ <b>Anime nomini yuboring.</b>"
+        
     )
     
     kb = InlineKeyboardMarkup(
