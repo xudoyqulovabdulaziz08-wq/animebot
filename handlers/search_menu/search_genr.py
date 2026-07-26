@@ -229,7 +229,7 @@ async def process_user_genre_search_submit(callback: CallbackQuery, state: FSMCo
         pass
         
     # 2. Darhol vaqtinchalik xabarni chiqaramiz (Qotib qolish oldi olindi)
-    waiting_msg = await callback.message.answer("🔍 Qidirilmoqda...")
+    
     await callback.answer()
     
     # 3. 🚀 YANGI ENGLIL VA TEZKOR QIDIRUV (Baza darajasida):
@@ -238,10 +238,10 @@ async def process_user_genre_search_submit(callback: CallbackQuery, state: FSMCo
     found_animes = await anime_service.search_by_genres(selected_genres)
             
     # Vaqtinchalik xabarni o'chiramiz
-    try:
-        await waiting_msg.delete()
-    except:
-        pass
+    
+        
+    
+    
         
     if not found_animes:
         kb = InlineKeyboardMarkup(inline_keyboard=[

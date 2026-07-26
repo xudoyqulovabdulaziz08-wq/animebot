@@ -174,7 +174,7 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
         return
 
     # 2. Darhol foydalanuvchiga jarayon ketayotganini bildiramiz
-    waiting_msg = await callback.message.answer("🔍 Yuborilmoqda...")
+    
     await callback.answer()
 
     # 3. Nomi bo'yicha qidiruv natijalari turgan eski xabarni (tugmalari bilan) o'chirib tashlaymiz

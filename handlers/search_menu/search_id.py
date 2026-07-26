@@ -68,12 +68,12 @@ async def process_anime_id_search(message: Message, state: FSMContext, session: 
     raw_text = message.text.strip().replace("#", "")
     
     # 🌟 "🔍 So'rov bajarilmoqda..." xabari yuboriladi (Bot qotib qolmasligi uchun)
-    waiting_msg = await message.answer("🔍 So'rov bajarilmoqda...") 
+    
     
     # Raqam ekanligini tekshirish
     if not raw_text.isdigit():
         try:
-            await waiting_msg.delete()
+            
             await message.delete()
         except:
             pass
@@ -96,7 +96,7 @@ async def process_anime_id_search(message: Message, state: FSMContext, session: 
     if not anime:
         try:
             # 1. Vaqtinchalik "🔍 So'rov bajarilmoqda..." xabarini o'chiramiz
-            await waiting_msg.delete()
+            
             
             # 2. Foydalanuvchi yuborgan xato ID matnini o'chiramiz
             await message.delete()
