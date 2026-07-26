@@ -85,7 +85,7 @@ async def search_by_genre(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     
     # Yangi botingizdagi to'g'ri file_id
-    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA3MAAz0E"
+    SEARCH_COVER = "AgACAgIAAxkBAAFQJTpqZcKD_4vxf3InzrFP9rSiPgo5cgACRxhrG2elsUkeePowH7L14AEAAwIAA3MAAz0E"
     
     # Har safar kirganda tanlangan janrlar keshini tozalaymiz
     await state.update_data(selected_genres=[])

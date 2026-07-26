@@ -67,14 +67,14 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
 
     # 4. Caption
     caption = (
-        f"╔══════════════════════╗\n"
+        f"╔════════════════════╗\n"
         f"   🎬 <b>{anime['title']}</b>\n"
-        f"╚══════════════════════╝\n\n"
+        f"╚════════════════════╝\n\n"
         f"📌 <b>Joriy tomosha:</b>\n"
-        f"╔══════════════════════╗\n"
+        f"╔════════════════════╗\n"
         f"├ 📹 Qism: <b>{current_ep_num}-qism</b>\n"
-        f"├ 🌐 Platforma: <a href='https://t.me/Aninovuz_Bot'>AniNovuz</a>\n"
-        f"╚══════════════════════╝\n\n"
+        f"├ 🌐 Platforma: <a href='https://t.me/Aninovuz_Bot'>Aninovuz</a>\n"
+        f"╚════════════════════╝\n\n"
         f"📢 Kanal @Aninovuz"
     )
 
