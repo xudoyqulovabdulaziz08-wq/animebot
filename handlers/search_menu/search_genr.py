@@ -292,16 +292,14 @@ async def process_user_genre_view_anime(callback: CallbackQuery, session: Any):
         await callback.answer("❌ Ma'lumot xato keldi.", show_alert=True)
         return
 
-    
-    
     # 2. Telegram'ning soat aylanib turadigan yuklanish holatini yopamiz
     await callback.answer()
 
-    # 3. Eski natijalar ro'yxati (klaviatura) oynasini darhol o'chiramiz
+    # 3. Pleyer (Video) yoki eski ro'yxat xabarini o'chiramiz
     try:
         await callback.message.delete()
     except TelegramBadRequest:
-        pass  # Agar xabar allaqachon o'chirilgan bo'lsa xatoni yutib yuboramiz
+        pass  # Agar xabar allaqachon o'chirilgan bo'lsa
 
     try:
         # 4. AnimeService orqali ma'lumotlarni kesh yoki bazadan chaqiramiz
@@ -309,16 +307,13 @@ async def process_user_genre_view_anime(callback: CallbackQuery, session: Any):
         anime = await anime_service.get_anime(anime_id)
 
         if not anime:
-            # Agar kutilmaganda anime topilmasa vaqtinchalik xabarni o'chirib, xato aytamiz
-            
             await callback.message.answer("❌ Kechirasiz, ushbu anime ma'lumotlari topilmadi.")
             return
 
-        # 5. Universal daxshatli dizayn funksiyasiga uzatamiz
-        # waiting_msg (yuborilmoqda...) xabarini berib yuboramiz, send_anime_card uni o'zi o'chirib o'rniga poster yuboradi!
-        await send_anime_card(anime, session)
+        # 5. 🔥 ASOSIY TO'G'RILANISh: 3 ta argument ham to'liq va ketma-ket uzatildi!
+        # 1-arg: callback.message, 2-arg: anime, 3-arg: session
+        await send_anime_card(callback.message, anime, session)
 
     except Exception as e:
         logger.error(f"❌ Anime kartasini ko'rsatishda kutilmagan xato: {e}")
-        
         await callback.message.answer("❌ Tizimda xatolik yuz berdi. Iltimos, qaytadan urinib ko'ring.")

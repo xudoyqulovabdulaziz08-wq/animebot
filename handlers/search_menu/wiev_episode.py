@@ -117,27 +117,27 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
         
         # ⬅️ Chap tugma (Oldingi sahifa bo'lsa ishlaydi, bo'lmasa ko'rinmas bo'sh tugma)
         if current_page > 1:
-            nav_row.append(InlineKeyboardButton(text="⬅️", callback_data=f"play_ep_page:{anime_id}:{current_ep_num}:{current_page - 1}"))
+            nav_row.append(InlineKeyboardButton(text="⬅️", callback_data=f"play_ep_page:{anime_id}:{current_ep_num}:{current_page - 1}", style="primary"))
         else:
-            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noop"))
+            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noop", style="primary"))
 
         # 📄 O'rta tugma (Har doim turadi va nechanchi sahifaligini ko'rsatadi: masalan 1/5)
-        nav_row.append(InlineKeyboardButton(text=f"📄 {current_page}/{total_pages}", callback_data="noop"))
+        nav_row.append(InlineKeyboardButton(text=f"📄 {current_page}/{total_pages}", callback_data="noop", style="primary"))
 
         # ➡️ O'ng tugma (Keyingi sahifa bo'lsa ishlaydi)
         if current_page < total_pages:
-            nav_row.append(InlineKeyboardButton(text="➡️", callback_data=f"play_ep_page:{anime_id}:{current_ep_num}:{current_page + 1}"))
+            nav_row.append(InlineKeyboardButton(text="➡️", callback_data=f"play_ep_page:{anime_id}:{current_ep_num}:{current_page + 1}", style="primary"))
         else:
-            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noop"))
+            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noop",style="primary"))
 
         buttons.append(nav_row)
 
     # VIP funksiya
     if is_vip_or_admin:
-        buttons.append([InlineKeyboardButton(text="📥 Barcha qismlarni yuklab olish (VIP)", callback_data=f"download_all_vip:{anime_id}")])
+        buttons.append([InlineKeyboardButton(text="📥 Barcha yuklash", callback_data=f"download_all_vip:{anime_id},", style="success"  )])
     
     # Orqaga qaytish
-    buttons.append([InlineKeyboardButton(text="⬅️ Anime kartasiga qaytish", callback_data=f"user_g_view_{anime_id}", style="danger")])
+    buttons.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"user_g_view_{anime_id}", style="danger")])
     
     player_kb = InlineKeyboardMarkup(inline_keyboard=buttons)
 
