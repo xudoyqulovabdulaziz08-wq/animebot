@@ -19,7 +19,33 @@ class AdminAdvertSG(StatesGroup):
     waiting_for_btn_url = State()
     waiting_for_btn_style = State()
 
+# ---------------------------------------------------------
+# 0. REKLAMA MENYUSIGA KIRISH (admin_advert)
+# ---------------------------------------------------------
 
+@router.callback_query(F.data == "admin_advert")
+async def process_admin_advert_menu(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    
+    # Har safar reklama menyusiga kirganda oldingi qolib ketgan kesh(state)larni tozalaymiz
+    await state.clear() 
+
+    advert_kb = make_keyboard([
+        [make_button(text="🌍 Hammaga (User, VIP, Admin)", callback_data="send_adv:all", style="primary")],
+        [make_button(text="💎 Faqat VIP foydalanuvchilarga", callback_data="send_adv:vip", style="primary")],
+        [make_button(text="👤 Faqat oddiy foydalanuvchilarga", callback_data="send_adv:user", style="primary")],
+        [make_button(text="🛠 Faqat Adminlarga", callback_data="send_adv:admin", style="primary")],
+        [make_button(text="⬅️ Orqaga", callback_data="admin_panel", style="danger")]
+    ])
+
+    await callback.message.edit_text(
+        text="📢 <b>Reklama va Bildirishnomalar yuborish bo'limi</b>\n\n"
+             "<i>Ushbu bo'lim orqali bot foydalanuvchilariga reklama, aksiya yoki texnik "
+             "xabarlarni yuborishingiz mumkin.</i>\n\n"
+             "✨ Xabar yubormoqchi bo'lgan maqsadli (target) guruhni tanlang:",
+        reply_markup=advert_kb,
+        parse_mode="HTML"
+    )
 # ---------------------------------------------------------
 # 1. TARGET GURUHNI TANLASH VA XABAR KUTISH
 # ---------------------------------------------------------
