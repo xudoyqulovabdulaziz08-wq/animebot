@@ -15,6 +15,7 @@ router = Router()
 # Bir sahifada nechta qism tugmasi chiqishi (4 tadan 3 qator = 12 ta)
 EPISODES_PER_PAGE = 12
 
+
 @router.callback_query(F.data.startswith("show_episodes_user:") | F.data.startswith("play_ep_page:"))
 async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
     await callback.answer()
@@ -24,7 +25,7 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
     
     if data_parts[0] == "show_episodes_user":
         anime_id = int(data_parts[1])
-        current_ep_num = 1  # Birinchi marta kirganda avtomat 1-qism
+        current_ep_num = 1  # Birinchi marta kirganda 1-qism
         current_page = 1
     else:
         anime_id = int(data_parts[1])
@@ -35,19 +36,17 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
     anime_service = AnimeService(session=session)
     user_service = UserService(session=session)
     
-    # Kesh-First tizimidan epizodlarni yuklaymiz
     episodes = await anime_service.get_anime_episodes_cache(anime_id)
     anime = await anime_service.get_anime(anime_id)
     
-    # 🔥 Foydalanuvchini aniq aniqlash (Callback bosgan odamning IDsi)
     user_id = callback.from_user.id
-    user = await user_service.get_user(user_id) # VIP statusni tekshirish uchun
+    user = await user_service.get_user(user_id)
     
     if not episodes or not anime:
         await callback.message.answer("⚠️ Kechirasiz, ushbu animening qismlari yuklanmagan yoki topilmadi.")
         return
 
-    # 🛡️ VIP/Admin/Creator statusini tekshirishning eng toza va daxshatli mantiqiy zanjiri
+    # 🛡️ VIP/Admin/Creator statusini tekshirish
     c_id = getattr(config, "CREATOR_ID", None)
     
     is_vip_or_admin = False
@@ -58,17 +57,15 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
             user_id == c_id
         )
     else:
-        # Foydalanuvchi bazada vaqtincha aniqlanmagan bo'lsa ham Creator bo'lsa ruxsat berish
         is_vip_or_admin = user_id == c_id
 
-    # 3. Joriy ko'rilayotgan epizod obyektini topamiz
+    # 3. Joriy ko'rilayotgan epizod
     current_episode = next((e for e in episodes if e["episode"] == current_ep_num), episodes[0])
-    current_ep_num = current_episode["episode"] # Agar so'ralgan qism topilmasa birinchisiga qaytadi
+    current_ep_num = current_episode["episode"]
     
     video_file_id = current_episode.get("file_id") or current_episode.get("video_file_id")
-    ANINOV_PLAYER_BRAND_THUMBNAIL = "AgACAgIAAxkBAAFNRRNqO4RPF18H6wZY0ZtdQk49n-SLEAACChhrG-FJ2EmBxl_qKoRkBgEAAwIAA3gAAzwE"
 
-    # 4. Premium UX dizayn qatlamidagi matn (Caption)
+    # 4. Caption
     caption = (
         f"╔══════════════════════╗\n"
         f"   🎬 <b>{anime['title']}</b>\n"
@@ -81,16 +78,12 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
         f"📢 Kanal @Aninovuz"
     )
 
-    # 5. Pleyer tugmalari (Pult) arxitekturasini quramiz
+    # 5. Pult (Tugmalar)
     buttons = []
-    
-    # Paginatsiya uchun epizodlarni bo'laklaymiz
     start_idx = (current_page - 1) * EPISODES_PER_PAGE
     end_idx = start_idx + EPISODES_PER_PAGE
     page_episodes = episodes[start_idx:end_idx]
     
-    # Qismlar tugmalarini 4 tadan qatorga joylash mantig'i
-
     row = []
     for ep in page_episodes:
         ep_num = ep["episode"]
@@ -108,7 +101,6 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
     if row:
         buttons.append(row)
 
-    # Navigatsiya (Oldingi sahifa | Keyingi sahifa) tugmalari
     nav_row = []
     total_pages = (len(episodes) + EPISODES_PER_PAGE - 1) // EPISODES_PER_PAGE
     
@@ -119,56 +111,43 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
     if nav_row:
         buttons.append(nav_row)
 
-    # 🔥 VIP va Adminlar uchun maxsus funksiyalar (Endi oddiy foydalanuvchiga umuman ko'rinmaydi!)
     if is_vip_or_admin:
         buttons.append([InlineKeyboardButton(text="📥 Barcha qismlarni yuklab olish (VIP)", callback_data=f"download_all_vip:{anime_id}")])
     
-    # Orqaga qaytish tugmasi
     buttons.append([InlineKeyboardButton(text="⬅️ Anime kartasiga qaytish", callback_data=f"user_g_view_{anime_id}", style="danger")])
     
     player_kb = InlineKeyboardMarkup(inline_keyboard=buttons)
 
-    # 6. SILLIQ EDIT MEDIA MANTIQI (NETFLIX EFFECT)
-    # 🌟 file_id_or_bytes kalit so'zi to'g'rilandi, endi Pydantic xato bermaydi!
-    fake_thumbnail = BufferedInputFile(
-        ANINOV_PLAYER_BRAND_THUMBNAIL.encode('utf-8'),
-        filename="brand_thumb.jpg"
-    )
-
+    # 6. SILLIQ EDIT YOKI O'CHIRIB YUBORISH MANTIQI
     media_player = InputMediaVideo(
         media=video_file_id,
-        thumbnail=fake_thumbnail,  
         caption=caption,
         parse_mode="HTML"
     )
 
     try:
-        # Joyida silliq almashtirish
+        # Avval silliq edit qilib ko'ramiz (Agarda oldingi xabar ham Video bo'lsa, masalan 1-qismdan 2-qismga o'tganda!)
         await callback.message.edit_media(
             media=media_player,
             reply_markup=player_kb
         )
-        
-    except TelegramBadRequest as e:
-        error_msg = str(e).lower()
-        if "message is not modified" in error_msg:
+    except TelegramBadRequest:
+        # Agarda oldingi xabar Photo (Karta) bo'lsa yoki edit qilishni iloji bo'lmasa:
+        # Oldingi xabarni o'chiramiz va Yangi Video yuboramiz!
+        try:
+            await callback.message.delete()
+        except Exception:
             pass
-        elif "message to edit not found" in error_msg or "cannot edit" in error_msg:
-            try:
-                await callback.message.delete()
-            except:
-                pass
-            await callback.message.answer_video(
-                video=video_file_id,
-                thumbnail=ANINOV_PLAYER_BRAND_THUMBNAIL, 
-                caption=caption,
-                reply_markup=player_kb,
-                parse_mode="HTML",
-                protect_content=not is_vip_or_admin  
-            )
-        else:
-            logger.error(f"❌ Pleyer tahrirlanishida kutilmagan xato: {e}")
-
+            
+        await callback.message.answer_video(
+            video=video_file_id,
+            caption=caption,
+            reply_markup=player_kb,
+            parse_mode="HTML",
+            protect_content=not is_vip_or_admin
+        )
+    except Exception as e:
+        logger.error(f"❌ Pleyer tahrirlanishida kutilmagan xato: {e}")
 
 
 
