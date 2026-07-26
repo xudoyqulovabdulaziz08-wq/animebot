@@ -68,7 +68,7 @@ async def get_user_genres_search_markup(
         
     # Boshqaruv tugmalari (Siz aytgan O'zgarishlar)
     keyboard.append([
-        InlineKeyboardButton(text="🔍 Tanlanganlar bo'yicha qidirish", callback_data="user_g_search", style="success")
+        InlineKeyboardButton(text="🔍 Qidirish", callback_data="user_g_search", style="success")
     ])
     keyboard.append([
         InlineKeyboardButton(text="⬅️ Qidiruv menyusi", callback_data="search_menu", style="danger")
@@ -86,12 +86,12 @@ async def search_by_genre(callback: CallbackQuery, state: FSMContext):
     # Har safar kirganda tanlangan janrlar keshini tozalab yuboramiz
     await state.update_data(selected_genres=[])
     
-    search_image_file_id = "AgACAgIAAxkBAAI8pmo2wwmGj_SoELEjURiyUyabzhwoAAI5GWsbZ6WxSUf3FNSMy6ajAQADAgADdwADPAQ"
+    
     
     text = (
-        "╔═════════ 🔍 ═════════╗\n"
+        
         "   <b>JANR BO'YICHA QIDIRISH</b>\n"
-        "╚═════════ 🔍 ═════════╝\n\n"
+        
         "🎭 Janrlar bo'yicha qidirish tizimiga xush kelibsiz!\n"
         "Siz bir vaqtning o'zida bir nechta janrni belgilab qidirishingiz mumkin.\n\n"
         "🚀 Janrlar ro'yxatini ochish uchun quyidagi tugmani bosing:"
@@ -99,18 +99,15 @@ async def search_by_genre(callback: CallbackQuery, state: FSMContext):
     
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🚀 Qidiruvni boshlash", callback_data="user_g_page:1", style="success")],
+            [InlineKeyboardButton(text="🔍 Boshlash", callback_data="user_g_page:1", style="success")],
             [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="search_menu", style="danger")]
         ]
     )
     
     try:
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=search_image_file_id,
-                caption=text,
-                parse_mode="HTML"
-            ),
+        await callback.message.edit_caption(
+            caption=text,
+            parse_mode="HTML",
             reply_markup=kb
         )
     except Exception as e:

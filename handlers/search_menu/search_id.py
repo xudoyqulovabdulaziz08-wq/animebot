@@ -26,12 +26,12 @@ class SearchStates(StatesGroup):
 async def search_by_id(callback: CallbackQuery, state: FSMContext): # state qo'shildi
     await callback.answer()
     
-    search_image_file_id = "AgACAgIAAxkBAAI8pmo2wwmGj_SoELEjURiyUyabzhwoAAI5GWsbZ6WxSUf3FNSMy6ajAQADAgADdwADPAQ"
+    
     
     text = (
-        "╔═════════ 🔍 ═════════╗\n"
+   
         "   <b>ID BO'YICHA QIDIRISH</b>\n"
-        "╚═════════ 🔍 ═════════╝\n\n"
+        "═════════════════\n"
         "🔢 Iltimos, qidirayotgan anime ID sini yozib yuboring.\n\n"
         "⚠️ <b>Eslatma:</b> ID raqamlardan iborat bo'lib, har bir anime uchun yagona bo'ladi!"
     )
@@ -43,12 +43,9 @@ async def search_by_id(callback: CallbackQuery, state: FSMContext): # state qo's
     )
     
     try:
-        await callback.message.edit_media(
-            media=InputMediaPhoto(
-                media=search_image_file_id,
-                caption=text,
-                parse_mode="HTML"
-            ),
+        await callback.message.edit_caption(
+            caption=text,
+            parse_mode="HTML",
             reply_markup=kb
         )
     except TelegramBadRequest as e:
