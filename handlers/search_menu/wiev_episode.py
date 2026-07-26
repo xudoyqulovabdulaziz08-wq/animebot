@@ -4,6 +4,7 @@ from typing import Any
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaVideo, BufferedInputFile
 from aiogram.exceptions import TelegramBadRequest
+from handlers.search_menu.anime_card import send_anime_card
 
 from services.anime_service import AnimeService
 from services.user_service import UserService
@@ -284,3 +285,37 @@ async def process_noop_callback(callback: CallbackQuery):
         show_alert=True
     )
 
+
+
+
+@router.callback_query(F.data.startswith("back_to_card:"))
+async def process_back_to_anime_card(callback: CallbackQuery, session: Any):
+    # 1. Telegram'ning soat aylanib turgan yuklanish holatini yopamiz
+    await callback.answer()
+
+    # 2. Callback'dan anime_id ni ajratib olamiz
+    try:
+        anime_id = int(callback.data.split(":")[1])
+    except (IndexError, ValueError) as e:
+        logger.error(f"❌ Callback ma'lumotini o'qishda xato: {e}")
+        return
+
+    # 3. Bazadan anime ma'lumotlarini olamiz
+    anime_service = AnimeService(session=session)
+    anime = await anime_service.get_anime(anime_id)
+
+    if not anime:
+        await callback.message.answer("❌ Kechirasiz, anime ma'lumotlari topilmadi.")
+        return
+
+    # 4. Pleyer (video) xabarini o'chiramiz
+    try:
+        await callback.message.delete()
+    except Exception as e:
+        logger.debug(f"Video xabarini o'chirishda xatolik: {e}")
+
+    # 5. 🔥 Aynan siz ko'rsatgan send_anime_card funksiyasini chaqiramiz:
+    # callback.message - Message obyekti
+    # anime - dict
+    # session - DB Session
+    await send_anime_card(callback.message, anime, session)
