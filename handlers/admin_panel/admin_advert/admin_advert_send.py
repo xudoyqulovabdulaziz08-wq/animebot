@@ -81,7 +81,9 @@ async def process_select_advert_target(callback: CallbackQuery, state: FSMContex
     await callback.message.edit_text(
         text=f"🎯 Target guruh: <b>{title}</b>\n\n"
              f"📥 <b>Iltimos, reklama postini yuboring:</b>\n"
-             f"<i>(Matn, rasm, video yoki fayl bo'lishi mumkin. Formatingizda &lt;a href='...'\n&gt;matn&lt;/a&gt; shaklida HTML ishlatishingiz mumkin)</i>",
+             f"<b>Eslatma:</b> Quyidagi kodni nusxalashingiz mumkin:\n"
+             f"<code>&lt;a href='https://t.me/Aninovuz'&gt;matn&lt;/a&gt;</code>\n"
+             f"<i>(Matn, rasm, video yoki fayl bo'lishi mumkin.)</i>",
         reply_markup=cancel_kb,
         parse_mode="HTML"
     )
@@ -295,32 +297,66 @@ async def process_final_advert_decision(callback: CallbackQuery, state: FSMConte
 
 
 async def run_advert_broadcast(bot, user_ids, target_group, from_chat_id, ad_message_id, main_msg_id, state, reply_markup=None):
-    """Orqa fonda xabarlarni tarqatadi"""
+    """Orqa fonda xabarlarni tarqatadi (HTML teglarni avtomatik qo'llaydi)"""
     success_count = 0
     fail_count = 0
+
+    # 1. Admin yuborgan asl xabarni olamiz
+    try:
+        # Xabarni nusxalamasdan, uning obyektini olamiz (forward yoki do'stona usulda)
+        # Aiogram 3 da xabar obyektini parse qilish uchun
+        source_message = await bot.forward_message(chat_id=from_chat_id, from_chat_id=from_chat_id, message_id=ad_message_id)
+        await bot.delete_message(chat_id=from_chat_id, message_id=source_message.message_id)
+    except Exception:
+        source_message = None
 
     for uid in user_ids:
         for attempt in range(2):
             try:
-                # 💡 reply_markup orqali admin yasagan chiroyli rangli tugmalar uzatiladi!
-                await bot.copy_message(
-                    chat_id=uid, 
-                    from_chat_id=from_chat_id, 
-                    message_id=ad_message_id,
-                    reply_markup=reply_markup
-                )
+                # Agar xabar faqat MATN bo'lsa va unda HTML teglar bo'lsa:
+                if source_message and source_message.text:
+                    await bot.send_message(
+                        chat_id=uid,
+                        text=source_message.text,
+                        parse_mode="HTML",
+                        reply_markup=reply_markup,
+                        disable_web_page_preview=True
+                    )
+                # Agar RASM, VIDEO yoki FAYL bo'lsa:
+                elif source_message and source_message.caption:
+                    await bot.copy_message(
+                        chat_id=uid,
+                        from_chat_id=from_chat_id,
+                        message_id=ad_message_id,
+                        parse_mode="HTML",
+                        reply_markup=reply_markup
+                    )
+                # Boshqa barcha standart holatlar uchun:
+                else:
+                    await bot.copy_message(
+                        chat_id=uid,
+                        from_chat_id=from_chat_id,
+                        message_id=ad_message_id,
+                        reply_markup=reply_markup
+                    )
+
                 success_count += 1
                 break
+
             except TelegramRetryAfter as flood_err:
                 await asyncio.sleep(flood_err.retry_after)
                 continue
-            except Exception as e:
+            except Exception:
                 fail_count += 1
                 break
+
         await asyncio.sleep(0.05)
 
-    try: await bot.delete_message(chat_id=from_chat_id, message_id=ad_message_id)
-    except Exception: pass
+    # Admin xabarini tozalash va hisobot berish
+    try:
+        await bot.delete_message(chat_id=from_chat_id, message_id=ad_message_id)
+    except Exception:
+        pass
 
     await state.clear()
 
@@ -329,7 +365,7 @@ async def run_advert_broadcast(bot, user_ids, target_group, from_chat_id, ad_mes
         f"📊 <b>Reklama tarqatish yakunlandi!</b>\n\n"
         f"🎯 Target guruh: <code>{target_group.upper()}</code>\n"
         f"✅ Muvaffaqiyatli yetkazildi: <code>{success_count} ta</code>\n"
-        f"❌ Yetkazilmadi (Botni bloklaganlar): <code>{fail_count} ta</code>"
+        f"❌ Yetkazilmadi: <code>{fail_count} ta</code>"
     )
 
     try:
