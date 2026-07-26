@@ -215,10 +215,8 @@ class UserService:
         if hasattr(self.session, "_ensure_session"):
             await self.session._ensure_session()
 
-        # 🔥 TO'G'RI VARIANT: UserRepository metodidan foydalanamiz
-        from repositories.user_repository import UserRepository
-        stats = await UserRepository.get_admin_stats(self.session)
-        
+        stats = await self.repo.get_admin_stats(self.session)
+
         # 5 daqiqaga keshga yozib qo'yamiz
         await self.cache.set("admin", "stats", stats, ttl=300)
         return stats
@@ -439,3 +437,17 @@ class UserService:
         # lekin semantik jihatdan qayta tiklash (reset) uchun alohida xizmat qiladi.
         logger.warning(f"🔒 Security trigger: Resetting auth code for user {user_id}...")
         return await self.generate_web_auth_code(user_id)
+    
+    
+    # user_service.py ga qo'shiladi
+    async def get_activity_stats(self) -> Dict[str, int]:
+        cached = await self.cache.get("stats", "activity")
+        if cached:
+            return cached
+
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        stats = await self.repo.get_activity_stats(self.session)
+        await self.cache.set("stats", "activity", stats, ttl=300)  # 5 daqiqa kesh
+        return stats

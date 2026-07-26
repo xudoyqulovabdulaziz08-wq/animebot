@@ -180,7 +180,7 @@ class UserRepository:
     # ================= GET ADMIN STATS =================
     @staticmethod
     async def get_admin_stats(session: Any) -> Dict[str, int]:
-        from sqlalchemy import func
+        from sqlalchemy import func, text
         # Aylanma importni oldini olish uchun qolgan modellarni shu yerda chaqiramiz
         from database.models import Anime, Episode, Channel
 
@@ -206,12 +206,25 @@ class UserRepository:
         active_channels_stmt = select(func.count(Channel.id)).where(Channel.is_active == True)
         active_channels = await session.scalar(active_channels_stmt) or 0
 
+        # 6. Faollik statistikasi (DAU / WAU / MAU) — last_active_at asosida, bitta so'rovda
+        activity_stmt = text("""
+            SELECT
+                COUNT(*) FILTER (WHERE last_active_at >= now() - interval '1 day')   AS dau,
+                COUNT(*) FILTER (WHERE last_active_at >= now() - interval '7 days')  AS wau,
+                COUNT(*) FILTER (WHERE last_active_at >= now() - interval '30 days') AS mau
+            FROM users
+        """)
+        activity_row = (await session.execute(activity_stmt)).fetchone()
+
         return {
             "total_users": total_users,
             "vip_users": vip_users,
             "total_anime": total_anime,
             "total_episodes": total_episodes,
-            "active_channels": active_channels
+            "active_channels": active_channels,
+            "daily_active": activity_row.dau or 0,
+            "weekly_active": activity_row.wau or 0,
+            "monthly_active": activity_row.mau or 0,
         }
     
     # ================= SET ADMIN STATUS =================
@@ -285,3 +298,7 @@ class UserRepository:
         """
         # generate_auth_code bilan bir xil mantiqda ishlaydi, eski kod ustidan yangisini yozadi
         return await UserRepository.generate_auth_code(session, user_id)
+
+
+        # user_repository.py ga qo'shiladigan metod
+    

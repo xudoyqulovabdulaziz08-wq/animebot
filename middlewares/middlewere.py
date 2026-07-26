@@ -143,6 +143,7 @@ class DbSessionMiddleware(BaseMiddleware):
                     await state.user_l1_cache.set(user_id, cached_l1)
 
                 data["user"] = cached_l1
+                asyncio.create_task(self._touch_last_active(user_id))
                 return await handler(event, data)
 
             # ======================================================
@@ -176,7 +177,7 @@ class DbSessionMiddleware(BaseMiddleware):
                 # Kelajakdagi tezkor so'rovlar uchun L1 ga yozamiz
                 # ✅ TO'G'RI: Standart OrderedDict uslubida ma'lumot yozish (await-siz)
                 await state.user_l1_cache.set(user_id, user_data)
-                
+                asyncio.create_task(self._touch_last_active(user_id))
                 data["user"] = copy.deepcopy(user_data)
                 
                 # Handler ishga tushadi
@@ -225,6 +226,25 @@ class DbSessionMiddleware(BaseMiddleware):
                 logger.info("🎉 DB connection is healthy. Circuit CLOSED.")
                 state.db_fail_count = 0
                 state.db_status = True
+
+    async def _touch_last_active(self, user_id: int):
+        from database.cache import valkey
+        from sqlalchemy import text
+        try:
+            if not valkey.redis:
+                return
+            was_new = await valkey.redis.set(f"active:{user_id}", "1", nx=True, ex=600)
+            if not was_new:
+                return  # oxirgi 10 daqiqada allaqachon yozilgan
+
+            async with self.session_pool() as s:
+                await s.execute(
+                    text("UPDATE users SET last_active_at = now() WHERE user_id = :uid"),
+                    {"uid": user_id}
+                )
+                await s.commit()
+        except Exception as e:
+            logger.debug(f"last_active touch error: {e}")
 
     async def _handle_db_failure(self, e):
         async with state.db_lock:

@@ -109,6 +109,13 @@ class DBUser(Base):
         nullable=False,
         index=True
     )
+    last_active_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        index=True
+    )
+    
 
     points: Mapped[int] = mapped_column(
         Integer,
