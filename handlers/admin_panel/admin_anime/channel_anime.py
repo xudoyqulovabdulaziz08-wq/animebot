@@ -4,40 +4,119 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from aiogram.exceptions import TelegramBadRequest
 import logging
 
+from services.orchestrator import state
+
 logger = logging.getLogger("PublishAnime")
 router = Router()
 
-# =========================================================================
-# 📢 E'LONLAR CHIQADIGAN KANALLAR RO'YXATI (Shu yerga xohlagancha kanal qo'shing)
-# =========================================================================
-PUBLISH_ANIME_CHANNELS = [
-    "@Aninovuz",      # Username orqali (kanal ommaviy bo'lsa)
-    # -1002154878546,             # Yoki ID raqami orqali (eng xavfsiz yo'li)
-]
+if not hasattr(state, "pending_publish_selections"):
+    state.pending_publish_selections = {}  # {(user_id, anime_id): set(channel_pk_ids)}
 
+
+def _build_channel_selection_kb(anime_id: int, channels: list, selected_ids: set) -> InlineKeyboardMarkup:
+    rows = []
+    for ch in channels:
+        mark = "✅" if ch["id"] in selected_ids else "▫️"
+        rows.append([InlineKeyboardButton(
+            text=f"{mark} {ch['title']}",
+            callback_data=f"pub_toggle:{anime_id}:{ch['id']}"
+        )])
+
+    rows.append([
+        InlineKeyboardButton(text=f"🚀 Yuborish ({len(selected_ids)})", callback_data=f"pub_confirm:{anime_id}", style="success"),
+        InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data="admin_panel", style="danger"),
+    ])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+# =========================================================================
+# 1️⃣ KANAL TANLASH MENYUSINI OCHISH
+# =========================================================================
 @router.callback_query(F.data.startswith("publish_episodes_chan:"))
-async def publish_anime_to_channels_handler(callback: CallbackQuery, session: Any, bot: Bot):
-    # Admin paneli qotib qolmasligi uchun darhol javob beramiz
-    await callback.answer("📢 Kanalga e'lon qilinmoqda...", show_alert=False)
-    
+async def show_channel_selection_handler(callback: CallbackQuery, session: Any):
+    await callback.answer()
     _, anime_id_str = callback.data.split(":")
     anime_id = int(anime_id_str)
 
+    from services.channel_service import ChannelService
+    channel_service = ChannelService(session=session)
+    channels = await channel_service.get_active_channels()
+
+    if not channels:
+        await callback.answer("❌ Bazada faol kanal topilmadi!", show_alert=True)
+        return
+
+    key = (callback.from_user.id, anime_id)
+    state.pending_publish_selections[key] = set()  # har safar yangidan boshlaymiz
+
+    await callback.message.edit_text(
+        text="📢 <b>Qaysi kanal(lar)ga e'lon qilmoqchisiz?</b>\n\nKerakli kanallarni belgilang:",
+        reply_markup=_build_channel_selection_kb(anime_id, channels, set()),
+        parse_mode="HTML"
+    )
+
+
+# =========================================================================
+# 2️⃣ KANALNI BELGILASH / OLIB TASHLASH (TOGGLE)
+# =========================================================================
+@router.callback_query(F.data.startswith("pub_toggle:"))
+async def toggle_channel_selection_handler(callback: CallbackQuery, session: Any):
+    await callback.answer()
+    _, anime_id_str, channel_pk_str = callback.data.split(":")
+    anime_id, channel_pk = int(anime_id_str), int(channel_pk_str)
+
+    key = (callback.from_user.id, anime_id)
+    selected = state.pending_publish_selections.setdefault(key, set())
+
+    if channel_pk in selected:
+        selected.discard(channel_pk)
+    else:
+        selected.add(channel_pk)
+
+    from services.channel_service import ChannelService
+    channel_service = ChannelService(session=session)
+    channels = await channel_service.get_active_channels()
+
+    await callback.message.edit_reply_markup(
+        reply_markup=_build_channel_selection_kb(anime_id, channels, selected)
+    )
+
+
+# =========================================================================
+# 3️⃣ TANLANGAN KANALLARGA TASDIQLASH VA YUBORISH
+# =========================================================================
+@router.callback_query(F.data.startswith("pub_confirm:"))
+async def publish_anime_to_channels_handler(callback: CallbackQuery, session: Any, bot: Bot):
+    _, anime_id_str = callback.data.split(":")
+    anime_id = int(anime_id_str)
+
+    key = (callback.from_user.id, anime_id)
+    selected_ids = state.pending_publish_selections.get(key, set())
+
+    if not selected_ids:
+        await callback.answer("⚠️ Kamida bitta kanal tanlang!", show_alert=True)
+        return
+
+    await callback.answer("📢 Kanallarga e'lon qilinmoqda...", show_alert=False)
+
+    from services.channel_service import ChannelService
+    channel_service = ChannelService(session=session)
+    all_channels = await channel_service.get_active_channels()
+    target_channels = [ch for ch in all_channels if ch["id"] in selected_ids]
+
     from services.anime_service import AnimeService
     service = AnimeService(session=session)
-    
-    # 1. Animeni kesh yoki bazadan yuklash
+
     try:
         anime = await service.get_anime(anime_id)
     except Exception as e:
         logger.error(f"❌ Anime yuklashda xato: {e}")
         anime = None
-        
+
     if not anime:
         await callback.answer("❌ Anime topilmadi!", show_alert=True)
         return
 
-    # 2. Ma'lumotlarni xavfsiz o'qish
     title = anime.get("title", "Nomsiz anime")
     anime_id_val = anime.get("anime_id", anime_id)
     year = anime.get("year", "—")
@@ -45,8 +124,7 @@ async def publish_anime_to_channels_handler(callback: CallbackQuery, session: An
     episodes_count = len(anime.get("episodes", []))
     languages = anime.get("languages", [])
     languages_str = ", ".join(languages) if languages else "Mavjud emas"
-    
-    # 3. Janrlarni avtomatik bazadan tortib chizish
+
     genres_str = "Mavjud emas"
     try:
         genre_ids = anime.get("genres", [])
@@ -73,65 +151,60 @@ async def publish_anime_to_channels_handler(callback: CallbackQuery, session: An
     except Exception as e:
         logger.error(f"❌ Dubberlarni yuklashda xato: {e}")
 
-    # 4. Daxshat ramkali professional UX dizayn (Kanal uchun)
     channel_caption = (
-        
         f"     🎬 <b>{title}</b>\n\n"
         f"📌 <b>Anime haqida ma'lumot:</b>\n"
         f"╔══════════════════╗\n"
-        f"├ 🆔 Kod: <code>#{anime_id_val}</code>\n"  
+        f"├ 🆔 Kod: <code>#{anime_id_val}</code>\n"
         f"├ 📅 Yil: <b>{year}</b>\n"
         f"├ ▶️ Qism: <b>{episodes_count}-qism yuklandi</b> \n"
         f"├ 🌐 Til: <b>{languages_str}</b>\n"
         f"├ 🎙 Dubber: <b>{dubbers_str}</b>\n"
         f"╚══════════════════╝\n"
         f"  🔮 Janrlar: <i>{genres_str}</i>\n\n"
-        
         f"📝 <b>Tavsif:</b>\n"
         f"<blockquote expandable>{description}</blockquote>\n\n"
         f"🔥 <i>Barcha qismlarni tomosha qilish uchun quyidagi tugmani bosing:</i>"
     )
 
-    # 5. Kanal postining tagida turadigan "🎬 Animeni ko'rish" inline tugmasi
     bot_properties = await bot.get_me()
     bot_username = bot_properties.username
-    
+
     channel_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="🎬 Animeni ko'rish",
+            url=f"https://t.me/{bot_username}?start=anime_{anime_id_val}",
+            style="primary"
+        )],
         [
-            InlineKeyboardButton(
-                text="🎬 Animeni ko‘rish", 
-                # TO'G'RILANDI: Oxiridagi ortiqcha vergul olib tashlandi
-                url=f"https://t.me/{bot_username}?start=anime_{anime_id_val}", style="primary"
-            )
+            InlineKeyboardButton(text="🌐 Sayt", url=f"https://aninov.uz", style="primary")
         ]
     ])
 
-    # 6. Kod ichida ko'rsatilgan statik kanallarga xabarni tarqatamiz
     poster_id = anime.get("poster_id")
     success_count = 0
 
-    for channel_chat_id in PUBLISH_ANIME_CHANNELS:
+    for ch in target_channels:
+        channel_chat_id = ch["channel_id"]  # 👈 haqiqiy Telegram chat_id, ch["id"] emas!
         try:
             if poster_id:
                 try:
-                    # Rasm sifatida kanalga jo'natish
                     await bot.send_photo(chat_id=channel_chat_id, photo=poster_id, caption=channel_caption, reply_markup=channel_kb, parse_mode="HTML")
                 except TelegramBadRequest:
                     try:
-                        # Video sifatida kanalga jo'natish
                         await bot.send_video(chat_id=channel_chat_id, video=poster_id, caption=channel_caption, reply_markup=channel_kb, parse_mode="HTML")
                     except TelegramBadRequest:
-                        # Matn sifatida kanalga jo'natish
                         await bot.send_message(chat_id=channel_chat_id, text=f"⚠️ (Media xatoligi)\n\n{channel_caption}", reply_markup=channel_kb, parse_mode="HTML")
             else:
                 await bot.send_message(chat_id=channel_chat_id, text=channel_caption, reply_markup=channel_kb, parse_mode="HTML")
-            
+
             success_count += 1
         except Exception as channel_error:
             logger.error(f"❌ {channel_chat_id} kanaliga e'lon joylashda xatolik: {channel_error}")
 
-    # 7. Yakuniy natija haqida adminga bildirishnoma berish
+    state.pending_publish_selections.pop(key, None)  # tozalash
+
     if success_count > 0:
-        await callback.answer(f"🚀 Anime muvaffaqiyatli {success_count} ta kanalga e‘lon qilindi!", show_alert=True)
+        await callback.message.edit_text(f"🚀 Anime muvaffaqiyatli {success_count} ta kanalga e'lon qilindi!")
     else:
-        await callback.answer("❌ E‘lon qilishda xatolik! Bot kanalda admin ekanligini va username to'g'riligini tekshiring.", show_alert=True)
+        await callback.message.edit_text("❌ E'lon qilishda xatolik! Bot kanalda admin ekanligini tekshiring.")
