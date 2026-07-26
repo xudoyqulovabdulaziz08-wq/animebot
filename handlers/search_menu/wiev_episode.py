@@ -16,6 +16,7 @@ router = Router()
 EPISODES_PER_PAGE = 12
 
 
+
 @router.callback_query(F.data.startswith("show_episodes_user:") | F.data.startswith("play_ep_page:"))
 async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
     await callback.answer()
@@ -65,30 +66,36 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
     
     video_file_id = current_episode.get("file_id") or current_episode.get("video_file_id")
 
+    if not video_file_id:
+        await callback.answer("⚠️ Ushbu qismning video fayli topilmadi!", show_alert=True)
+        return
+
     # 4. Caption
     caption = (
-        f"╔════════════════════╗\n"
+        f"╔══════════════════════╗\n"
         f"   🎬 <b>{anime['title']}</b>\n"
-        f"╚════════════════════╝\n\n"
+        f"╚══════════════════════╝\n\n"
         f"📌 <b>Joriy tomosha:</b>\n"
-        f"╔════════════════════╗\n"
+        f"╔══════════════════════╗\n"
         f"├ 📹 Qism: <b>{current_ep_num}-qism</b>\n"
         f"├ 🌐 Platforma: <a href='https://t.me/Aninovuz_Bot'>Aninovuz</a>\n"
-        f"╚════════════════════╝\n\n"
+        f"╚══════════════════════╝\n\n"
         f"📢 Kanal @Aninovuz"
     )
 
-    # 5. Pult (Tugmalar)
+    # 5. Pult (Tugmalar UX Premium)
     buttons = []
     start_idx = (current_page - 1) * EPISODES_PER_PAGE
     end_idx = start_idx + EPISODES_PER_PAGE
     page_episodes = episodes[start_idx:end_idx]
     
+    # Qismlar tugmalari (4 tadan)
     row = []
     for ep in page_episodes:
         ep_num = ep["episode"]
         if ep_num == current_ep_num:
-            row.append(InlineKeyboardButton(text=f"[ {ep_num} ]", callback_data="noop", style="success"))
+            # ✨ UX yaxshilandi: [ 1 ] o'rniga ▶️ 1 qo'yildi
+            row.append(InlineKeyboardButton(text=f"▶️ {ep_num}", callback_data="noop", style="success"))
         else:
             row.append(InlineKeyboardButton(
                 text=str(ep_num), 
@@ -101,24 +108,40 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
     if row:
         buttons.append(row)
 
-    nav_row = []
+    # 🌟 PROFESSIONAL PAGINATION (Har doim o'zgarmas tartibda)
     total_pages = (len(episodes) + EPISODES_PER_PAGE - 1) // EPISODES_PER_PAGE
     
-    if current_page > 1:
-        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi sahifa", callback_data=f"play_ep_page:{anime_id}:{current_ep_num}:{current_page - 1}"))
-    if current_page < total_pages:
-        nav_row.append(InlineKeyboardButton(text="Keyingi sahifa ➡️", callback_data=f"play_ep_page:{anime_id}:{current_ep_num}:{current_page + 1}"))
-    if nav_row:
+    # Agar sahifalar 1 tadan ko'p bo'lsa, navigatsiyani chiroyli 1 qator qilib joylaymiz
+    if total_pages > 1:
+        nav_row = []
+        
+        # ⬅️ Chap tugma (Oldingi sahifa bo'lsa ishlaydi, bo'lmasa ko'rinmas bo'sh tugma)
+        if current_page > 1:
+            nav_row.append(InlineKeyboardButton(text="⬅️", callback_data=f"play_ep_page:{anime_id}:{current_ep_num}:{current_page - 1}"))
+        else:
+            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noop"))
+
+        # 📄 O'rta tugma (Har doim turadi va nechanchi sahifaligini ko'rsatadi: masalan 1/5)
+        nav_row.append(InlineKeyboardButton(text=f"📄 {current_page}/{total_pages}", callback_data="noop"))
+
+        # ➡️ O'ng tugma (Keyingi sahifa bo'lsa ishlaydi)
+        if current_page < total_pages:
+            nav_row.append(InlineKeyboardButton(text="➡️", callback_data=f"play_ep_page:{anime_id}:{current_ep_num}:{current_page + 1}"))
+        else:
+            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noop"))
+
         buttons.append(nav_row)
 
+    # VIP funksiya
     if is_vip_or_admin:
         buttons.append([InlineKeyboardButton(text="📥 Barcha qismlarni yuklab olish (VIP)", callback_data=f"download_all_vip:{anime_id}")])
     
+    # Orqaga qaytish
     buttons.append([InlineKeyboardButton(text="⬅️ Anime kartasiga qaytish", callback_data=f"user_g_view_{anime_id}", style="danger")])
     
     player_kb = InlineKeyboardMarkup(inline_keyboard=buttons)
 
-    # 6. SILLIQ EDIT YOKI O'CHIRIB YUBORISH MANTIQI
+    # 6. EDIT YOKI O'CHIRIB YUBORISH
     media_player = InputMediaVideo(
         media=video_file_id,
         caption=caption,
@@ -126,31 +149,29 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
     )
 
     try:
-        # Avval silliq edit qilib ko'ramiz (Agarda oldingi xabar ham Video bo'lsa, masalan 1-qismdan 2-qismga o'tganda!)
         await callback.message.edit_media(
             media=media_player,
             reply_markup=player_kb
         )
-    except TelegramBadRequest:
-        # Agarda oldingi xabar Photo (Karta) bo'lsa yoki edit qilishni iloji bo'lmasa:
-        # Oldingi xabarni o'chiramiz va Yangi Video yuboramiz!
-        try:
-            await callback.message.delete()
-        except Exception:
+    except TelegramBadRequest as e:
+        error_msg = str(e).lower()
+        if "message is not modified" in error_msg:
             pass
-            
-        await callback.message.answer_video(
-            video=video_file_id,
-            caption=caption,
-            reply_markup=player_kb,
-            parse_mode="HTML",
-            protect_content=not is_vip_or_admin
-        )
+        else:
+            try:
+                await callback.message.delete()
+            except Exception:
+                pass
+                
+            await callback.message.answer_video(
+                video=video_file_id,
+                caption=caption,
+                reply_markup=player_kb,
+                parse_mode="HTML",
+                protect_content=not is_vip_or_admin
+            )
     except Exception as e:
         logger.error(f"❌ Pleyer tahrirlanishida kutilmagan xato: {e}")
-
-
-
 
 
 
