@@ -246,7 +246,7 @@ async def process_user_genre_search_submit(callback: CallbackQuery, state: FSMCo
     if not found_animes:
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔁 Qayta urinish", callback_data="search_by_genre", style="success")],
-            [InlineKeyboardButton(text="⬅️ Bosh menyu", callback_data="search_menu", style="danger")]
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="search_menu", style="danger")]
         ])
         await callback.message.answer(
             text="🔍 Tanlangan janrlar kombinatsiyasi bo'yicha hech qanday anime topilmadi.",
@@ -262,7 +262,7 @@ async def process_user_genre_search_submit(callback: CallbackQuery, state: FSMCo
             callback_data=f"user_g_view_{anime['anime_id']}" # Maxsus callback
         )])
         
-    buttons.append([InlineKeyboardButton(text="⬅️ Qidiruv menyusi", callback_data="search_menu", style="danger")])
+    buttons.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data="search_menu", style="danger")])
     kb = InlineKeyboardMarkup(inline_keyboard=buttons)
     
     await callback.message.answer(
