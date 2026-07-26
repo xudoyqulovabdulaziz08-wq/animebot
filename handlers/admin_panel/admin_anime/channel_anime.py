@@ -13,17 +13,18 @@ if not hasattr(state, "pending_publish_selections"):
     state.pending_publish_selections = {}  # {(user_id, anime_id): set(channel_pk_ids)}
 
 
-def _build_channel_selection_kb(anime_id: int, channels: list, selected_ids: set) -> InlineKeyboardMarkup:
+
+def _build_channel_selection_kb(anime_id: int, page: int, channels: list, selected_ids: set) -> InlineKeyboardMarkup:
     rows = []
     for ch in channels:
         mark = "✅" if ch["id"] in selected_ids else "▫️"
         rows.append([InlineKeyboardButton(
             text=f"{mark} {ch['title']}",
-            callback_data=f"pub_toggle:{anime_id}:{ch['id']}"
+            callback_data=f"pub_toggle:{anime_id}:{page}:{ch['id']}"
         )])
 
     rows.append([
-        InlineKeyboardButton(text=f"🚀 Yuborish ({len(selected_ids)})", callback_data=f"pub_confirm:{anime_id}", style="success"),
+        InlineKeyboardButton(text=f"🚀 Yuborish ({len(selected_ids)})", callback_data=f"pub_confirm:{anime_id}:{page}", style="success"),
         InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data=f"v_anime:{anime_id}:{page}", style="danger"),
     ])
     return InlineKeyboardMarkup(inline_keyboard=rows)
@@ -35,11 +36,10 @@ def _build_channel_selection_kb(anime_id: int, channels: list, selected_ids: set
 @router.callback_query(F.data.startswith("publish_episodes_chan:"))
 async def show_channel_selection_handler(callback: CallbackQuery, session: Any):
     await callback.answer()
-    _, anime_id_str = callback.data.split(":")
-    anime_id = int(anime_id_str)
     parts = callback.data.split(":")
     anime_id = int(parts[1])
     page = int(parts[2]) if len(parts) > 2 else 1
+
     from services.channel_service import ChannelService
     channel_service = ChannelService(session=session)
     channels = await channel_service.get_active_channels()
@@ -49,23 +49,20 @@ async def show_channel_selection_handler(callback: CallbackQuery, session: Any):
         return
 
     key = (callback.from_user.id, anime_id)
-    state.pending_publish_selections[key] = set()  # har safar yangidan boshlaymiz
+    state.pending_publish_selections[key] = set()
 
     await callback.message.edit_text(
         text="📢 <b>Qaysi kanal(lar)ga e'lon qilmoqchisiz?</b>\n\nKerakli kanallarni belgilang:",
-        reply_markup=_build_channel_selection_kb(anime_id, channels, set()),
+        reply_markup=_build_channel_selection_kb(anime_id, page, channels, set()),
         parse_mode="HTML"
     )
 
 
-# =========================================================================
-# 2️⃣ KANALNI BELGILASH / OLIB TASHLASH (TOGGLE)
-# =========================================================================
 @router.callback_query(F.data.startswith("pub_toggle:"))
 async def toggle_channel_selection_handler(callback: CallbackQuery, session: Any):
     await callback.answer()
-    _, anime_id_str, channel_pk_str = callback.data.split(":")
-    anime_id, channel_pk = int(anime_id_str), int(channel_pk_str)
+    _, anime_id_str, page_str, channel_pk_str = callback.data.split(":")
+    anime_id, page, channel_pk = int(anime_id_str), int(page_str), int(channel_pk_str)
 
     key = (callback.from_user.id, anime_id)
     selected = state.pending_publish_selections.setdefault(key, set())
@@ -80,9 +77,15 @@ async def toggle_channel_selection_handler(callback: CallbackQuery, session: Any
     channels = await channel_service.get_active_channels()
 
     await callback.message.edit_reply_markup(
-        reply_markup=_build_channel_selection_kb(anime_id, channels, selected)
+        reply_markup=_build_channel_selection_kb(anime_id, page, channels, selected)
     )
 
+
+@router.callback_query(F.data.startswith("pub_confirm:"))
+async def publish_anime_to_channels_handler(callback: CallbackQuery, session: Any, bot: Bot):
+    _, anime_id_str, page_str = callback.data.split(":")
+    anime_id, page = int(anime_id_str), int(page_str)
+    ...
 
 # =========================================================================
 # 3️⃣ TANLANGAN KANALLARGA TASDIQLASH VA YUBORISH
