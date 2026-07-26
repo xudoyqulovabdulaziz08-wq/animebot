@@ -9,9 +9,16 @@ from services.orchestrator import state
 logger = logging.getLogger("PublishAnime")
 router = Router()
 
+# =========================================================================
+# 📌 CALLBACK DATA FORMATLARI (o'zgartirilganda barchasini yangilang!)
+# publish_episodes_chan:{anime_id}:{page}
+# pub_toggle:{anime_id}:{page}:{channel_pk}
+# pub_confirm:{anime_id}:{page}
+# v_anime:{anime_id}:{page}
+# =========================================================================
+
 if not hasattr(state, "pending_publish_selections"):
     state.pending_publish_selections = {}  # {(user_id, anime_id): set(channel_pk_ids)}
-
 
 
 def _build_channel_selection_kb(anime_id: int, page: int, channels: list, selected_ids: set) -> InlineKeyboardMarkup:
@@ -28,6 +35,30 @@ def _build_channel_selection_kb(anime_id: int, page: int, channels: list, select
         InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data=f"v_anime:{anime_id}:{page}", style="danger"),
     ])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def _safe_edit(message, text: str, reply_markup: InlineKeyboardMarkup):
+    """
+    Xabar matn ko'rinishida bo'lsa edit_text, rasm/video (caption) bo'lsa
+    edit_caption, ikkalasi ham ishlamasa delete+answer bilan yangi xabar yuboradi.
+    """
+    try:
+        await message.edit_text(text=text, reply_markup=reply_markup, parse_mode="HTML")
+        return
+    except TelegramBadRequest:
+        pass
+
+    try:
+        await message.edit_caption(caption=text, reply_markup=reply_markup, parse_mode="HTML")
+        return
+    except TelegramBadRequest:
+        pass
+
+    try:
+        await message.delete()
+    except Exception:
+        pass
+    await message.answer(text=text, reply_markup=reply_markup, parse_mode="HTML")
 
 
 # =========================================================================
@@ -49,15 +80,18 @@ async def show_channel_selection_handler(callback: CallbackQuery, session: Any):
         return
 
     key = (callback.from_user.id, anime_id)
-    state.pending_publish_selections[key] = set()
+    state.pending_publish_selections[key] = set()  # har safar yangidan boshlaymiz
 
-    await callback.message.edit_text(
-        text="📢 <b>Qaysi kanal(lar)ga e'lon qilmoqchisiz?</b>\n\nKerakli kanallarni belgilang:",
-        reply_markup=_build_channel_selection_kb(anime_id, page, channels, set()),
-        parse_mode="HTML"
+    await _safe_edit(
+        callback.message,
+        "📢 <b>Qaysi kanal(lar)ga e'lon qilmoqchisiz?</b>\n\nKerakli kanallarni belgilang:",
+        _build_channel_selection_kb(anime_id, page, channels, set())
     )
 
 
+# =========================================================================
+# 2️⃣ KANALNI BELGILASH / OLIB TASHLASH (TOGGLE)
+# =========================================================================
 @router.callback_query(F.data.startswith("pub_toggle:"))
 async def toggle_channel_selection_handler(callback: CallbackQuery, session: Any):
     await callback.answer()
@@ -76,16 +110,14 @@ async def toggle_channel_selection_handler(callback: CallbackQuery, session: Any
     channel_service = ChannelService(session=session)
     channels = await channel_service.get_active_channels()
 
-    await callback.message.edit_reply_markup(
-        reply_markup=_build_channel_selection_kb(anime_id, page, channels, selected)
-    )
+    try:
+        await callback.message.edit_reply_markup(
+            reply_markup=_build_channel_selection_kb(anime_id, page, channels, selected)
+        )
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e):
+            logger.error(f"❌ Toggle reply_markup yangilashda xato: {e}")
 
-
-@router.callback_query(F.data.startswith("pub_confirm:"))
-async def publish_anime_to_channels_handler(callback: CallbackQuery, session: Any, bot: Bot):
-    _, anime_id_str, page_str = callback.data.split(":")
-    anime_id, page = int(anime_id_str), int(page_str)
-    ...
 
 # =========================================================================
 # 3️⃣ TANLANGAN KANALLARGA TASDIQLASH VA YUBORISH
@@ -93,12 +125,10 @@ async def publish_anime_to_channels_handler(callback: CallbackQuery, session: An
 @router.callback_query(F.data.startswith("pub_confirm:"))
 async def publish_anime_to_channels_handler(callback: CallbackQuery, session: Any, bot: Bot):
     _, anime_id_str, page_str = callback.data.split(":")
-    anime_id = int(anime_id_str)
-    page = int(page_str)
+    anime_id, page = int(anime_id_str), int(page_str)
 
     key = (callback.from_user.id, anime_id)
     selected_ids = state.pending_publish_selections.get(key, set())
-    
 
     if not selected_ids:
         await callback.answer("⚠️ Kamida bitta kanal tanlang!", show_alert=True)
@@ -184,7 +214,7 @@ async def publish_anime_to_channels_handler(callback: CallbackQuery, session: An
             style="primary"
         )],
         [
-            InlineKeyboardButton(text="🌐 Sayt", url=f"https://aninov.uz", style="primary")
+            InlineKeyboardButton(text="🌐 Sayt", url="https://aninov.uz", style="primary")
         ]
     ])
 
@@ -213,19 +243,21 @@ async def publish_anime_to_channels_handler(callback: CallbackQuery, session: An
 
     back_kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="⬅️ Kanal tanlovga qaytish",
-            callback_data=f"publish_episodes_chan:{anime_id_val}",
+            text="⬅️ Anime sahifasiga qaytish",
+            callback_data=f"v_anime:{anime_id}:{page}",
             style="danger"
         )]
     ])
 
     if success_count > 0:
-        await callback.message.edit_text(
+        await _safe_edit(
+            callback.message,
             f"🚀 Anime muvaffaqiyatli {success_count} ta kanalga e'lon qilindi!",
-            reply_markup=back_kb
+            back_kb
         )
     else:
-        await callback.message.edit_text(
+        await _safe_edit(
+            callback.message,
             "❌ E'lon qilishda xatolik! Bot kanalda admin ekanligini tekshiring.",
-            reply_markup=back_kb
+            back_kb
         )
