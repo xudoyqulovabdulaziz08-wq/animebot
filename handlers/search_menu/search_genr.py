@@ -83,16 +83,16 @@ async def get_user_genres_search_markup(
 @router.callback_query(lambda c: c.data == "search_by_genre")
 async def search_by_genre(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    # Har safar kirganda tanlangan janrlar keshini tozalab yuboramiz
+    
+    # Yangi botingizdagi to'g'ri file_id
+    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA3MAAz0E"
+    
+    # Har safar kirganda tanlangan janrlar keshini tozalaymiz
     await state.update_data(selected_genres=[])
     
-    
-    
     text = (
-        
-        "   <b>JANR BO'YICHA QIDIRISH</b>\n"
-        
-        "🎭 Janrlar bo'yicha qidirish tizimiga xush kelibsiz!\n"
+        "🎭 <b>JANR BO'YICHA QIDIRISH</b>\n\n"
+        "Janrlar bo'yicha qidirish tizimiga xush kelibsiz!\n"
         "Siz bir vaqtning o'zida bir nechta janrni belgilab qidirishingiz mumkin.\n\n"
         "🚀 Janrlar ro'yxatini ochish uchun quyidagi tugmani bosing:"
     )
@@ -105,17 +105,22 @@ async def search_by_genre(callback: CallbackQuery, state: FSMContext):
     )
     
     try:
-        await callback.message.edit_caption(
-            caption=text,
-            parse_mode="HTML",
+        # edit_caption o'rniga edit_media ishlatamiz!
+        await callback.message.edit_media(
+            media=InputMediaPhoto(
+                media=SEARCH_COVER,
+                caption=text,
+                parse_mode="HTML"
+            ),
             reply_markup=kb
         )
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e).lower():
+            pass
+        else:
+            logger.error(f"❌ Janr menyusida kutilmagan xatolik: {e}")
     except Exception as e:
-        logger.error(f"❌ Janr menyusida xatolik: {e}")
-
-
-
-
+        logger.error(f"❌ Janr menyusida tizim xatoligi: {e}")
 
 
 
