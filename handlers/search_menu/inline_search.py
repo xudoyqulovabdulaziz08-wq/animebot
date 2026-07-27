@@ -1,16 +1,20 @@
 import html
 import logging
 import aiohttp
-from aiogram import Router
+from typing import Any
+from aiogram import Router, Bot, types
 from aiogram.types import (
     InlineQuery,
     InlineQueryResultArticle,
     InputTextMessageContent,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
+    ChosenInlineResult,
+    Message
 )
+from services.user_service import UserService
 from utils.http import get_http_session
-
+from handlers.search_menu import send_anime_card
 from config import config
 
 logger = logging.getLogger(__name__)
@@ -35,8 +39,8 @@ async def inline_search(inline_query: InlineQuery):
     """
     query = inline_query.query.strip()
 
-    # 1. 2 tadan kam belgi bo'lsa darhol bo'sh javob qaytaramiz
-    if len(query) < 2:
+    # 1. 1 tadan kam belgi bo'lsa darhol bo'sh javob qaytaramiz
+    if len(query) < 1:
         await inline_query.answer(results=[], cache_time=10, is_personal=True)
         return
 
@@ -70,8 +74,8 @@ async def inline_search(inline_query: InlineQuery):
 
     results = []
 
-    # 3. Top 20 natijalarni Article ko'rinishida shakllantiramiz
-    for anime in anime_list[:20]:
+    # 3. Top 40 natijalarni Article ko'rinishida shakllantiramiz
+    for anime in anime_list[:40]:
         anime_id = anime.get("id")
         if not anime_id:
             continue
@@ -101,7 +105,7 @@ async def inline_search(inline_query: InlineQuery):
             poster_url = DEFAULT_POSTER
 
         # Telegram natijalar oynasidagi qisqa tavsif
-        description = f"📅 {year} | 🎭 {genres}"
+        description = f"📅 {year} \n 🎭 {genres}"
 
         # Boshqa chatga yuborilganda ko'rinadigan statik matn.
         # Tomosha qilish faqat bot ichida bo'lgani uchun bu yerda
@@ -143,3 +147,48 @@ async def inline_search(inline_query: InlineQuery):
 
     # 4. Javobni tezkorlik bilan qaytaramiz (cache_time=1)
     await inline_query.answer(results=results, cache_time=10, is_personal=True)
+
+
+
+
+
+@router.chosen_inline_result()
+async def process_chosen_inline_result(
+    chosen_result: ChosenInlineResult, 
+    bot: Bot, 
+    session: Any,
+    data_service: UserService
+):
+    """
+    Foydalanuvchi inline qidiruv ro'yxatidan biror animeni tanlab bosganda ishlaydi.
+    """
+    # 1. Agar foydalanuvchi botning SHAXSIY CHATIDA inline qidiruv ishlatgan bo'lsa
+    # (PM da inline_message_id bo'lmaydi)
+    if not chosen_result.inline_message_id:
+        user_id = chosen_result.from_user.id
+        anime_id = chosen_result.result_id
+
+        try:
+            # A) Bazadan yoki API'dan anime ma'lumotlarini (dict ko'rinishida) olamiz
+            anime = await data_service.get_anime_by_id(anime_id)
+            if not anime:
+                return
+
+            # B) send_anime_card ga berish uchun soxta (dummy) Message obyektini yasaymiz
+            # Bu send_anime_card ichidagi message.delete() va message.answer_photo()
+            # to'g'ri ishlashi uchun kerak.
+            dummy_message = Message(
+                message_id=0,
+                date=chosen_result.from_user.id,  # Muhim emas
+                chat=types.Chat(id=user_id, type="private"),
+                from_user=chosen_result.from_user,
+                bot=bot
+            )
+
+            # C) Tayyor send_anime_card funksiyangizni chaqiramiz!
+            # U barcha ko'rilishlarni hisoblaydi, VIP/Admin holatiga qarab protect_content
+            # qo'yadi va rasmli kartochkani chiqaradi.
+            await send_anime_card(message=dummy_message, anime=anime, session=session)
+
+        except Exception as e:
+            logger.error(f"❌ Inline chosen result ishlovida xato: {e}")
