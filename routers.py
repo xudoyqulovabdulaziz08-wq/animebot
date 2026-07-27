@@ -38,7 +38,8 @@ from handlers.admin_panel.admin_anime import(
 from handlers.admin_panel.admin_channel import(
     channel_menu,
     add_channel,
-    list_channel
+    list_channel,
+    channel_advert
 )
 from handlers.admin_panel.admin_advert import(
     admin_advet_menu,
@@ -96,6 +97,7 @@ main_router.include_routers(
     add_channel.router,
     list_channel.router,
     anime_card.router,
+    channel_advert.channel_advert,
     admin_advert_send.router,
 
     kabinet.router,
