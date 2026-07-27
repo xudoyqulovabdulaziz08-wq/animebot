@@ -570,11 +570,32 @@ async def process_send_post_to_channel(callback: CallbackQuery, state: FSMContex
     channel_db_id = data.get("channel_db_id")
     page = data.get("page", 1)
 
-    # Inline Keyboard tayyorlash
+    # Inline Keyboard tayyorlash (2D Matrix qo'llab-quvvatlovi)
     reply_markup = None
     if buttons:
-        rows = [[InlineKeyboardButton(text=b['text'], url=b['url'], style=b.get('style'))] for b in buttons]
-        reply_markup = InlineKeyboardMarkup(inline_keyboard=rows)
+        reply_markup_rows = []
+        for row in buttons:
+            if isinstance(row, list):  # Yangi format: [[btn1, btn2], [btn3]]
+                formatted_row = [
+                    InlineKeyboardButton(
+                        text=b['text'], 
+                        url=b['url'], 
+                        style=b.get('style')
+                    ) for b in row
+                ]
+                if formatted_row:
+                    reply_markup_rows.append(formatted_row)
+            elif isinstance(row, dict):  # Eski format xavfsizligi uchun: [{'text': '...'}, ...]
+                reply_markup_rows.append([
+                    InlineKeyboardButton(
+                        text=row['text'], 
+                        url=row['url'], 
+                        style=row.get('style')
+                    )
+                ])
+
+        if reply_markup_rows:
+            reply_markup = InlineKeyboardMarkup(inline_keyboard=reply_markup_rows)
 
     success = False
     try:
@@ -587,7 +608,7 @@ async def process_send_post_to_channel(callback: CallbackQuery, state: FSMContex
             await bot.send_document(chat_id=target_channel_id, document=file_id, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
         elif file_type == "audio":
             await bot.send_audio(chat_id=target_channel_id, audio=file_id, caption=caption, parse_mode="HTML", reply_markup=reply_markup)
-        else: # Text
+        else:  # Text
             await bot.send_message(chat_id=target_channel_id, text=caption, parse_mode="HTML", reply_markup=reply_markup, disable_web_page_preview=True)
             
         success = True
@@ -600,7 +621,9 @@ async def process_send_post_to_channel(callback: CallbackQuery, state: FSMContex
         [InlineKeyboardButton(text="⬅️ Kanalga qaytish", callback_data=f"chaninfo:{channel_db_id}:{page}", style="primary")]
     ])
 
-    if success:
-        await callback.message.edit_text("✅ <b>Post kanalga muvaffaqiyatli joylandi!</b>", reply_markup=back_kb, parse_mode="HTML")
-    else:
-        await callback.message.edit_text("❌ <b>Postni yuborishda xatolik!</b> Bot kanal admini ekanligini tekshiring.", reply_markup=back_kb, parse_mode="HTML")
+    status_text = "✅ <b>Post kanalga muvaffaqiyatli joylandi!</b>" if success else "❌ <b>Postni yuborishda xatolik!</b> Bot kanal admini ekanligini tekshiring."
+
+    try:
+        await callback.message.edit_text(status_text, reply_markup=back_kb, parse_mode="HTML")
+    except Exception:
+        await callback.message.answer(status_text, reply_markup=back_kb, parse_mode="HTML")
