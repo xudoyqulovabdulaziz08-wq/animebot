@@ -24,7 +24,10 @@ async def search_menu(callback: CallbackQuery, state: FSMContext):
     
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="🔍 Nomi ", callback_data="search_by_name", style="primary")],
+            [
+                InlineKeyboardButton(text="🔍 Nomi ", callback_data="search_by_name", style="primary"),
+                InlineKeyboardButton(text="🔍 Anime qidirish", switch_inline_query_current_chat="")
+            ],
             [
                 InlineKeyboardButton(text="🔢 ID ", callback_data="search_by_id", style="primary"),
                 InlineKeyboardButton(text="🎭 Janr", callback_data="search_by_genre", style="primary") 

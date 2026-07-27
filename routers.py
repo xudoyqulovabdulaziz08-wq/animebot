@@ -56,7 +56,8 @@ from handlers.search_menu import(
     search_name,
     anime_card,
     search_genr,
-    wiev_episode
+    wiev_episode,
+    inline_search
 )
 
 
@@ -109,6 +110,7 @@ main_router.include_routers(
 
 
     search.router,
+    inline_search.router,
     search_id.router,
     search_name.router,
     search_genr.router
