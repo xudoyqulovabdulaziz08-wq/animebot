@@ -97,7 +97,7 @@ main_router.include_routers(
     add_channel.router,
     list_channel.router,
     anime_card.router,
-    channel_advert.channel_advert,
+    channel_advert.router,
     admin_advert_send.router,
 
     kabinet.router,
