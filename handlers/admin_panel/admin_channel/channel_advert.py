@@ -35,10 +35,15 @@ async def show_channel_post_preview(bot, chat_id: int, state: FSMContext):
     link_data = data.get("link_data")  # {'text': '...', 'url': '...'}
     
     # Inline tugmalarni shakllantirish
-    reply_markup = None
-    if buttons:
-        rows = [[InlineKeyboardButton(text=b['text'], url=b['url'], style=b.get('style'))] for b in buttons]
-        reply_markup = InlineKeyboardMarkup(inline_keyboard=rows)
+    inline_rows = []
+    for btn in buttons:
+        inline_rows.append([
+            InlineKeyboardButton(
+                text=btn['text'], 
+                url=btn['url'], 
+                style=btn.get('style')
+            )
+        ])
     
     # Boshqaruv tugmalari
     control_rows = [
@@ -60,7 +65,7 @@ async def show_channel_post_preview(bot, chat_id: int, state: FSMContext):
         ]
     ]
     
-    kb = InlineKeyboardMarkup(inline_keyboard=reply_markup + control_rows)
+    kb = InlineKeyboardMarkup(inline_keyboard=inline_rows + control_rows)
     
     # Ma'lumot matni
     info_text = (
@@ -323,14 +328,28 @@ async def process_back_preview(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data == "chan_adv_cancel")
 async def process_adv_cancel(callback: CallbackQuery, state: FSMContext):
     await callback.answer("Bekor qilindi")
+    
     data = await state.get_data()
     channel_db_id = data.get("channel_db_id")
     page = data.get("page", 1)
+    
+    # FSM tozalaymiz
     await state.clear()
     
-    # Kanal ma'lumotlariga qaytarish
-    await callback.message.edit_text("❌ Post tayyorlash bekor qilindi.")
-
+    # Orqaga qaytish tugmasi (chaninfo callbackingizga mos holatda)
+    back_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="⬅️ Kanal menyusiga qaytish", 
+            callback_data=f"chaninfo:{channel_db_id}:{page}", 
+            style="primary"
+        )]
+    ])
+    
+    await callback.message.edit_text(
+        text="❌ <b>Post tayyorlash bekor qilindi.</b>",
+        reply_markup=back_kb,
+        parse_mode="HTML"
+    )
 
 
 
