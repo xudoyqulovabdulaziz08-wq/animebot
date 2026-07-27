@@ -26,7 +26,7 @@ async def search_menu(callback: CallbackQuery, state: FSMContext):
         inline_keyboard=[
             [
                 InlineKeyboardButton(text="🔍 Nomi ", callback_data="search_by_name", style="primary"),
-                InlineKeyboardButton(text="🔍 Anime qidirish", switch_inline_query_current_chat="")
+                InlineKeyboardButton(text="🔍 Anime qidirish", switch_inline_query_current_chat="", style="primary" )
             ],
             [
                 InlineKeyboardButton(text="🔢 ID ", callback_data="search_by_id", style="primary"),
