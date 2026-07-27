@@ -10,7 +10,7 @@ async def search_menu(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
     
-    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA3MAAz0E"
+    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA3cAAz0E"
     
     text = (
         
