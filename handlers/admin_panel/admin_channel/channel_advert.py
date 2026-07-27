@@ -8,13 +8,22 @@ from services.channel_service import ChannelService
 
 router = Router()
 
+
+
+
+
 # ---------------------------------------------------------
 # STATES (FSM)
 # ---------------------------------------------------------
 class ChannelAdvertSG(StatesGroup):
     waiting_for_post = State()
     waiting_for_btn = State()
+    waiting_for_btn_style = State()
     waiting_for_url = State()
+
+
+
+
 
 # ---------------------------------------------------------
 # HELPER: PREVYU VA MENYUNI KO'RSATISH FUNKSIYASI
@@ -26,23 +35,32 @@ async def show_channel_post_preview(bot, chat_id: int, state: FSMContext):
     link_data = data.get("link_data")  # {'text': '...', 'url': '...'}
     
     # Inline tugmalarni shakllantirish
-    inline_rows = []
-    for btn in buttons:
-        inline_rows.append([InlineKeyboardButton(text=btn['text'], url=btn['url'])])
+    reply_markup = None
+    if buttons:
+        rows = [[InlineKeyboardButton(text=b['text'], url=b['url'], style=b.get('style'))] for b in buttons]
+        reply_markup = InlineKeyboardMarkup(inline_keyboard=rows)
     
     # Boshqaruv tugmalari
     control_rows = [
         [
             InlineKeyboardButton(text="➕ Inline Tugma", callback_data="chan_adv_add_btn", style="success"),
-            InlineKeyboardButton(text="🔗 HTML Link qo'shish", callback_data="chan_adv_add_link", style="primary")
+            InlineKeyboardButton(text="➖ Tugmani o'chirish", callback_data="chan_adv_del_btn", style="danger")
+            
         ],
         [
-            InlineKeyboardButton(text="🚀 Kanalga yuborish", callback_data="chan_adv_send", style="primary"),
+            InlineKeyboardButton(text="🔗 Link qo'shish", callback_data="chan_adv_add_link", style="success"),
+            InlineKeyboardButton(text="🗑️ Link o'chirish", callback_data="chan_adv_del_link", style="danger")
+
+        ],
+        [
+            InlineKeyboardButton(text="🚀 Kanalga yuborish", callback_data="chan_adv_send", style="primary")
+        ],
+        [  
             InlineKeyboardButton(text="❌ Bekor qilish", callback_data="chan_adv_cancel", style="danger")
         ]
     ]
     
-    kb = InlineKeyboardMarkup(inline_keyboard=inline_rows + control_rows)
+    kb = InlineKeyboardMarkup(inline_keyboard=reply_markup + control_rows)
     
     # Ma'lumot matni
     info_text = (
@@ -58,6 +76,10 @@ async def show_channel_post_preview(bot, chat_id: int, state: FSMContext):
     except Exception:
         msg = await bot.send_message(chat_id=chat_id, text=info_text, reply_markup=kb, parse_mode="HTML")
         await state.update_data(main_msg_id=msg.message_id)
+
+
+
+
 
 
 # ---------------------------------------------------------
@@ -102,6 +124,10 @@ async def process_channel_advert_start(callback: CallbackQuery, state: FSMContex
     )
 
 
+
+
+
+
 # 2. Xabarni qabul qilish (File ID, Text va turini ajratish)
 @router.message(ChannelAdvertSG.waiting_for_post)
 async def process_receive_channel_media(message: Message, state: FSMContext):
@@ -137,6 +163,10 @@ async def process_receive_channel_media(message: Message, state: FSMContext):
     await show_channel_post_preview(message.bot, message.chat.id, state)
 
 
+
+
+
+
 # 3. HTML Link (<a></a>) qo'shish so'rovi
 @router.callback_query(F.data == "chan_adv_add_link")
 async def process_add_html_link_start(callback: CallbackQuery, state: FSMContext):
@@ -155,6 +185,11 @@ async def process_add_html_link_start(callback: CallbackQuery, state: FSMContext
         reply_markup=cancel_kb,
         parse_mode="HTML"
     )
+
+
+
+
+
 
 @router.message(ChannelAdvertSG.waiting_for_url)
 async def process_save_html_link(message: Message, state: FSMContext):
@@ -179,6 +214,11 @@ async def process_save_html_link(message: Message, state: FSMContext):
         await message.answer("❌ Xato format. Matn va havolani <b>|</b> belgisi bilan ajrating!", parse_mode="HTML")
 
 
+
+
+
+
+
 # 4. Inline Tugma qo'shish
 @router.callback_query(F.data == "chan_adv_add_btn")
 async def process_add_btn_start(callback: CallbackQuery, state: FSMContext):
@@ -197,6 +237,11 @@ async def process_add_btn_start(callback: CallbackQuery, state: FSMContext):
         parse_mode="HTML"
     )
 
+
+
+
+
+
 @router.message(ChannelAdvertSG.waiting_for_btn)
 async def process_save_inline_btn(message: Message, state: FSMContext):
     try: await message.delete()
@@ -205,16 +250,61 @@ async def process_save_inline_btn(message: Message, state: FSMContext):
     if "-" in message.text:
         text, url = message.text.split("-", 1)
         text, url = text.strip(), url.strip()
-        
+
+        if not (url.startswith("http://") or url.startswith("https://") or url.startswith("tg://")):
+            cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data="chan_adv_back_preview", style="danger")]
+            ])
+            await message.answer("❌ Noto'g'ri URL manzil. Havola http://, https:// yoki tg:// bilan boshlanishi kerak!", reply_markup=cancel_kb)
+            return
+
+        # Vaqtinchalik matn va url-ni saqlab, rang tanlash bosqichiga o'tamiz
+        await state.update_data(temp_chan_btn_text=text, temp_chan_btn_url=url)
+        await state.set_state(ChannelAdvertSG.waiting_for_btn_style)
+
         data = await state.get_data()
-        buttons = data.get("buttons", [])
-        buttons.append({"text": text, "url": url})
-        
-        await state.update_data(buttons=buttons)
-        await state.set_state(ChannelAdvertSG.waiting_for_post)
-        await show_channel_post_preview(message.bot, message.chat.id, state)
+
+        style_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="🔵 Ko'k (Primary)", callback_data="chan_btn_style:primary", style="primary")],
+            [InlineKeyboardButton(text="🟢 Yashil (Success)", callback_data="chan_btn_style:success", style="success")],
+            [InlineKeyboardButton(text="🔴 Qizil (Danger)", callback_data="chan_btn_style:danger", style="danger")],
+            [InlineKeyboardButton(text="⚪️ Oddiy (Style siz)", callback_data="chan_btn_style:none")],
+        ])
+
+        await message.bot.edit_message_text(
+            chat_id=message.chat.id, 
+            message_id=data['main_msg_id'],
+            text=f"📌 Tugma: <b>{text}</b>\n🔗 URL: <code>{url}</code>\n\n🎨 <b>Tugma uchun rang (style) tanlang:</b>",
+            reply_markup=style_kb,
+            parse_mode="HTML"
+        )
     else:
-        await message.answer("❌ Xato format. Tugma nomi va havolani <b>-</b> bilan ajrating!", parse_mode="HTML")
+        cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data="chan_adv_back_preview", style="danger")]
+        ])
+        await message.answer("❌ Xato format. Tugma nomi va havolani <b>-</b> bilan ajrating!\n<i>Masalan: Kanalga o'tish - https://t.me/link</i>", reply_markup=cancel_kb, parse_mode="HTML")
+
+
+@router.callback_query(F.data.startswith("chan_btn_style:"), ChannelAdvertSG.waiting_for_btn_style)
+async def process_save_chan_btn_style(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    
+    style_val = callback.data.split(":")[1]
+    style = None if style_val == "none" else style_val
+
+    data = await state.get_data()
+    buttons = data.get("buttons", [])
+
+    # Tugmani yakuniy saqlaymiz
+    buttons.append({
+        "text": data['temp_chan_btn_text'],
+        "url": data['temp_chan_btn_url'],
+        "style": style
+    })
+
+    await state.update_data(buttons=buttons)
+    await state.set_state(ChannelAdvertSG.waiting_for_post)
+    await show_channel_post_preview(callback.bot, callback.message.chat.id, state)
 
 
 # Prevyuga qaytish va Bekor qilishlar
@@ -223,6 +313,11 @@ async def process_back_preview(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.set_state(ChannelAdvertSG.waiting_for_post)
     await show_channel_post_preview(callback.bot, callback.message.chat.id, state)
+
+
+
+
+
 
 
 @router.callback_query(F.data == "chan_adv_cancel")
@@ -235,6 +330,59 @@ async def process_adv_cancel(callback: CallbackQuery, state: FSMContext):
     
     # Kanal ma'lumotlariga qaytarish
     await callback.message.edit_text("❌ Post tayyorlash bekor qilindi.")
+
+
+
+
+
+
+
+# 1. Inline tugmalarni tozalash / oxirgisini o'chirish
+@router.callback_query(F.data == "chan_adv_del_btn")
+async def process_del_btn(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    buttons = data.get("buttons", [])
+    
+    if not buttons:
+        await callback.answer("⚠️ O'chirish uchun tugmalar yo'q!", show_alert=True)
+        return
+        
+    buttons.pop()  # Oxirgi qo'shilgan tugmani o'chirish (yoki buttons.clear() qilsa ham bo'ladi)
+    await state.update_data(buttons=buttons)
+    await callback.answer("🗑️ Tugma o'chirildi")
+    await show_channel_post_preview(callback.bot, callback.message.chat.id, state)
+
+
+
+
+
+
+
+# 2. Qo'shilgan HTML Linkni matndan olib tashlash
+@router.callback_query(F.data == "chan_adv_del_link")
+async def process_del_link(callback: CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    link_data = data.get("link_data")
+    
+    if not link_data:
+        await callback.answer("⚠️ O'chirish uchun link yo'q!", show_alert=True)
+        return
+        
+    # Link ma'lumotlarini tozalaymiz
+    caption = data.get("caption", "")
+    text_to_remove = f"<a href='{link_data['url']}'>{html.escape(link_data['text'])}</a>"
+    
+    # Matn ichidan qo'shilgan HTML linkni olib tashlaymiz
+    updated_caption = caption.replace(text_to_remove, "").strip()
+    
+    await state.update_data(caption=updated_caption, link_data=None)
+    await callback.answer("🗑️ Link matndan olib tashlandi")
+    await show_channel_post_preview(callback.bot, callback.message.chat.id, state)
+
+
+
+
+
 
 
 # 5. KANALGA YUBORISH (FINAL)
@@ -254,7 +402,7 @@ async def process_send_post_to_channel(callback: CallbackQuery, state: FSMContex
     # Inline Keyboard tayyorlash
     reply_markup = None
     if buttons:
-        rows = [[InlineKeyboardButton(text=b['text'], url=b['url'])] for b in buttons]
+        rows = [[InlineKeyboardButton(text=b['text'], url=b['url'], style=b.get('style'))] for b in buttons]
         reply_markup = InlineKeyboardMarkup(inline_keyboard=rows)
 
     success = False
