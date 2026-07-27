@@ -25,7 +25,7 @@ BOT_USERNAME = getattr(config, "BOT_USERNAME", "aninovuz_bot")
 
 
 @router.inline_query()
-async def inline_search(inline_query: InlineQuery, session: aiohttp.ClientSession):
+async def inline_search(inline_query: InlineQuery):
     """
     Inline qidiruv handler.
     Natijadagi tugma - callback emas, balki bevosita botga olib boruvchi
@@ -42,26 +42,31 @@ async def inline_search(inline_query: InlineQuery, session: aiohttp.ClientSessio
     anime_list = []
 
     # 2. Qidiruv so'rovi (Timeout: 2s)
+    
     try:
         timeout = aiohttp.ClientTimeout(total=2)
-        async with session.get(
-            API_SEARCH_URL, params={"q": query}, timeout=timeout
-        ) as response:
-            if response.status == 200:
-                data = await response.json()
 
-                # ✅ API ba'zan {"success": false, ...} qaytarishi mumkin —
-                # shu holatda natija bo'lmagani uchun xatoga chiqmaymiz.
-                if data.get("success", True):
-                    anime_list = data.get("data") or []
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.get(
+                API_SEARCH_URL,
+                params={"q": query},
+            ) as response:
+
+                if response.status == 200:
+                    data = await response.json()
+
+                    if data.get("success", True):
+                        anime_list = data.get("data", [])
+                    else:
+                        logger.warning(f"API success=false. Query: '{query}'")
                 else:
-                    logger.warning(f"API success=false. Query: '{query}'")
-            else:
-                logger.error(f"API Error: Status {response.status}")
+                    logger.error(f"API Error: Status {response.status}")
+
     except aiohttp.ClientError as e:
         logger.error(f"Inline search network error: {e}")
+
     except Exception as e:
-        logger.error(f"Inline search unexpected error: {e}")
+        logger.exception(f"Inline search unexpected error: {e}")
 
     results = []
 
