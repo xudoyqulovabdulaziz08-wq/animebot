@@ -9,6 +9,7 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     InlineKeyboardButton,
 )
+from utils.http import get_http_session
 
 from config import config
 
@@ -45,22 +46,21 @@ async def inline_search(inline_query: InlineQuery):
     
     try:
         timeout = aiohttp.ClientTimeout(total=2)
+        session = get_http_session()
+        async with session.get(
+            API_SEARCH_URL,
+            params={"q": query},
+        ) as response:
 
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.get(
-                API_SEARCH_URL,
-                params={"q": query},
-            ) as response:
+            if response.status == 200:
+                data = await response.json()
 
-                if response.status == 200:
-                    data = await response.json()
-
-                    if data.get("success", True):
-                        anime_list = data.get("data", [])
-                    else:
-                        logger.warning(f"API success=false. Query: '{query}'")
+                if data.get("success", True):
+                    anime_list = data.get("data", [])
                 else:
-                    logger.error(f"API Error: Status {response.status}")
+                    logger.warning(f"API success=false. Query: '{query}'")
+            else:
+                logger.error(f"API Error: Status {response.status}")
 
     except aiohttp.ClientError as e:
         logger.error(f"Inline search network error: {e}")

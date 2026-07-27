@@ -24,7 +24,11 @@ from services.outbox.worker import OutboxWorker
 from middlewares.middlewere import DbSessionMiddleware
 from middlewares.subscription import CheckSubscriptionMiddleware
 from repositories.channel_repository import ChannelRepository # kerak bo'lsa
+from utils.http import create_http_session, close_http_session
 
+async def on_startup(bot):
+    ...
+    await create_http_session()
 from routers import main_router
 
 logger = logging.getLogger("Main")
@@ -166,6 +170,7 @@ async def on_startup(bot: Bot):
 
     # 5. Workerlarni ishga tushirish
     await start_workers()
+    await create_http_session()
 
     # 6. Telegram Webhook o'rnatish
     if not config.WEBHOOK_URL:
@@ -204,6 +209,7 @@ async def on_shutdown(bot: Bot):
     if hasattr(valkey, 'stop'):
         await valkey.stop()
     await engine.dispose()
+    await close_http_session()
     await bot.session.close()
 
     logger.info("✅ CLEAN SHUTDOWN COMPLETE. SYSTEM OFFLINE.")
