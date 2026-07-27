@@ -175,7 +175,7 @@ async def on_startup(bot: Bot):
     try:
         await bot.set_webhook(
             url=config.WEBHOOK_URL,
-            allowed_updates=["message", "callback_query"]
+            allowed_updates=["message", "callback_query", "inline_query", "chosen_inline_result"]
         )
         logger.info(f"📡 Webhook registered successfully at: {config.WEBHOOK_URL}")
     except Exception as e:
