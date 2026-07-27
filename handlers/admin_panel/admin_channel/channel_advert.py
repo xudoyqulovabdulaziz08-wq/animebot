@@ -21,6 +21,7 @@ class ChannelAdvertSG(StatesGroup):
     waiting_for_btn_style = State()
     waiting_for_url = State()
     waiting_for_url_position = State()
+    waiting_for_btn_position = State()
 
 
 
@@ -35,28 +36,46 @@ async def show_channel_post_preview(bot, chat_id: int, state: FSMContext):
     buttons = data.get("buttons", [])
     link_data = data.get("link_data")  # {'text': '...', 'url': '...'}
     
-    # Inline tugmalarni shakllantirish
+    # Inline tugmalarni shakllantirish (Massiv qatorlari bo'yicha)
     inline_rows = []
-    for btn in buttons:
-        inline_rows.append([
-            InlineKeyboardButton(
-                text=btn['text'], 
-                url=btn['url'], 
-                style=btn.get('style')
-            )
-        ])
     
+    total_btn_count = 0
+    for row in buttons:
+        # Agar qator ro'yxat (list) bo'lsa (yangi ko'rinish: [[btn1, btn2], [btn3]])
+        if isinstance(row, list):
+            formatted_row = []
+            for btn in row:
+                formatted_row.append(
+                    InlineKeyboardButton(
+                        text=btn['text'], 
+                        url=btn['url'], 
+                        style=btn.get('style')
+                    )
+                )
+                total_btn_count += 1
+            if formatted_row:
+                inline_rows.append(formatted_row)
+                
+        # Agar eski ko'rinishdagi oddiy ro'yxat bo'lsa ([btn1, btn2])
+        elif isinstance(row, dict):
+            inline_rows.append([
+                InlineKeyboardButton(
+                    text=row['text'], 
+                    url=row['url'], 
+                    style=row.get('style')
+                )
+            ])
+            total_btn_count += 1
+
     # Boshqaruv tugmalari
     control_rows = [
         [
             InlineKeyboardButton(text="➕ Inline Tugma", callback_data="chan_adv_add_btn", style="success"),
             InlineKeyboardButton(text="➖ Tugmani o'chirish", callback_data="chan_adv_del_btn", style="danger")
-            
         ],
         [
             InlineKeyboardButton(text="🔗 Link qo'shish", callback_data="chan_adv_add_link", style="success"),
             InlineKeyboardButton(text="🗑️ Link o'chirish", callback_data="chan_adv_del_link", style="danger")
-
         ],
         [
             InlineKeyboardButton(text="🚀 Kanalga yuborish", callback_data="chan_adv_send", style="primary")
@@ -72,20 +91,19 @@ async def show_channel_post_preview(bot, chat_id: int, state: FSMContext):
     info_text = (
         f"⚙️ <b>KANAL UCHUN POST KONSTRUKTORI</b>\n\n"
         f"📎 Fayl turi: <b>{data.get('file_type', 'Matn').upper()}</b>\n"
-        f"🔘 Qo'shilgan inline tugmalar: <b>{len(buttons)} ta</b>\n"
+        f"🔘 Qo'shilgan inline tugmalar: <b>{total_btn_count} ta</b>\n"
         f"🔗 Biriktirilgan link: <b>{'Bor' if link_data else 'Yo\'q'}</b>\n\n"
         f"<i>Quyidagi tugmalar orqali postga inline tugma yoki text ichiga link biriktirishingiz mumkin.</i>"
     )
 
     try:
-        await bot.edit_message_text(chat_id=chat_id, message_id=main_msg_id, text=info_text, reply_markup=kb, parse_mode="HTML")
+        if main_msg_id:
+            await bot.edit_message_text(chat_id=chat_id, message_id=main_msg_id, text=info_text, reply_markup=kb, parse_mode="HTML")
+        else:
+            raise Exception("main_msg_id topilmadi")
     except Exception:
         msg = await bot.send_message(chat_id=chat_id, text=info_text, reply_markup=kb, parse_mode="HTML")
         await state.update_data(main_msg_id=msg.message_id)
-
-
-
-
 
 
 # ---------------------------------------------------------
@@ -369,19 +387,81 @@ async def process_save_chan_btn_style(callback: CallbackQuery, state: FSMContext
     style_val = callback.data.split(":")[1]
     style = None if style_val == "none" else style_val
 
+    # Rangni vaqtinchalik xotiraga saqlaymiz
+    await state.update_data(temp_chan_btn_style=style)
+    await state.set_state(ChannelAdvertSG.waiting_for_btn_position)
+
     data = await state.get_data()
     buttons = data.get("buttons", [])
 
-    # Tugmani yakuniy saqlaymiz
-    buttons.append({
+    pos_kb_buttons = [
+        [InlineKeyboardButton(text="⬇️ Yangi qatordan (Pastga)", callback_data="chan_btn_pos:new_row", style="primary")]
+    ]
+
+    # Agar avval qo'shilgan tugmalar bo'lsagina "Yonma-yon" variantini ko'rsatamiz
+    if buttons:
+        pos_kb_buttons.append(
+            [InlineKeyboardButton(text="↔️ Oxirgi tugma bilan yonma-yon", callback_data="chan_btn_pos:same_row", style="success")]
+        )
+
+    pos_kb_buttons.append(
+        [InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data="chan_adv_back_preview", style="danger")]
+    )
+
+    pos_kb = InlineKeyboardMarkup(inline_keyboard=pos_kb_buttons)
+
+    text = data.get("temp_chan_btn_text")
+    url = data.get("temp_chan_btn_url")
+
+    # Avvalgi xatolik (message to edit not found) takrorlanmasligi uchun try-except bilan edit qilamiz
+    try:
+        await callback.message.edit_text(
+            text=f"📌 Tugma: <b>{text}</b>\n🔗 URL: <code>{url}</code>\n\n"
+                 f"📍 <b>Tugmani qanday joylashtirmoqchisiz?</b>",
+            reply_markup=pos_kb,
+            parse_mode="HTML"
+        )
+    except Exception:
+        new_msg = await callback.message.answer(
+            text=f"📌 Tugma: <b>{text}</b>\n🔗 URL: <code>{url}</code>\n\n"
+                 f"📍 <b>Tugmani qanday joylashtirmoqchisiz?</b>",
+            reply_markup=pos_kb,
+            parse_mode="HTML"
+        )
+        await state.update_data(main_msg_id=new_msg.message_id)
+
+
+
+
+@router.callback_query(F.data.startswith("chan_btn_pos:"), ChannelAdvertSG.waiting_for_btn_position)
+async def process_save_chan_btn_position(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    
+    pos_type = callback.data.split(":")[1] # 'new_row' yoki 'same_row'
+    data = await state.get_data()
+
+    buttons = data.get("buttons", []) # Masalan: [[{'text': 'Btn1', 'url': '...'}]]
+    
+    new_btn = {
         "text": data['temp_chan_btn_text'],
         "url": data['temp_chan_btn_url'],
-        "style": style
-    })
+        "style": data.get('temp_chan_btn_style')
+    }
+
+    if pos_type == "same_row" and buttons:
+        # Oxirgi qator ichiga qo'shamiz (yonma-yon bo'ladi)
+        buttons[-1].append(new_btn)
+    else:
+        # Yangi qatordan alohida tugma qilib qo'shamiz
+        buttons.append([new_btn])
 
     await state.update_data(buttons=buttons)
     await state.set_state(ChannelAdvertSG.waiting_for_post)
     await show_channel_post_preview(callback.bot, callback.message.chat.id, state)
+
+
+
+
 
 
 # Prevyuga qaytish va Bekor qilishlar
