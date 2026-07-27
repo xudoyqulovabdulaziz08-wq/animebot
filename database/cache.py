@@ -231,19 +231,23 @@ class CacheManager:
         async with self._l1_lock:
             self._l1_cache.pop(key, None)
 
+        if table == "users":
+            try:
+                from services.orchestrator import state
+                await state.user_l1_cache.delete(int(obj_id))
+            except Exception as e:
+                logger.error(f"L1 USER CACHE INVALIDATE ERROR: {e}")
+
         try:
             if self.redis:
                 await self.redis.delete(key)
-
                 if broadcast:
-                    # TUZATILDI: maxlen va approximate qo'shildi xotira to'lib ketmasligi uchun
                     await self.redis.xadd(
                         self._stream_name,
                         {"data": orjson.dumps({"key": key, "action": "invalidate"})},
                         maxlen=self._main_stream_maxlen,
                         approximate=True
                     )
-
         except Exception as e:
             metrics.errors += 1
             logger.error(f"INVALIDATE ERROR: {e}")

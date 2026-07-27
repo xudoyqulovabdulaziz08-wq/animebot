@@ -41,7 +41,11 @@ class L1Cache:
             if len(self._cache) > self.max_size:
                 removed = self._cache.popitem(last=False)
                 logger.debug(f"🧹 L1 cache evicted: user_id={removed[0]}")
+    async def delete(self, key):
+        async with self._lock:
+            self._cache.pop(key, None)
 
+            
 # Global state initsializatsiyasi
 if getattr(state, 'user_l1_cache', None) is None:
     state.user_l1_cache = L1Cache(max_size=5000)
