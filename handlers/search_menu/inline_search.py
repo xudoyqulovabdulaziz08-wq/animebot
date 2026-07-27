@@ -12,9 +12,9 @@ from aiogram.types import (
     ChosenInlineResult,
     Message
 )
-from services.user_service import UserService
+from services.anime_service import AnimeService
 from utils.http import get_http_session
-from handlers.search_menu import send_anime_card
+from handlers.search_menu.anime_card import send_anime_card
 from config import config
 
 logger = logging.getLogger(__name__)
@@ -157,7 +157,7 @@ async def process_chosen_inline_result(
     chosen_result: ChosenInlineResult, 
     bot: Bot, 
     session: Any,
-    data_service: UserService
+    data_service: AnimeService
 ):
     """
     Foydalanuvchi inline qidiruv ro'yxatidan biror animeni tanlab bosganda ishlaydi.
