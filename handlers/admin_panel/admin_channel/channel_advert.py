@@ -20,6 +20,7 @@ class ChannelAdvertSG(StatesGroup):
     waiting_for_btn = State()
     waiting_for_btn_style = State()
     waiting_for_url = State()
+    waiting_for_url_position = State()
 
 
 
@@ -204,22 +205,93 @@ async def process_save_html_link(message: Message, state: FSMContext):
     if "|" in message.text:
         text, url = message.text.split("|", 1)
         text, url = text.strip(), url.strip()
-        
+
+        if not (url.startswith("http://") or url.startswith("https://") or url.startswith("tg://")):
+            cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
+                [InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data="chan_adv_back_preview", style="danger")]
+            ])
+            await message.answer("❌ Noto'g'ri URL manzil!", reply_markup=cancel_kb)
+            return
+
+        # Vaqtinchalik saqlaymiz va joylashuv tanlash bosqichiga o'tamiz
+        await state.update_data(temp_link_text=text, temp_link_url=url)
+        await state.set_state(ChannelAdvertSG.waiting_for_url_position)
+
         data = await state.get_data()
-        current_caption = data.get("caption", "")
-        
-        # HTML <a href="..."></a> ko'rinishida matnga ulash
-        html_link = f"<a href='{url}'>{html.escape(text)}</a>"
-        updated_caption = f"{current_caption}\n\n{html_link}".strip()
-        
-        await state.update_data(caption=updated_caption, link_data={"text": text, "url": url})
-        await state.set_state(ChannelAdvertSG.waiting_for_post)
-        await show_channel_post_preview(message.bot, message.chat.id, state)
+
+        pos_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="⬇️ Matn pastida", callback_data="link_pos:bottom", style="primary"),
+                InlineKeyboardButton(text="⬆️ Matn tepasida", callback_data="link_pos:top", style="primary")
+            ],
+            [
+                InlineKeyboardButton(text="↔️ Yonma-yon (Avvalgisi bilan)", callback_data="link_pos:side", style="success")
+            ],
+            [
+                InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data="chan_adv_back_preview", style="danger")
+            ]
+        ])
+
+        await message.bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=data['main_msg_id'],
+            text=f"🔗 <b>Havola:</b> <a href='{url}'>{html.escape(text)}</a>\n\n"
+                 f"📍 <b>Ushbu havolani postning qaysi joyiga qo'shmoqchisiz?</b>",
+            reply_markup=pos_kb,
+            parse_mode="HTML"
+        )
     else:
-        await message.answer("❌ Xato format. Matn va havolani <b>|</b> belgisi bilan ajrating!", parse_mode="HTML")
+        cancel_kb = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data="chan_adv_back_preview", style="danger")]
+        ])
+        await message.answer("❌ Xato format. Matn va havolani <b>|</b> belgisi bilan ajrating!\n<i>Masalan: Animelar | https://t.me/link</i>", reply_markup=cancel_kb, parse_mode="HTML")
 
 
 
+
+
+
+@router.callback_query(F.data.startswith("link_pos:"), ChannelAdvertSG.waiting_for_url_position)
+async def process_apply_link_position(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    
+    pos_type = callback.data.split(":")[1]  # 'bottom', 'top', 'side'
+    data = await state.get_data()
+
+    text = data.get("temp_link_text")
+    url = data.get("temp_link_url")
+    current_caption = data.get("caption", "")
+
+    new_html_link = f"<a href='{url}'>{html.escape(text)}</a>"
+
+    # Mantiq bo'yicha matnga joylashtiramiz:
+    if pos_type == "top":
+        # Matnning eng tepasiga qo'shish
+        updated_caption = f"{new_html_link}\n\n{current_caption}".strip()
+
+    elif pos_type == "side":
+        # Yonma-yon qo'shish (oxirgi qatorga ` • ` yoki ` | ` bilan ulaydi)
+        if current_caption:
+            updated_caption = f"{current_caption}  •  {new_html_link}"
+        else:
+            updated_caption = new_html_link
+
+    else:  # bottom (boshlang'ich holat)
+        # Matnning eng oxiriga yangi qatordan qo'shish
+        updated_caption = f"{current_caption}\n\n{new_html_link}".strip()
+
+    # Link statistikasi uchun ma'lumotni yangilaymiz
+    link_list = data.get("link_list", [])
+    link_list.append({"text": text, "url": url})
+
+    await state.update_data(
+        caption=updated_caption, 
+        link_list=link_list,
+        link_data={"text": text, "url": url} # mavjud mantiqlarni buzmaslik uchun
+    )
+    
+    await state.set_state(ChannelAdvertSG.waiting_for_post)
+    await show_channel_post_preview(callback.bot, callback.message.chat.id, state)
 
 
 
