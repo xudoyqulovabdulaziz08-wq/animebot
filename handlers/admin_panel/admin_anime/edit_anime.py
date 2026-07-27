@@ -1276,6 +1276,13 @@ async def process_dubber_toggle(callback: CallbackQuery, state: FSMContext, sess
 
 
 router.callback_query(EditAnimeStates.waiting_for_dubbers, F.data.startswith("adm_d_page:"))
+
+
+
+# =====================================================================
+# 📑 1.5-QADAM: Paginatsiya (Keyingi / Oldingi sahifaga o'tish)
+# =====================================================================
+@router.callback_query(EditAnimeStates.waiting_for_dubbers, F.data.startswith("adm_d_page:"))  # <-- @ qo'shildi!
 async def process_dubber_page_change(callback: CallbackQuery, state: FSMContext, session: Any):
     page = int(callback.data.split(":")[1])
     state_data = await state.get_data()
@@ -1283,13 +1290,22 @@ async def process_dubber_page_change(callback: CallbackQuery, state: FSMContext,
     selected_dubbers = state_data.get("selected_dubbers", [])
     
     kb = await get_admin_dubbers_edit_markup(session, anime_id, selected_dubbers, page=page)
+    
     try:
         await callback.message.edit_reply_markup(reply_markup=kb)
-    except:
+    except Exception:
         pass
+        
     await callback.answer()
 
 
+
+@router.callback_query(F.data == "none")
+async def process_none_callback(callback: CallbackQuery):
+    await callback.answer()
+
+
+    
 # =====================================================================
 # 📑 2-QADAM: Saqlash bosilganda tasdiqlash oynasiga o'tish
 # =====================================================================
