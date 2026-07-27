@@ -5,8 +5,12 @@ from aiogram import Router, html, F
 from aiogram.types import CallbackQuery
 from aiogram.exceptions import TelegramBadRequest
 from datetime import datetime
+from aiogram.fsm.state import StatesGroup, State
 from services.channel_service import ChannelService
 
+# ---------------------------------------------------------
+# KANALGA REKLAMA YUBORISH FSM BOSQICHLARI
+# ---------------------------------------------------------
 
 
 
@@ -164,6 +168,9 @@ async def show_channel_info(callback: CallbackQuery, session: Any):
             [
                 InlineKeyboardButton(text="🔄 Holatni o‘zgartirish", callback_data=f"chantoggle:{channel_id}:{page}", style="primary"),
                 InlineKeyboardButton(text="🗑 O‘chirish", callback_data=f"chandel:{channel_id}:{page}", style="danger")
+            ],
+            [
+                InlineKeyboardButton(text="📢 Reklama", callback_data=f"channel_advert:{channel_id}:{page}", style="primary" )  
             ],
             [InlineKeyboardButton(text="⬅️ Ro‘yxatga qaytish", callback_data=f"chanpage:{page}", style="danger")]
         ]
