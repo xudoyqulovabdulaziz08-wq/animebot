@@ -78,19 +78,18 @@ async def open_cabinet_handler(callback: CallbackQuery, user_service: UserServic
                     style="success"
                 )
             ],
-            [
-                InlineKeyboardButton(
-                    text="📚 Anime markazi",
-                    callback_data="animelarim_cabinet",
-                    style="primary"
-
-                )
-            ],
+            
             [
                 InlineKeyboardButton(
                     text="💎 VIP bo'limi",
                     callback_data="buy_vip",
                     style="primary"
+                ),
+                InlineKeyboardButton(
+                    text="📚 Animelarim",
+                    callback_data="animelarim_cabinet",
+                    style="primary"
+
                 )
                 
             ],

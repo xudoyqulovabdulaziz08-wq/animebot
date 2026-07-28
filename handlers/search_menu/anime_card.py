@@ -1,7 +1,8 @@
 import logging
-from typing import Any
+from typing import Any, Optional
 from aiogram import Router, html, types, F
 from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.fsm.context import FSMContext
 from database.models import Genre
 from sqlalchemy import select
 from services.user_service import UserService
@@ -14,7 +15,7 @@ logger = logging.getLogger()
 
 
 
-async def send_anime_card(message: Message, anime: dict, session: Any) -> bool:
+async def send_anime_card(message: Message, anime: dict, session: Any, state: Optional[FSMContext] = None) -> bool:
     """
     Foydalanuvchiga animeni daxshat ramkali dizaynda va 
     kerakli tugmalar bilan ko'rsatuvchi yagona universal funksiya.
@@ -115,6 +116,24 @@ async def send_anime_card(message: Message, anime: dict, session: Any) -> bool:
         [InlineKeyboardButton(text="▶️ Tomosha qilish", callback_data=f"show_episodes_user:{anime_id}", style="primary")],
         [InlineKeyboardButton(text="🏠 Bosh menu", callback_data="back_to_start", style="danger")]
     ])
+
+    # 🧹 ESKI "QIDIRISH MENYUSI" XABARINI TOZALASH
+    # Agar foydalanuvchi avval search_menu orqali ochgan "ANIME QIDIRISH"
+    # rasmli xabari hali chatda tursa (FSM'da last_menu_id sifatida saqlangan),
+    # kartochka chiqishidan oldin uni ham o'chirib tashlaymiz — aks holda
+    # ikkita xabar bir-birining ustiga to'planib qoladi.
+    if state is not None:
+        try:
+            state_data = await state.get_data()
+            stale_menu_id = state_data.get("last_menu_id")
+            if stale_menu_id and stale_menu_id != message.message_id:
+                try:
+                    await message.bot.delete_message(chat_id=message.chat.id, message_id=stale_menu_id)
+                except Exception:
+                    pass
+                await state.update_data(last_menu_id=None)
+        except Exception as state_err:
+            logger.error(f"❌ last_menu_id tozalashda xato: {state_err}")
 
     # Silliq o'chirish
     try:

@@ -14,6 +14,7 @@ from aiogram.types import (
     InlineKeyboardButton,
     InlineQueryResultsButton
 )
+from aiogram.fsm.context import FSMContext
 from services.anime_service import AnimeService
 from utils.http import get_http_session
 from handlers.search_menu.anime_card import send_anime_card
@@ -188,7 +189,7 @@ async def inline_search(inline_query: InlineQuery):
     # qat'iy joylashadi (scroll bo'lganda birinchi rasm chekkadan "chiqib"
     # ketish effektini bartaraf qiladi, ayniqsa mobil ilovada).
     top_button = InlineQueryResultsButton(
-        text="🎬 Aninovuz — Tezkor qidiruv fuksiyasi",
+        text="🎬 Aninovuz — barcha animelar",
         start_parameter="from_inline",
     )
 
@@ -202,7 +203,7 @@ async def inline_search(inline_query: InlineQuery):
 
 # 🔥 KAWAII BOTIDAGI KABI ISHLAYDIGAN ASOSIY HANDLER
 @router.message(F.via_bot.username == BOT_USERNAME)
-async def process_inline_message_in_pm(message: Message, session: Any):
+async def process_inline_message_in_pm(message: Message, session: Any, state: FSMContext = None):
     """
     Foydalanuvchi PM'da inline qidiruv orqali natijani tanlaganida tushadi.
     Vaqtinchalik matn xabarini o'chiradi va send_anime_card funksiyasini ishga tushiradi.
@@ -239,7 +240,7 @@ async def process_inline_message_in_pm(message: Message, session: Any):
             return
 
         # 4. Anime kartochkasini yuboramiz
-        await send_anime_card(message=message, anime=anime_data, session=session)
+        await send_anime_card(message=message, anime=anime_data, session=session, state=state)
 
     except Exception as e:
         logger.exception(f"❌ Inline kartochkani chiqarishda xato: {e}")
