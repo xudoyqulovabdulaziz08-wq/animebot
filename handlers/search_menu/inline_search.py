@@ -1,6 +1,7 @@
 import html
 import logging
 import aiohttp
+import json
 from typing import Any
 from aiogram import Router, Bot, types
 from aiogram.types import (
@@ -154,7 +155,10 @@ async def inline_search(inline_query: InlineQuery):
 
 @router.chosen_inline_result()
 async def test_chosen_result(chosen: ChosenInlineResult):
-    print("\n" + "="*50)
-    print("🔥 CHOSEN INLINE RESULT KELDI:")
-    print(chosen.model_dump())
-    print("="*50 + "\n")
+    logger.info(
+        "\n%s\n%s\n%s\n%s",
+        "=" * 60,
+        "🔥 CHOSEN INLINE RESULT",
+        json.dumps(chosen.model_dump(), indent=2, ensure_ascii=False),
+        "=" * 60,
+    )
