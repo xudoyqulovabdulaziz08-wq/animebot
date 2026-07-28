@@ -5,6 +5,7 @@ from aiogram.types import (
     InlineKeyboardMarkup,
     InlineKeyboardButton,
 )
+from aiogram.exceptions import TelegramBadRequest
 from config import config
 
 logger = logging.getLogger("Cabinetanimelarim")
@@ -58,14 +59,34 @@ async def animelarim_menu(callback: CallbackQuery):
         ]
     )
 
-    await callback.message.edit_text(
-        text=(
-            "🎬 <b>Animelarim</b>\n\n"
-            "Bu bo'lim orqali o'zingizga tegishli ma'lumotlarni boshqarishingiz mumkin.\n\n"
-            "Kerakli bo'limni tanlang."
-        ),
-        parse_mode="HTML",
-        reply_markup=keyboard
+    caption_text = (
+        "🎬 <b>Animelarim</b>\n\n"
+        "Bu bo'lim orqali o'zingizga tegishli ma'lumotlarni boshqarishingiz mumkin.\n\n"
+        "Kerakli bo'limni tanlang."
     )
+
+    try:
+        # 🖼 Agar xabar Rasm yoki Video bo'lsa (Media) -> Caption va Keyboard o'zgaradi
+        if callback.message.photo or callback.message.video or callback.message.document:
+            await callback.message.edit_caption(
+                caption=caption_text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+        # 📝 Agar xabar faqat Matndan iborat bo'lsa
+        else:
+            await callback.message.edit_text(
+                text=caption_text,
+                parse_mode="HTML",
+                reply_markup=keyboard
+            )
+    except TelegramBadRequest as e:
+        # Agar xabar o'zgarmas darajada eski bo'lsa yoki boshqa xato bersa, xabarni o'chirib qayta yuboradi
+        logger.warning(f"Xabarni tahrirlashda xatolik: {e}")
+        await callback.message.answer(
+            text=caption_text,
+            parse_mode="HTML",
+            reply_markup=keyboard
+        )
 
     await callback.answer()

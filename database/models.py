@@ -140,8 +140,30 @@ class DBUser(Base):
         server_default=text("true"),
         nullable=False
     )
+
     ratings: Mapped[list["AnimeRating"]] = relationship(
         "AnimeRating",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    watch_history: Mapped[list["UserWatchHistory"]] = relationship(
+        "UserWatchHistory",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    subscriptions: Mapped[list["AnimeSubscription"]] = relationship(
+        "AnimeSubscription",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    favorites: Mapped[list["UserFavoriteAnime"]] = relationship(
+        "UserFavoriteAnime",
         back_populates="user",
         cascade="all, delete-orphan",
         lazy="selectin"
@@ -491,6 +513,128 @@ class Comment(Base):
         remote_side=[id],
         lazy="selectin"
     )
+
+
+
+#========================================================================#
+class UserWatchHistory(Base):
+    __tablename__ = "user_watch_history"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
+    anime_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("anime_list.anime_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
+    episode_id: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        ForeignKey("anime_episodes.id", ondelete="CASCADE"),
+        nullable=True
+    )
+
+    last_watched_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+        index=True
+    )
+
+    # Munosabatlar (back_populates qo'shildi)
+    user: Mapped["DBUser"] = relationship("DBUser", back_populates="watch_history", lazy="selectin")
+    anime: Mapped["Anime"] = relationship("Anime", lazy="selectin")
+    episode: Mapped[Optional["Episode"]] = relationship("Episode", lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "anime_id", name="uq_user_anime_history"),
+    )
+
+#========================================================================#
+class AnimeSubscription(Base):
+    __tablename__ = "anime_subscriptions"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
+    anime_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("anime_list.anime_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    # Munosabatlar (back_populates qo'shildi)
+    user: Mapped["DBUser"] = relationship("DBUser", back_populates="subscriptions", lazy="selectin")
+    anime: Mapped["Anime"] = relationship("Anime", lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "anime_id", name="uq_user_anime_subscription"),
+    )
+
+#========================================================================#
+class UserFavoriteAnime(Base):
+    __tablename__ = "user_favorite_animes"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
+    anime_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("anime_list.anime_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    # Munosabatlar (Relationships)
+    user: Mapped["DBUser"] = relationship("DBUser", back_populates="favorites", lazy="selectin")
+    anime: Mapped["Anime"] = relationship("Anime", lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "anime_id", name="uq_user_anime_favorite"),
+    )
 #========================================================================#
 class Channel(Base):
     __tablename__ = "channels"
@@ -580,6 +724,9 @@ MODELS_TO_WATCH = {
     "Dubber",
     "Comment",
     "AnimeRating",
+    "UserWatchHistory",
+    "AnimeSubscription",
+    "UserFavoriteAnime",
 }
 
 WATCHED_EVENTS = (
