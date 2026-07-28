@@ -140,6 +140,12 @@ class DBUser(Base):
         server_default=text("true"),
         nullable=False
     )
+    ratings: Mapped[list["AnimeRating"]] = relationship(
+        "AnimeRating",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
 
     __table_args__ = (
         Index("idx_user_status_points", status, points), 
@@ -301,6 +307,12 @@ class Anime(Base):
         order_by=lambda: Episode.episode,
         lazy="selectin"
     )
+    ratings: Mapped[list["AnimeRating"]] = relationship(
+        "AnimeRating",
+        back_populates="anime",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
 
     @hybrid_property
     def average_rating(self) -> float:
@@ -325,6 +337,58 @@ class Anime(Base):
     # Kimdir tasodifan xato kod yozib, reytingni buzib yubormasligi uchun cheklov
     __table_args__ = (
         CheckConstraint('rating_count >= 0', name='check_rating_count_positive'),
+    )
+
+
+#========================================================================#
+class AnimeRating(Base):
+    __tablename__ = "anime_ratings"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True
+    )
+
+    anime_id: Mapped[int] = mapped_column(
+        ForeignKey("anime_list.anime_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.user_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
+    score: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    # Munosabatlar (Relationships)
+    anime: Mapped["Anime"] = relationship(
+        "Anime",
+        back_populates="ratings",
+        lazy="selectin"
+    )
+
+    user: Mapped["DBUser"] = relationship(
+        "DBUser",
+        back_populates="ratings",
+        lazy="selectin"
+    )
+
+    # Bir foydalanuvchi bitta animega faqat bitta baho bera olishi va baho 1-10 oralig'ida bo'lishi uchun cheklovlar:
+    __table_args__ = (
+        UniqueConstraint("anime_id", "user_id", name="uq_anime_user_rating"),
+        CheckConstraint("score >= 1 AND score <= 10", name="check_score_range"),
     )
 
 #========================================================================#
@@ -515,6 +579,7 @@ MODELS_TO_WATCH = {
     "Channel",
     "Dubber",
     "Comment",
+    "AnimeRating",
 }
 
 WATCHED_EVENTS = (

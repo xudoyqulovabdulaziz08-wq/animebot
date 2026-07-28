@@ -25,7 +25,7 @@ class SearchStates(StatesGroup):
 @router.callback_query(lambda c: c.data == "search_by_id")
 async def search_by_id(callback: CallbackQuery, state: FSMContext): # state qo'shildi
     await callback.answer()
-    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA3cAAz0E"
+    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA20AAz0E"
     
     
     text = (

@@ -16,7 +16,7 @@ async def search_menu(callback: CallbackQuery, state: FSMContext):
     last_menu_id = data.get("last_menu_id")
     await state.clear()  # State toza bo'lishi uchun
 
-    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA3cAAz0E"
+    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA20AAz0E"
 
     text = (
         "🔍 <b>ANIME QIDIRISH</b>\n\n"
