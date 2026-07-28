@@ -35,18 +35,17 @@ async def animelarim_menu(callback: CallbackQuery):
             ],
             [
                 InlineKeyboardButton(
-                    text="⭐ Baholar",
+                    text="⭐ Baholarim",
                     callback_data="cabinet_ratings",
                     style="primary"
-                )
-            ],
-            [
+                ),
                 InlineKeyboardButton(
-                    text="❤️ Sevimlilar",
+                    text="❤️ Sevimlilarim",
                     callback_data="cabinet_favorite",
                     style="primary"
                 )
             ],
+            
             [
                 InlineKeyboardButton(
                     text="💬 Izohlar",
