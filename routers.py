@@ -23,6 +23,9 @@ from handlers.admin_panel import(
     admin_stastika
     
 )
+from handlers.animelarim import (
+    animelarim_menu
+)
 
 from handlers.admin_panel.admin_anime import(
     anime_menu,
@@ -106,6 +109,7 @@ main_router.include_routers(
     reklama.router,
     buy_vip.router,
     help.router,
+    animelarim_menu.router,
     wiev_episode.router,
 
 
