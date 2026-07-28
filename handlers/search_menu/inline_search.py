@@ -1,5 +1,6 @@
 import html
 import logging
+import re
 import aiohttp
 from typing import Any
 from aiogram import Router, F, types
@@ -8,9 +9,10 @@ from aiogram.types import (
     InlineQueryResultArticle,
     InputTextMessageContent,
     Message, 
-    LinkPreviewOptions
+    LinkPreviewOptions,
+    InlineKeyboardMarkup, 
+    InlineKeyboardButton
 )
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.anime_service import AnimeService
 from utils.http import get_http_session
 from handlers.search_menu.anime_card import send_anime_card
@@ -18,6 +20,7 @@ from config import config
 
 logger = logging.getLogger(__name__)
 router = Router()
+
 API_HOMEPAGE_URL = "https://aninov.uz/api/anime/homepage"
 API_SEARCH_URL = "https://aninov.uz/api/search"
 DEFAULT_POSTER = "https://aninov.uz/static/images/default_poster.jpg"
@@ -28,6 +31,8 @@ BOT_USERNAME = getattr(config, "BOT_USERNAME", "Mazil_top_bot")
 async def inline_search(inline_query: InlineQuery):
     """
     Inline qidiruv handler.
+    - Bo'sh yoki indikator matni tursa -> Homepage API
+    - Matn kiritilsa -> Search API
     """
     query = inline_query.query.strip()
     session = get_http_session()
@@ -37,18 +42,17 @@ async def inline_search(inline_query: InlineQuery):
     is_homepage = False
 
     try:
-        # 🎯 1. SHART: Bo'sh so'rov bo'lsa -> Homepage API
-        if len(query) == 0:
+        # 🎯 1. SHART: Bo'sh yoki avtomatik indikator matni bo'lsa -> Homepage API
+        if not query or query.lower() in ["anime nomi yozing....", "anime nomi yozing", ""]:
             is_homepage = True
             async with session.get(API_HOMEPAGE_URL, timeout=timeout) as response:
                 if response.status == 200:
                     data = await response.json()
-                    # 💡 XATOLIK SHU YERDA EDI: Dict yoki List kelishini xavfsiz tekshiramiz
                     if isinstance(data, list):
                         anime_list = data
                     elif isinstance(data, dict):
                         anime_list = data.get("data") or data.get("results") or []
-        # 🎯 2. SHART: So'rov bor bo'lsa -> Search API
+        # 🎯 2. SHART: So'rov kiritilgan bo'lsa -> Search API
         else:
             async with session.get(API_SEARCH_URL, params={"q": query}, timeout=timeout) as response:
                 if response.status == 200:
@@ -61,14 +65,12 @@ async def inline_search(inline_query: InlineQuery):
     except Exception as e:
         logger.error(f"Inline search network error (is_homepage={is_homepage}): {e}")
 
-    # 🛡 XAVFSIZLIK TEKSHIRUVI:
-    # Agar nimagadir anime_list hali ham list bo'lmasa, uni bo'sh ro'yxatga aylantiramiz
+    # 🛡 XAVFSIZLIK TEKSHIRUVI
     if not isinstance(anime_list, list):
         anime_list = []
 
     results = []
 
-    # ✅ Endi anime_list aniq 'list' bo'ladi va [:40] xatosiz ishlaydi!
     for anime in anime_list[:40]:
         if not isinstance(anime, dict):
             continue
@@ -105,14 +107,14 @@ async def inline_search(inline_query: InlineQuery):
         if not (isinstance(poster_url, str) and (poster_url.startswith("http://") or poster_url.startswith("https://"))):
             poster_url = DEFAULT_POSTER
 
+        # Xabar matni
         message_text = (
             f'<a href="{poster_url}">&#8203;</a>'
             f"📕 <b>{title}</b>\n\n"
             f"<blockquote expandable>🎭 <b>Janrlar:</b> {genres}\n</blockquote>"
             f"📅 <b>Yili:</b> {year}\n"
-            f"🆔 <b>ID:</b> <code>{anime_id}</code>"
-            f"Aninouzda tomasha qiling"
-            
+            f"🆔 <b>ID:</b> <code>{anime_id}</code>\n\n"
+            f"<i>Aninovuzda tomosha qiling</i>"
         )
 
         message_content = InputTextMessageContent(
@@ -155,7 +157,7 @@ async def inline_search(inline_query: InlineQuery):
     cache_time = 5 if is_homepage else 1
     await inline_query.answer(results=results, cache_time=cache_time, is_personal=True)
 
-    
+
 # 🔥 KAWAII BOTIDAGI KABI ISHLAYDIGAN ASOSIY HANDLER
 @router.message(F.via_bot.username == BOT_USERNAME)
 async def process_inline_message_in_pm(message: Message, session: Any):
@@ -164,29 +166,37 @@ async def process_inline_message_in_pm(message: Message, session: Any):
     Vaqtinchalik matn xabarini o'chiradi va send_anime_card funksiyasini ishga tushiradi.
     """
     try:
-        # 1. Inline natijadan tanlangan Anime ID'sini matndan ajratib olamiz
         anime_id = None
-        if message.text and "ID: " in message.text:
-            try:
-                anime_id = int(message.text.split("ID: ")[1].replace(")", "").strip())
-            except (IndexError, ValueError):
-                pass
+        
+        # 1. Matndan ID'ni Regex yordamida kafolatlangan holda ajratib olamiz
+        text_to_search = message.text or message.caption or ""
+        match = re.search(r"🆔\s*<b>ID:</b>\s*<code>(\d+)</code>", text_to_search)
+        if not match:
+            # HTML parsingiz sizda o'chirilgan holatda ham topsin:
+            match = re.search(r"ID:\s*(\d+)", text_to_search)
+
+        if match:
+            anime_id = int(match.group(1))
 
         if not anime_id:
             logger.warning("Inline xabardan Anime ID aniqlanmadi!")
             return
 
-        # 2. AnimeService orqali anime ma'lumotlarini olamiz
+        # 2. Vaqtinchalik inline xabarni o'chirib tashlaymiz
+        try:
+            await message.delete()
+        except Exception as del_err:
+            logger.warning(f"Vaqtinchalik xabarni o'chirishda xatolik: {del_err}")
+
+        # 3. AnimeService orqali anime ma'lumotlarini olib kartochkani chiqarish
         anime_service = AnimeService(session=session)
-        
-        # ✅ TO'G'RI METOD: get_anime(anime_id)
         anime_data = await anime_service.get_anime(anime_id)
 
         if not anime_data:
             logger.warning(f"ID={anime_id} bo'yicha anime topilmadi!")
             return
 
-        # 3. O'zingizning tayyor send_anime_card funksiyangizga beramiz
+        # 4. Anime kartochkasini yuboramiz
         await send_anime_card(message=message, anime=anime_data, session=session)
 
     except Exception as e:
