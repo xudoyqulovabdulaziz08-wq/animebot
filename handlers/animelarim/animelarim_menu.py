@@ -66,7 +66,7 @@ async def animelarim_menu(callback: CallbackQuery):
                     text="⬅️ Orqaga",
                     callback_data="cabinet",
                     style="danger"
-                    style="danger"
+                    
                 )
             ]
         ]
