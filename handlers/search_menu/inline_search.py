@@ -188,7 +188,7 @@ async def inline_search(inline_query: InlineQuery):
     # qat'iy joylashadi (scroll bo'lganda birinchi rasm chekkadan "chiqib"
     # ketish effektini bartaraf qiladi, ayniqsa mobil ilovada).
     top_button = InlineQueryResultsButton(
-        text="🎬 Aninovuz — Tezkor qidiruv",
+        text="🎬 Aninovuz — Tezkor qidiruv fuksiyasi",
         start_parameter="from_inline",
     )
 

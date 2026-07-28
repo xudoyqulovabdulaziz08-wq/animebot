@@ -75,15 +75,24 @@ async def open_cabinet_handler(callback: CallbackQuery, user_service: UserServic
                 InlineKeyboardButton(
                     text="🔄 Parolni yangilash",
                     callback_data=f"refresh_web_code:{user_id}",
+                    style="success"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📚 Anime markazi",
+                    callback_data="animelarim_cabinet",
                     style="primary"
+
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="💎 VIP bo'limi",
                     callback_data="buy_vip",
-                    style="success"
+                    style="primary"
                 )
+                
             ],
             [
                 InlineKeyboardButton(

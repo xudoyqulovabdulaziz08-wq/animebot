@@ -23,7 +23,7 @@ async def send_or_edit_start_menu(target: Message | CallbackQuery, user_id: int,
     CallbackQuery bo'lsa mavjud xabarni media edit (tahrirlash) qiladi.
     """
     start_image_file_id = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA3cAAz0E" 
-    
+    sayt_url = f"https://aninov.uz"
     welcome_text = (
         f"👋 Xush kelibsiz, {html.bold(username)}!\n\n"
         f"🎬 {html.bold('AniNovuz')} — siz qidirgan eng sara, sifatli va sevimli animelar makoniga qadam qo‘ydingiz.\n\n"
@@ -35,7 +35,7 @@ async def send_or_edit_start_menu(target: Message | CallbackQuery, user_id: int,
             [InlineKeyboardButton(text="🔍 Qidiruv", callback_data="search_menu", style="primary")],
             [
                 InlineKeyboardButton(text="👤 Kabinet", callback_data="cabinet", style="primary"),
-                InlineKeyboardButton(text="🔔 Obunalar", callback_data="subscribe_to_anime", style="primary")
+                InlineKeyboardButton(text="🌐 Sayt",  url=sayt_url, style="primary")
                 
             ],
             [
