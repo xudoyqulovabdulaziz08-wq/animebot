@@ -108,11 +108,11 @@ async def inline_search(inline_query: InlineQuery):
         message_text = (
             f'<a href="{poster_url}">&#8203;</a>'
             f"📕 <b>{title}</b>\n\n"
-            f"<blockquote expandable>"
-            f"🎭 <b>Janrlar:</b> {genres}\n"
+            f"<blockquote expandable>🎭 <b>Janrlar:</b> {genres}\n</blockquote>"
             f"📅 <b>Yili:</b> {year}\n"
             f"🆔 <b>ID:</b> <code>{anime_id}</code>"
-            f"</blockquote>"
+            f"Aninouzda tomasha qiling"
+            
         )
 
         message_content = InputTextMessageContent(
