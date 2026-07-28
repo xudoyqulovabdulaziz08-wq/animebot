@@ -26,7 +26,7 @@ DEFAULT_POSTER = "https://aninov.uz/static/images/default_poster.jpg"
 
 # 🤖 Botning username'i (@ belgisisiz). Agar config.py da BOT_USERNAME bo'lsa,
 # undan olamiz; bo'lmasa quyidagi qatorga qo'lda yozing.
-BOT_USERNAME = getattr(config, "BOT_USERNAME", "aninovuz_bot")
+BOT_USERNAME = getattr(config, "BOT_USERNAME", "Mazil_top_bot")
 
 
 @router.inline_query()
