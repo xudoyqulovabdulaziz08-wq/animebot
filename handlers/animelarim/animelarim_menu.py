@@ -40,6 +40,12 @@ async def animelarim_menu(callback: CallbackQuery):
             ],
             [
                 InlineKeyboardButton(
+                    text="❤️ Sevimlilar",
+                    callback_data="cabinet_favorite"
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text="💬 Izohlar",
                     callback_data="cabinet_comments"
                 )

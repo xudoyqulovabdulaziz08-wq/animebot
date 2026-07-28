@@ -113,8 +113,38 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
 
     # Inline tugmalar (style parametrlariga tegilmadi)
     user_anime_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="▶️ Tomosha qilish", callback_data=f"show_episodes_user:{anime_id}", style="primary")],
-        [InlineKeyboardButton(text="🏠 Bosh menu", callback_data="back_to_start", style="danger")]
+        [
+            InlineKeyboardButton(
+                text="▶️ Tomosha qilish", 
+                callback_data=f"show_episodes_user:{anime_id}"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🔔 Obuna", 
+                callback_data=f"anime_subscription:{anime_id}"
+            ),
+            InlineKeyboardButton(
+                text="❤️ Sevimlilar", 
+                callback_data=f"anime_favorite:{anime_id}"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="⭐ Baholash", 
+                callback_data=f"anime_rating:{anime_id}"
+            ),
+            InlineKeyboardButton(
+                text="💬 Izoh", 
+                callback_data=f"anime_comment:{anime_id}"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="🏠 Bosh menyu", 
+                callback_data="back_to_start"
+            )
+        ]
     ])
 
     # 🧹 ESKI "QIDIRISH MENYUSI" XABARINI TOZALASH

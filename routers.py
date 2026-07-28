@@ -62,7 +62,12 @@ from handlers.search_menu import(
     wiev_episode,
     inline_search
 )
-
+from handlers.anime_uchun import(
+    sevimli_anime,
+    baholash_anime,
+    obuna_anime,
+    izoh_anime
+)
 
 main_router = Router()
 
@@ -111,6 +116,11 @@ main_router.include_routers(
     help.router,
     animelarim_menu.router,
     wiev_episode.router,
+
+    baholash_anime.router,
+    izoh_anime.router,
+    obuna_anime.router,
+    sevimli_anime.router,
 
 
     search.router,
