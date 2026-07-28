@@ -7,19 +7,18 @@ from aiogram.types import (
     InlineQuery,
     InlineQueryResultArticle,
     InputTextMessageContent,
-    Message, 
+    InlineKeyboardMarkup,
+    InlineKeyboardButton,
     LinkPreviewOptions
 )
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from services.anime_service import AnimeService
 from utils.http import get_http_session
-from handlers.search_menu.anime_card import send_anime_card
 from config import config
 
 logger = logging.getLogger(__name__)
 router = Router()
 
 API_SEARCH_URL = "https://aninov.uz/api/search"
+API_HOMEPAGE_URL = "https://aninov.uz/api/anime/homepage"
 DEFAULT_POSTER = "https://aninov.uz/static/images/default_poster.jpg"
 BOT_USERNAME = getattr(config, "BOT_USERNAME", "Mazil_top_bot")
 
@@ -27,38 +26,52 @@ BOT_USERNAME = getattr(config, "BOT_USERNAME", "Mazil_top_bot")
 @router.inline_query()
 async def inline_search(inline_query: InlineQuery):
     """
-    Inline qidiruv handler.
+    Inline qidiruv handler:
+    - Agar query bo'sh bo'lsa -> Homepage (so'nggi) animelarni ko'rsatadi.
+    - Agar query bo'lsa -> Qidiruv bo'yicha animelarni ko'rsatadi.
     """
     query = inline_query.query.strip()
-
-    if len(query) < 1:
-        await inline_query.answer(results=[], cache_time=10, is_personal=True)
-        return
+    session = get_http_session()
+    timeout = aiohttp.ClientTimeout(total=2)
 
     anime_list = []
+    is_homepage = False
 
     try:
-        timeout = aiohttp.ClientTimeout(total=2)
-        session = get_http_session()
-        async with session.get(API_SEARCH_URL, params={"q": query}, timeout=timeout) as response:
-            if response.status == 200:
-                data = await response.json()
-                if data.get("success", True):
-                    anime_list = data.get("data", [])
-            else:
-                logger.error(f"API Error: Status {response.status}")
+        # 🎯 1. SHART: Agar so'rov bo'sh bo'lsa -> Homepage API ga so'rov yuboramiz
+        if len(query) == 0:
+            is_homepage = True
+            async with session.get(API_HOMEPAGE_URL, timeout=timeout) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    # Agar javob ro'yxat bo'lsa yoki dict bo'lsa moslashtiramiz
+                    if isinstance(data, list):
+                        anime_list = data
+                    elif isinstance(data, dict):
+                        anime_list = data.get("data", []) or data.get("results", [])
+        # 🎯 2. SHART: Matn kiritilgan bo'lsa -> Search API ga so'rov yuboramiz
+        else:
+            async with session.get(API_SEARCH_URL, params={"q": query}, timeout=timeout) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get("success", True):
+                        anime_list = data.get("data", [])
     except Exception as e:
-        logger.error(f"Inline search network error: {e}")
+        logger.error(f"Inline search network error (is_homepage={is_homepage}): {e}")
 
     results = []
 
     for anime in anime_list[:40]:
-        anime_id = anime.get("id")
-        if not anime_id:
+        # Homepage va Search API o'rtasidagi ID farqini tekshiramiz
+        raw_id = anime.get("anime_id") if is_homepage else anime.get("id")
+        if not raw_id:
+            raw_id = anime.get("id") or anime.get("anime_id")
+            
+        if not raw_id:
             continue
 
         try:
-            anime_id = int(anime_id)
+            anime_id = int(raw_id)
         except (TypeError, ValueError):
             continue
 
@@ -66,17 +79,26 @@ async def inline_search(inline_query: InlineQuery):
         year = anime.get("year") or "Noma'lum"
         slug = anime.get("seo_slug") or str(anime_id)
 
+        # Janrlarni to'g'ri formatlash (Homepage'da dict, Search'da str keladi)
         genres_raw = anime.get("genres", [])
-        genres = " • ".join(str(g) for g in genres_raw if g) if isinstance(genres_raw, list) else str(genres_raw or "")
-        genres = html.escape(genres) if genres else "Janr ko'rsatilmagan"
+        parsed_genres = []
+        if isinstance(genres_raw, list):
+            for g in genres_raw:
+                if isinstance(g, dict) and "name" in g:
+                    parsed_genres.append(str(g["name"]))
+                elif isinstance(g, str):
+                    parsed_genres.append(g)
+        
+        genres = " • ".join(parsed_genres) if parsed_genres else "Janr ko'rsatilmagan"
+        genres = html.escape(genres)
 
         poster_url = anime.get("poster") or DEFAULT_POSTER
         if not (isinstance(poster_url, str) and (poster_url.startswith("http://") or poster_url.startswith("https://"))):
             poster_url = DEFAULT_POSTER
 
-        # 🖼 1. Matn boshiga yashirin foto havolasi va chiroyli dizayn
+        # 🖼 Katta rasm bilan chiqadigan xabar matni
         message_text = (
-            f'<a href="{poster_url}">&#8203;</a>'  # Matn tepasida rasmni ko'rsatish uchun yashirin link
+            f'<a href="{poster_url}">&#8203;</a>'
             f"📕 <b>{title}</b>\n\n"
             f"<blockquote expandable>"
             f"🎭 <b>Janrlar:</b> {genres}\n"
@@ -88,7 +110,6 @@ async def inline_search(inline_query: InlineQuery):
         message_content = InputTextMessageContent(
             message_text=message_text,
             parse_mode="HTML",
-            # 🖼 2. Link Preview-ni rasm sifatida tepada katta ko'rsatish
             link_preview_options=LinkPreviewOptions(
                 url=poster_url,
                 prefer_large_media=True,
@@ -96,7 +117,7 @@ async def inline_search(inline_query: InlineQuery):
             )
         )
 
-        # 🔗 URL manzillari
+        # 🔗 Inline Klaviaturasidagi tugmalar
         deep_link_url = f"https://t.me/{BOT_USERNAME}?start=anime_{anime_id}"
         sayt_url = f"https://aninov.uz/anime/{slug}"
         kanal_url = "https://t.me/Aninovuz"
@@ -124,41 +145,6 @@ async def inline_search(inline_query: InlineQuery):
             )
         )
 
-    await inline_query.answer(results=results, cache_time=1, is_personal=True)
-
-    
-# 🔥 KAWAII BOTIDAGI KABI ISHLAYDIGAN ASOSIY HANDLER
-@router.message(F.via_bot.username == BOT_USERNAME)
-async def process_inline_message_in_pm(message: Message, session: Any):
-    """
-    Foydalanuvchi PM'da inline qidiruv orqali natijani tanlaganida tushadi.
-    Vaqtinchalik matn xabarini o'chiradi va send_anime_card funksiyasini ishga tushiradi.
-    """
-    try:
-        # 1. Inline natijadan tanlangan Anime ID'sini matndan ajratib olamiz
-        anime_id = None
-        if message.text and "ID: " in message.text:
-            try:
-                anime_id = int(message.text.split("ID: ")[1].replace(")", "").strip())
-            except (IndexError, ValueError):
-                pass
-
-        if not anime_id:
-            logger.warning("Inline xabardan Anime ID aniqlanmadi!")
-            return
-
-        # 2. AnimeService orqali anime ma'lumotlarini olamiz
-        anime_service = AnimeService(session=session)
-        
-        # ✅ TO'G'RI METOD: get_anime(anime_id)
-        anime_data = await anime_service.get_anime(anime_id)
-
-        if not anime_data:
-            logger.warning(f"ID={anime_id} bo'yicha anime topilmadi!")
-            return
-
-        # 3. O'zingizning tayyor send_anime_card funksiyangizga beramiz
-        await send_anime_card(message=message, anime=anime_data, session=session)
-
-    except Exception as e:
-        logger.exception(f"❌ Inline kartochkani chiqarishda xato: {e}")
+    # Cache vaqtini homepage uchun kamroq, shunda yangi animelar tez aks etadi
+    cache_time = 5 if is_homepage else 1
+    await inline_query.answer(results=results, cache_time=cache_time, is_personal=True)
