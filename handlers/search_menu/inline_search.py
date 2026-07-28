@@ -25,8 +25,6 @@ router = Router()
 API_SEARCH_URL = "https://aninov.uz/api/search"
 DEFAULT_POSTER = "https://aninov.uz/static/images/default_poster.jpg"
 
-# 🤖 Botning username'i (@ belgisisiz). Agar config.py da BOT_USERNAME bo'lsa,
-# undan olamiz; bo'lmasa quyidagi qatorga qo'lda yozing.
 BOT_USERNAME = getattr(config, "BOT_USERNAME", "Mazil_top_bot")
 
 
@@ -34,21 +32,15 @@ BOT_USERNAME = getattr(config, "BOT_USERNAME", "Mazil_top_bot")
 async def inline_search(inline_query: InlineQuery):
     """
     Inline qidiruv handler.
-    Natijadagi tugma - callback emas, balki bevosita botga olib boruvchi
-    deep-link (url) tugmasi. Shuning uchun boshqa chatda faqat statik
-    kartochka ko'rinadi, tomosha qilish esa har doim bot ichida bo'ladi.
     """
     query = inline_query.query.strip()
 
-    # 1. 1 tadan kam belgi bo'lsa darhol bo'sh javob qaytaramiz
     if len(query) < 1:
         await inline_query.answer(results=[], cache_time=10, is_personal=True)
         return
 
     anime_list = []
 
-    # 2. Qidiruv so'rovi (Timeout: 2s)
-    
     try:
         timeout = aiohttp.ClientTimeout(total=2)
         session = get_http_session()
@@ -75,7 +67,6 @@ async def inline_search(inline_query: InlineQuery):
 
     results = []
 
-    # 3. Top 40 natijalarni Article ko'rinishida shakllantiramiz
     for anime in anime_list[:40]:
         anime_id = anime.get("id")
         if not anime_id:
@@ -89,7 +80,6 @@ async def inline_search(inline_query: InlineQuery):
         title = html.escape(str(anime.get("title") or "Noma'lum anime"))
         year = anime.get("year") or "Noma'lum"
 
-        # Janrlar ishlovi
         genres_raw = anime.get("genres", [])
         if isinstance(genres_raw, list):
             genres = " • ".join(str(g) for g in genres_raw if g)
@@ -97,7 +87,6 @@ async def inline_search(inline_query: InlineQuery):
             genres = str(genres_raw or "")
         genres = html.escape(genres) if genres else "Janr ko'rsatilmagan"
 
-        # Poster rasmi (Thumbnail uchun)
         poster_url = anime.get("poster") or DEFAULT_POSTER
         if not (
             isinstance(poster_url, str)
@@ -105,12 +94,8 @@ async def inline_search(inline_query: InlineQuery):
         ):
             poster_url = DEFAULT_POSTER
 
-        # Telegram natijalar oynasidagi qisqa tavsif
         description = f"📅 {year} \n 🎭 {genres}"
 
-        # Boshqa chatga yuborilganda ko'rinadigan statik matn.
-        # Tomosha qilish faqat bot ichida bo'lgani uchun bu yerda
-        # hech qanday "yuklanmoqda" kabi vaqtinchalik holat yo'q.
         message_content = InputTextMessageContent(
             message_text=(
                 f"🎬 <b>{title}</b>\n\n"
@@ -121,9 +106,6 @@ async def inline_search(inline_query: InlineQuery):
             parse_mode="HTML",
         )
 
-        # 🔗 Deep-link tugma: bosilganda foydalanuvchi to'g'ridan-to'g'ri
-        # botning shaxsiy chatiga o'tadi va /start anime_{id} ishga tushadi
-        # (cmd_start ichidagi mavjud deep-link parsing shu formatni kutadi).
         reply_markup = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -146,19 +128,31 @@ async def inline_search(inline_query: InlineQuery):
             )
         )
 
-    # 4. Javobni tezkorlik bilan qaytaramiz (cache_time=1)
     await inline_query.answer(results=results, cache_time=10, is_personal=True)
 
 
-
-
-
+# 🧪 1. CHOSEN INLINE RESULT DEBUG
 @router.chosen_inline_result()
 async def test_chosen_result(chosen: ChosenInlineResult):
     logger.info(
         "\n%s\n%s\n%s\n%s",
         "=" * 60,
-        "🔥 CHOSEN INLINE RESULT",
+        "🔥 CHOSEN INLINE RESULT KELDI:",
         json.dumps(chosen.model_dump(), indent=2, ensure_ascii=False),
+        "=" * 60,
+    )
+
+
+# 🧪 2. MESSAGE UPDATE DEBUG (ChatGPT taklif qilgan oxirgi sinov)
+@router.message()
+async def debug_message(message: Message):
+    logger.info(
+        "\n%s\n%s\nMESSAGE UPDATE: chat_id=%s | msg_id=%s | via_bot=%s | text=%s\n%s",
+        "=" * 60,
+        "📩 YANGI MESSAGE UPDATE KELDI:",
+        message.chat.id,
+        message.message_id,
+        message.via_bot.username if message.via_bot else None,
+        message.text,
         "=" * 60,
     )
