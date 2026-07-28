@@ -7,7 +7,8 @@ from aiogram.types import (
     InlineQuery,
     InlineQueryResultArticle,
     InputTextMessageContent,
-    Message
+    Message, 
+    LinkPreviewOptions
 )
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.anime_service import AnimeService
@@ -63,8 +64,6 @@ async def inline_search(inline_query: InlineQuery):
 
         title = html.escape(str(anime.get("title") or "Noma'lum anime"))
         year = anime.get("year") or "Noma'lum"
-
-        # 📌 JSON javobidan 'seo_slug' ni ajratib olamiz
         slug = anime.get("seo_slug") or str(anime_id)
 
         genres_raw = anime.get("genres", [])
@@ -75,27 +74,38 @@ async def inline_search(inline_query: InlineQuery):
         if not (isinstance(poster_url, str) and (poster_url.startswith("http://") or poster_url.startswith("https://"))):
             poster_url = DEFAULT_POSTER
 
-        # 📌 Vaqtinchalik inline xabar matni
-        message_content = InputTextMessageContent(
-            message_text=(
-                f"🎬 <b>{title}</b>\n\n"
-                f"📅 <b>Yili:</b> {year}\n"
-                f"🎭 <b>Janrlar:</b> {genres}\n\n"
-                f"🔄 <i>Yuklanmoqda... (ID: {anime_id})</i>"
-            ),
-            parse_mode="HTML",
+        # 🖼 1. Matn boshiga yashirin foto havolasi va chiroyli dizayn
+        message_text = (
+            f'<a href="{poster_url}">&#8203;</a>'  # Matn tepasida rasmni ko'rsatish uchun yashirin link
+            f"📕 <b>{title}</b>\n\n"
+            f"<blockquote expandable>"
+            f"🎭 <b>Janrlar:</b> {genres}\n"
+            f"📅 <b>Yili:</b> {year}\n"
+            f"🆔 <b>ID:</b> <code>{anime_id}</code>"
+            f"</blockquote>"
         )
 
-        # 🔗 URL manzillarini to'g'ri shakllantiramiz
+        message_content = InputTextMessageContent(
+            message_text=message_text,
+            parse_mode="HTML",
+            # 🖼 2. Link Preview-ni rasm sifatida tepada katta ko'rsatish
+            link_preview_options=LinkPreviewOptions(
+                url=poster_url,
+                prefer_large_media=True,
+                show_above_text=True
+            )
+        )
+
+        # 🔗 URL manzillari
         deep_link_url = f"https://t.me/{BOT_USERNAME}?start=anime_{anime_id}"
-        sayt_url = f"https://aninov.uz/anime/{slug}"  # 👈 Slash '/' va seo_slug ulandi
+        sayt_url = f"https://aninov.uz/anime/{slug}"
         kanal_url = "https://t.me/Aninovuz"
 
         inline_kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="🤖 Bot", url=deep_link_url, style="primary"),
-                    InlineKeyboardButton(text="🌐 Sayt", url=sayt_url, style="primary")
+                    InlineKeyboardButton(text="🤖 Bot", url=deep_link_url, style="success"),
+                    InlineKeyboardButton(text="🌐 Sayt", url=sayt_url, style="success")
                 ],
                 [
                     InlineKeyboardButton(text="📢 Kanal", url=kanal_url, style="primary")
@@ -115,7 +125,6 @@ async def inline_search(inline_query: InlineQuery):
         )
 
     await inline_query.answer(results=results, cache_time=1, is_personal=True)
-
 
     
 # 🔥 KAWAII BOTIDAGI KABI ISHLAYDIGAN ASOSIY HANDLER
