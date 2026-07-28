@@ -26,7 +26,7 @@ router = Router()
 API_HOMEPAGE_URL = "https://aninov.uz/api/anime/homepage"
 API_SEARCH_URL = "https://aninov.uz/api/search"
 DEFAULT_POSTER = "https://aninov.uz/static/images/default_poster.jpg"
-BOT_USERNAME = getattr(config, "BOT_USERNAME", "Mazil_top_bot")
+BOT_USERNAME = getattr(config, "BOT_USERNAME", "Aninovuz_bot")
 
 
 @router.inline_query()
