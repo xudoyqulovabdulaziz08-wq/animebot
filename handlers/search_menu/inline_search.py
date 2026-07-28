@@ -153,42 +153,8 @@ async def inline_search(inline_query: InlineQuery):
 
 
 @router.chosen_inline_result()
-async def process_chosen_inline_result(
-    chosen_result: ChosenInlineResult, 
-    bot: Bot, 
-    session: Any,
-    data_service: AnimeService
-):
-    """
-    Foydalanuvchi inline qidiruv ro'yxatidan biror animeni tanlab bosganda ishlaydi.
-    """
-    # 1. Agar foydalanuvchi botning SHAXSIY CHATIDA inline qidiruv ishlatgan bo'lsa
-    # (PM da inline_message_id bo'lmaydi)
-    if not chosen_result.inline_message_id:
-        user_id = chosen_result.from_user.id
-        anime_id = chosen_result.result_id
-
-        try:
-            # A) Bazadan yoki API'dan anime ma'lumotlarini (dict ko'rinishida) olamiz
-            anime = await data_service.get_anime_by_id(anime_id)
-            if not anime:
-                return
-
-            # B) send_anime_card ga berish uchun soxta (dummy) Message obyektini yasaymiz
-            # Bu send_anime_card ichidagi message.delete() va message.answer_photo()
-            # to'g'ri ishlashi uchun kerak.
-            dummy_message = Message(
-                message_id=0,
-                date=chosen_result.from_user.id,  # Muhim emas
-                chat=types.Chat(id=user_id, type="private"),
-                from_user=chosen_result.from_user,
-                bot=bot
-            )
-
-            # C) Tayyor send_anime_card funksiyangizni chaqiramiz!
-            # U barcha ko'rilishlarni hisoblaydi, VIP/Admin holatiga qarab protect_content
-            # qo'yadi va rasmli kartochkani chiqaradi.
-            await send_anime_card(message=dummy_message, anime=anime, session=session)
-
-        except Exception as e:
-            logger.error(f"❌ Inline chosen result ishlovida xato: {e}")
+async def test_chosen_result(chosen: ChosenInlineResult):
+    print("\n" + "="*50)
+    print("🔥 CHOSEN INLINE RESULT KELDI:")
+    print(chosen.model_dump())
+    print("="*50 + "\n")
