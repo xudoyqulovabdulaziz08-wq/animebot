@@ -100,12 +100,10 @@ async def inline_search(inline_query: InlineQuery):
 async def process_inline_message_in_pm(message: Message, session: Any):
     """
     Foydalanuvchi PM'da inline qidiruv orqali natijani tanlaganida tushadi.
-    Vaqtinchalik matn xabarini o'chiradi va o'zingizning tayyor
-    send_anime_card funksiyangizni ishga tushiradi.
+    Vaqtinchalik matn xabarini o'chiradi va send_anime_card funksiyasini ishga tushiradi.
     """
     try:
-        # 1. Inline natijadan (chosen result) tanlangan Anime ID'sini aniqlaymiz
-        # Matn ichidagi ID: {anime_id} qismidan ajratib olamiz
+        # 1. Inline natijadan tanlangan Anime ID'sini matndan ajratib olamiz
         anime_id = None
         if message.text and "ID: " in message.text:
             try:
@@ -117,17 +115,17 @@ async def process_inline_message_in_pm(message: Message, session: Any):
             logger.warning("Inline xabardan Anime ID aniqlanmadi!")
             return
 
-        # 2. AnimeService orqali anime ma'lumotlarini (dict) olamiz
+        # 2. AnimeService orqali anime ma'lumotlarini olamiz
         anime_service = AnimeService(session=session)
-        anime_data = await anime_service.get_anime_by_id(anime_id)
+        
+        # ✅ TO'G'RI METOD: get_anime(anime_id)
+        anime_data = await anime_service.get_anime(anime_id)
 
         if not anime_data:
             logger.warning(f"ID={anime_id} bo'yicha anime topilmadi!")
             return
 
-        # 3. SIZNING TAYYOR FUNKSIYANGIZNI CHAQRMIZ!
-        # U eski vaqtinchalik xabarni o'chiradi (message.delete) 
-        # va protect_content=True bilan tayyor kartochkani chiqaradi.
+        # 3. O'zingizning tayyor send_anime_card funksiyangizga beramiz
         await send_anime_card(message=message, anime=anime_data, session=session)
 
     except Exception as e:
