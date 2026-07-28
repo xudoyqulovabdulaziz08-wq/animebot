@@ -9,6 +9,7 @@ from aiogram.types import (
     InputTextMessageContent,
     Message
 )
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from services.anime_service import AnimeService
 from utils.http import get_http_session
 from handlers.search_menu.anime_card import send_anime_card
@@ -63,6 +64,9 @@ async def inline_search(inline_query: InlineQuery):
         title = html.escape(str(anime.get("title") or "Noma'lum anime"))
         year = anime.get("year") or "Noma'lum"
 
+        # 📌 JSON javobidan 'seo_slug' ni ajratib olamiz
+        slug = anime.get("seo_slug") or str(anime_id)
+
         genres_raw = anime.get("genres", [])
         genres = " • ".join(str(g) for g in genres_raw if g) if isinstance(genres_raw, list) else str(genres_raw or "")
         genres = html.escape(genres) if genres else "Janr ko'rsatilmagan"
@@ -71,7 +75,7 @@ async def inline_search(inline_query: InlineQuery):
         if not (isinstance(poster_url, str) and (poster_url.startswith("http://") or poster_url.startswith("https://"))):
             poster_url = DEFAULT_POSTER
 
-        # 📌 Vaqtinchalik inline xabar matni (Orqasidan ID bilan beramiz)
+        # 📌 Vaqtinchalik inline xabar matni
         message_content = InputTextMessageContent(
             message_text=(
                 f"🎬 <b>{title}</b>\n\n"
@@ -82,6 +86,23 @@ async def inline_search(inline_query: InlineQuery):
             parse_mode="HTML",
         )
 
+        # 🔗 URL manzillarini to'g'ri shakllantiramiz
+        deep_link_url = f"https://t.me/{BOT_USERNAME}?start=anime_{anime_id}"
+        sayt_url = f"https://aninov.uz/anime/{slug}"  # 👈 Slash '/' va seo_slug ulandi
+        kanal_url = "https://t.me/Aninovuz"
+
+        inline_kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="🤖 Bot", url=deep_link_url, style="primary"),
+                    InlineKeyboardButton(text="🌐 Sayt", url=sayt_url, style="primary")
+                ],
+                [
+                    InlineKeyboardButton(text="📢 Kanal", url=kanal_url, style="primary")
+                ]
+            ]
+        )
+
         results.append(
             InlineQueryResultArticle(
                 id=str(anime_id),
@@ -89,12 +110,14 @@ async def inline_search(inline_query: InlineQuery):
                 description=f"📅 {year} | 🎭 {genres}",
                 thumbnail_url=poster_url,
                 input_message_content=message_content,
+                reply_markup=inline_kb
             )
         )
 
     await inline_query.answer(results=results, cache_time=1, is_personal=True)
 
 
+    
 # 🔥 KAWAII BOTIDAGI KABI ISHLAYDIGAN ASOSIY HANDLER
 @router.message(F.via_bot.username == BOT_USERNAME)
 async def process_inline_message_in_pm(message: Message, session: Any):
