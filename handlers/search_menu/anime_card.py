@@ -116,33 +116,39 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
         [
             InlineKeyboardButton(
                 text="▶️ Tomosha qilish", 
-                callback_data=f"show_episodes_user:{anime_id}"
+                callback_data=f"show_episodes_user:{anime_id}",
+                style="primary"
             )
         ],
         [
             InlineKeyboardButton(
                 text="🔔 Obuna", 
-                callback_data=f"anime_subscription:{anime_id}"
+                callback_data=f"anime_subscription:{anime_id}",
+                style="primary"
             ),
             InlineKeyboardButton(
                 text="❤️ Sevimlilar", 
-                callback_data=f"anime_favorite:{anime_id}"
+                callback_data=f"anime_favorite:{anime_id}",
+                style="primary"
             ),
         ],
         [
             InlineKeyboardButton(
                 text="⭐ Baholash", 
-                callback_data=f"anime_rating:{anime_id}"
+                callback_data=f"anime_rating:{anime_id}",
+                style="primary"
             ),
             InlineKeyboardButton(
                 text="💬 Izoh", 
-                callback_data=f"anime_comment:{anime_id}"
+                callback_data=f"anime_comment:{anime_id}",
+                style="primary"
             ),
         ],
         [
             InlineKeyboardButton(
                 text="🏠 Bosh menyu", 
-                callback_data="back_to_start"
+                callback_data="back_to_start",
+                style="danger"
             )
         ]
     ])

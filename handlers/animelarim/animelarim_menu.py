@@ -29,37 +29,43 @@ async def animelarim_menu(callback: CallbackQuery):
             [
                 InlineKeyboardButton(
                     text="📜 Ko'rish tarixi",
-                    callback_data="cabinet_history"
+                    callback_data="cabinet_history",
+                    style="primary"
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="⭐ Baholar",
-                    callback_data="cabinet_ratings"
+                    callback_data="cabinet_ratings",
+                    style="primary"
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="❤️ Sevimlilar",
-                    callback_data="cabinet_favorite"
+                    callback_data="cabinet_favorite",
+                    style="primary"
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="💬 Izohlar",
-                    callback_data="cabinet_comments"
+                    callback_data="cabinet_comments",
+                    style="primary"
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="🔔 Obunalar",
-                    callback_data="cabinet_subscriptions"
+                    callback_data="cabinet_subscriptions",
+                    style="primary"
                 )
             ],
             [
                 InlineKeyboardButton(
                     text="⬅️ Orqaga",
-                    callback_data="back_cabinet"
+                    callback_data="cabinet",
+                    style="denger"
                 )
             ]
         ]
