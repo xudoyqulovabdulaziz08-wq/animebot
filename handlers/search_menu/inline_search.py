@@ -31,8 +31,6 @@ BOT_USERNAME = getattr(config, "BOT_USERNAME", "Mazil_top_bot")
 async def inline_search(inline_query: InlineQuery):
     """
     Inline qidiruv handler.
-    - Bo'sh yoki indikator matni tursa -> Homepage API
-    - Matn kiritilsa -> Search API
     """
     query = inline_query.query.strip()
     session = get_http_session()
@@ -41,9 +39,20 @@ async def inline_search(inline_query: InlineQuery):
     anime_list = []
     is_homepage = False
 
+    # Stringni kichik harflarga o'tkazamiz va ortiqcha nuqtalar hamda probellarni tozalaymiz
+    clean_query = query.lower().replace(".", "").strip()
+
     try:
-        # 🎯 1. SHART: Bo'sh yoki avtomatik indikator matni bo'lsa -> Homepage API
-        if not query or query.lower() in ["anime nomi yozing....", "anime nomi yozing", ""]:
+        # 🎯 ELASTIK SHART (Kawaii bot kabi):
+        # 1. Query bo'sh bo'lsa
+        # 2. Yoki query ichida "anime nomi" / "yozing" iboralari bo'lsa
+        # 3. Yoki tozalangan query uzunligi 2 tadan kam bo'lsa (masalan 1 ta harf bo'lsa)
+        if (
+            not clean_query 
+            or "anime nomi" in clean_query 
+            or "yozing" in clean_query 
+            or len(clean_query) < 2
+        ):
             is_homepage = True
             async with session.get(API_HOMEPAGE_URL, timeout=timeout) as response:
                 if response.status == 200:
@@ -52,7 +61,8 @@ async def inline_search(inline_query: InlineQuery):
                         anime_list = data
                     elif isinstance(data, dict):
                         anime_list = data.get("data") or data.get("results") or []
-        # 🎯 2. SHART: So'rov kiritilgan bo'lsa -> Search API
+                        
+        # 🎯 Haqiqiy qidiruv (kamida 2 ta harf yozilganda ishlaydi)
         else:
             async with session.get(API_SEARCH_URL, params={"q": query}, timeout=timeout) as response:
                 if response.status == 200:
