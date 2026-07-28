@@ -11,7 +11,8 @@ from aiogram.types import (
     Message, 
     LinkPreviewOptions,
     InlineKeyboardMarkup, 
-    InlineKeyboardButton
+    InlineKeyboardButton,
+    InlineQueryResultsButton
 )
 from services.anime_service import AnimeService
 from utils.http import get_http_session
@@ -182,7 +183,21 @@ async def inline_search(inline_query: InlineQuery):
         )
 
     cache_time = 5 if is_homepage else 1
-    await inline_query.answer(results=results, cache_time=cache_time, is_personal=True)
+
+    # 📌 Doim o'zgarmaydigan tugma — natijalar ro'yxatining ENG TEPASIGA
+    # qat'iy joylashadi (scroll bo'lganda birinchi rasm chekkadan "chiqib"
+    # ketish effektini bartaraf qiladi, ayniqsa mobil ilovada).
+    top_button = InlineQueryResultsButton(
+        text="🎬 Aninovuz — Tezkor qidiruv",
+        start_parameter="from_inline",
+    )
+
+    await inline_query.answer(
+        results=results,
+        cache_time=cache_time,
+        is_personal=True,
+        button=top_button,
+    )
 
 
 # 🔥 KAWAII BOTIDAGI KABI ISHLAYDIGAN ASOSIY HANDLER
