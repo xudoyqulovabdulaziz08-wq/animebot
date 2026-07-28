@@ -60,8 +60,24 @@ async def inline_search(inline_query: InlineQuery):
                     if isinstance(data, list):
                         anime_list = data
                     elif isinstance(data, dict):
-                        anime_list = data.get("data") or data.get("results") or []
-                        
+                        # ✅ Haqiqiy struktura: {"success": true, "data": {"latest": [...]}}
+                        # "data" ichidagi qiymat ko'pincha DICT bo'ladi (list emas!),
+                        # shuning uchun uni yana bir bosqich ichkariga kirib ochish kerak.
+                        payload = data.get("data")
+                        if isinstance(payload, dict):
+                            anime_list = (
+                                payload.get("latest")
+                                or payload.get("results")
+                                or payload.get("items")
+                                or []
+                            )
+                        elif isinstance(payload, list):
+                            anime_list = payload
+                        else:
+                            anime_list = data.get("results") or data.get("latest") or []
+                else:
+                    logger.warning(f"Homepage API non-200 status: {response.status}")
+
         # 🎯 Haqiqiy qidiruv (kamida 2 ta harf yozilganda ishlaydi)
         else:
             async with session.get(API_SEARCH_URL, params={"q": query}, timeout=timeout) as response:
@@ -73,10 +89,11 @@ async def inline_search(inline_query: InlineQuery):
                         anime_list = data
 
     except Exception as e:
-        logger.error(f"Inline search network error (is_homepage={is_homepage}): {e}")
+        logger.error(f"Inline search network error (is_homepage={is_homepage}): {e}", exc_info=True)
 
     # 🛡 XAVFSIZLIK TEKSHIRUVI
     if not isinstance(anime_list, list):
+        logger.warning(f"anime_list list emas edi (is_homepage={is_homepage}), turi: {type(anime_list)}")
         anime_list = []
 
     results = []
