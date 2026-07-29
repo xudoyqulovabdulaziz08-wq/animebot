@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from repositories.user_repository import UserRepository
 from database.cache import cache_manager  # Universal CacheManager
 from database.models import UserStatus
-
+from services.orchestrator import state
 logger = logging.getLogger("UserService")
 
 
