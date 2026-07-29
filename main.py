@@ -1,7 +1,10 @@
 import os
+import sys
 import asyncio
 import logging
+
 import orjson
+from pathlib import Path
 from contextlib import suppress
 from aiohttp import web
 
@@ -39,6 +42,9 @@ background_tasks: set[asyncio.Task] = set()
 valkey = cache_manager  # Eski kod bilan moslik uchun alias
 
 
+ROOT_DIR = Path(__file__).resolve().parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 # =========================================================
 # 🧠 AI CACHE BRAIN v2 (HOOK LAYER)
 # =========================================================
