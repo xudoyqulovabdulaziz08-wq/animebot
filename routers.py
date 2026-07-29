@@ -24,7 +24,8 @@ from handlers.admin_panel import(
     
 )
 from handlers.animelarim import (
-    animelarim_menu
+    animelarim_menu,
+    sevimlilarim
 )
 
 from handlers.admin_panel.admin_anime import(
@@ -116,6 +117,7 @@ main_router.include_routers(
     help.router,
     animelarim_menu.router,
     wiev_episode.router,
+    sevimlilarim.router,
 
     baholash_anime.router,
     izoh_anime.router,
