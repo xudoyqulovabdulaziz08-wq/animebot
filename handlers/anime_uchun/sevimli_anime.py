@@ -24,8 +24,11 @@ async def anime_favorite_handler(callback: CallbackQuery, session: AsyncSession)
     anime_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id
 
-    # 1. Sevimliga qo'shish yoki o'chirish
-    success, action = await FavoriteService.toggle_favorite(session, user_id, anime_id)
+    # 1. ✅ FAVORITE SERVICE O'BJEKTINI (INSTANCE) YARATAMIZ
+    fav_service = FavoriteService(session=session)
+
+    # Sevimliga qo'shish yoki o'chirish
+    success, action = await fav_service.toggle_favorite(user_id, anime_id)
 
     if not success:
         await callback.answer(
@@ -38,12 +41,11 @@ async def anime_favorite_handler(callback: CallbackQuery, session: AsyncSession)
     if action == "added":
         msg_text = "❤️ Ushbu anime sevimlilaringiz ro'yxatiga qo'shildi!"
         new_fav_text = "❤️ Sevimlida ✓"
-        
     else:
         msg_text = "💔 Ushbu anime sevimlilaringiz ro'yxatidan olib tashlandi."
         new_fav_text = "🤍 Sevimli"
         
-    # 3. 🪄 TUGMALARNI EKRONDA DARHOL r54t54gYANGILASH (EDIT REPLY MARKUP)
+    # 3. 🪄 TUGMALARNI EKRANDA DARHOL YANGILASH (EDIT REPLY MARKUP)
     if callback.message and callback.message.reply_markup:
         current_markup = callback.message.reply_markup
         new_inline_keyboard = []

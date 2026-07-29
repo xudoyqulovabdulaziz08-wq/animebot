@@ -95,8 +95,9 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
         logger.error(f"❌ Dubberlarni yuklashda xato: {dubber_err}")
     is_favorite = False
     if anime_id:
-        is_favorite = await FavoriteService.check_is_favorite(session, actual_user_id, anime_id)
-        fav_text = "❤️ Sevimlida " if is_favorite else "🤍 Sevimli "
+        fav_service = FavoriteService(session=session)
+        is_favorite = await fav_service.check_is_favorite(actual_user_id, anime_id)
+        fav_text = "❤️ Sevimlida ✓" if is_favorite else "🤍 Sevimli "
     
     # Siz taqdim etgan UX dizayn qolipi (UMUMAN O'ZGARTIRILMADI)
     caption = (
