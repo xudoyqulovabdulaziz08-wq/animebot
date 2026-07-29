@@ -101,20 +101,20 @@ class FavoriteRepository:
     ) -> List[Dict[str, Any]]:
         """
         Foydalanuvchining sevimlilar ro'yxatidagi animelarni JOIN orqali 
-        BITTA SQL so'rovida olib keladi (N+1 muammosini hal qiladi).
+        BITTA SQL so'rovida olib keladi.
         """
         session = await FavoriteRepository._prepare_session(session)
 
         stmt = (
             select(
-                Anime.id,
+                Anime.anime_id,       # 👈 Modelga mos ravishda Anime.anime_id
                 Anime.title,
                 Anime.year,
-                Anime.poster
+                Anime.poster_id       # 👈 Modelga mos ravishda poster_id
             )
-            .join(UserFavoriteAnime, UserFavoriteAnime.anime_id == Anime.id)
+            .join(UserFavoriteAnime, UserFavoriteAnime.anime_id == Anime.anime_id)
             .where(UserFavoriteAnime.user_id == user_id)
-            .order_by(UserFavoriteAnime.id.desc())  # Oxirgi qo'shilganlar birinchi chiqadi
+            .order_by(UserFavoriteAnime.id.desc())
             .offset(offset)
             .limit(limit)
         )
@@ -122,13 +122,12 @@ class FavoriteRepository:
         result = await session.execute(stmt)
         rows = result.all()
 
-        # Ma'lumotlarni dict ko'rinishida qaytaramiz
         return [
             {
-                "anime_id": row.id,
+                "anime_id": row.anime_id,
                 "title": row.title,
                 "year": row.year,
-                "poster": row.poster
+                "poster": row.poster_id
             }
             for row in rows
         ]
