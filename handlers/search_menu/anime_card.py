@@ -96,9 +96,7 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
     is_favorite = False
     if anime_id:
         is_favorite = await FavoriteService.check_is_favorite(session, actual_user_id, anime_id)
-        
-    fav_text = "❤️ Sevimli" if is_favorite else "🤍 Sevimli"
-    fav_style = "success" if is_favorite else "primary"
+        fav_text = "❤️ Sevimlida " if is_favorite else "🤍 Sevimli "
     
     # Siz taqdim etgan UX dizayn qolipi (UMUMAN O'ZGARTIRILMADI)
     caption = (
@@ -148,7 +146,7 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
             InlineKeyboardButton(
                 text="💬 Izoh", 
                 callback_data=f"anime_comment:{anime_id}",
-                style=fav_style
+                style="primary"
             ),
         ],
         [
