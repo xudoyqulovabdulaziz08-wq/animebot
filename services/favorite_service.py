@@ -101,3 +101,13 @@ class FavoriteService:
         except Exception as e:
             logger.error(f"Error getting user {user_id} favorites: {e}")
             return []
+        
+    @staticmethod
+    async def get_user_favorites_count(session, user_id: int) -> int:
+        """Foydalanuvchining sevimlilari sonini qaytarish (Read-Only)."""
+        try:
+            favorites = await FavoriteRepository.get_user_favorites(session, user_id)
+            return len(favorites) if favorites else 0
+        except Exception as e:
+            logger.error(f"Error getting user {user_id} favorites count: {e}")
+            return 0

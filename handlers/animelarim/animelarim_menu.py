@@ -30,7 +30,7 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
     fav_count = 0
     
     try:
-        favorites = await FavoriteService.get_user_favorites(session, user_id)
+        favorites = await FavoriteService.get_user_favorites_count(session, user_id)
         fav_count = len(favorites) if favorites else 0
     except Exception as err:
         logger.error(f"❌ Sevimlilar sonini olishda xato: {err}")
