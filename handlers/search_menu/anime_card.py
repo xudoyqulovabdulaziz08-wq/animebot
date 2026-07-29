@@ -25,7 +25,7 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
         return False
         
     anime_id = anime.get("anime_id")
-    title = anime.get("title", "Nomsiz anime")
+    title = anime.get("title", "Nomsiz anime")    
     year = anime.get("year", "—")
     description = anime.get("description") or "Tavsif kiritilmagan."
     episodes_count = len(anime.get("episodes", []))
