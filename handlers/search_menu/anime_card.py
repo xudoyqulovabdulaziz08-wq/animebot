@@ -5,9 +5,10 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from database.models import Genre
 from sqlalchemy import select
+from services.favorite_service import FavoriteService
 from services.user_service import UserService
 from config import config
-from services.favorite_service import FavoriteService
+
 CREATOR_ID = config.CREATOR_ID
 
 router = Router()
