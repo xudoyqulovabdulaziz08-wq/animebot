@@ -60,7 +60,7 @@ async def get_user_favorites_markup(
         inline_keyboard.append([
             InlineKeyboardButton(
                 text=f"🎬 {title} ({year})", 
-                callback_data=f"v_anime:{anime_id}:{page}"
+                callback_data=f"cards_anime:{anime_id}:{page}"
             )
         ])
 

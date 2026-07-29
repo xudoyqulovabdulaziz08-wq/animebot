@@ -289,33 +289,51 @@ async def process_noop_callback(callback: CallbackQuery):
 
 
 @router.callback_query(F.data.startswith("back_to_card:"))
-async def process_back_to_anime_card(callback: CallbackQuery, session: Any):
-    # 1. Telegram'ning soat aylanib turgan yuklanish holatini yopamiz
+async def process_back_to_anime_card(callback: CallbackQuery, session: Any, state: FSMContext):
+    # 1. Loading soatni yopamiz
     await callback.answer()
 
-    # 2. Callback'dan anime_id ni ajratib olamiz
+    # 2. Anime ID ni olamiz
     try:
         anime_id = int(callback.data.split(":")[1])
     except (IndexError, ValueError) as e:
         logger.error(f"❌ Callback ma'lumotini o'qishda xato: {e}")
         return
 
-    # 3. Bazadan anime ma'lumotlarini olamiz
+    # 3. Bazadan/Keshdan anime ma'lumotlarini olamiz
     anime_service = AnimeService(session=session)
     anime = await anime_service.get_anime(anime_id)
 
     if not anime:
-        await callback.message.answer("❌ Kechirasiz, anime ma'lumotlari topilmadi.")
+        await callback.answer("❌ Kechirasiz, anime ma'lumotlari topilmadi.", show_alert=True)
         return
 
-    # 4. Pleyer (video) xabarini o'chiramiz
-    try:
-        await callback.message.delete()
-    except Exception as e:
-        logger.debug(f"Video xabarini o'chirishda xatolik: {e}")
+    # 4. 🔥 SILLIQ O'TISH (Miltillamasdan tahrirlash):
+    # Agar xabar video bo'lmasa (masalan, epizodlar setkasi/ro'yxati bo'lsa), 
+    # xabarni o'chirmasdan edit=True bilan silliq qaytaramiz!
+    is_video_message = bool(callback.message.video)
 
-    # 5. 🔥 Aynan siz ko'rsatgan send_anime_card funksiyasini chaqiramiz:
-    # callback.message - Message obyekti
-    # anime - dict
-    # session - DB Session
-    await send_anime_card(callback.message, anime, session)
+    if not is_video_message:
+        # Epizodlar ro'yxatidan kartaga silliq qaytish (Edit)
+        await send_anime_card(
+            message=callback.message, 
+            anime=anime, 
+            session=session,
+            state=state,
+            edit=True,
+            callback=callback
+        )
+    else:
+        # Video pleyer oynasidan kartaga qaytganda: Videoni o'chirib yangi karta yuboramiz
+        try:
+            await callback.message.delete()
+        except Exception as e:
+            logger.debug(f"Video xabarini o'chirishda xatolik: {e}")
+
+        await send_anime_card(
+            message=callback.message, 
+            anime=anime, 
+            session=session,
+            state=state,
+            edit=False
+        )

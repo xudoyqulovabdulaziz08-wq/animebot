@@ -17,7 +17,14 @@ logger = logging.getLogger()
 
 
 
-async def send_anime_card(message: Message, anime: dict, session: Any, state: Optional[FSMContext] = None) -> bool:
+async def send_anime_card(
+    message: Message, 
+    anime: dict, 
+    session: Any, 
+    state: Optional[FSMContext] = None,
+    edit: bool = False,               # 🔥 YANGI: Tahrirlash rejimini yoqish/o'chirish
+    callback: Optional[types.CallbackQuery] = None # 🔥 YANGI: Edit qilish uchun callback
+) -> bool:
     """
     Foydalanuvchiga animeni daxshat ramkali dizaynda va 
     kerakli tugmalar bilan ko'rsatuvchi yagona universal funksiya.
@@ -33,25 +40,21 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
     languages = anime.get("languages", [])
     languages_str = ", ".join(languages) if languages else "Mavjud emas"
 
-    # 🔥 YANGI: KARTA OCHILGANDA KO'RILIShLAR SONINI +1 QILISh MANTIQLARI
-    if anime_id:
+    # 🔥 KO'RILISHLAR SONINI +1 QILISH
+    if anime_id and not edit: # Qayta tahrirlanganda ko'rilishni sanamaymiz
         try:
             from services.anime_service import AnimeService
             view_service = AnimeService(session=session)
-            # Orqa fonda hisoblagichni oshiramiz va keshni yangilaymiz
             await view_service.track_anime_view(anime_id)
         except Exception as view_err:
-            logger.error(f"❌ Ko'rilishlar sonini oshirishda xato yuz berdi: {view_err}")
+            logger.error(f"❌ Ko'rilishlar sonini oshirishda xato: {view_err}")
 
-    # 🔥 CALLBACK VA ODDIY MESSAGE ID'SINI SUG'URTALASH
     actual_user_id = message.from_user.id if message.from_user and not message.from_user.is_bot else message.chat.id
 
-    # 🛡️ VIP/Admin Dynamic statusni tekshirish qatlami
+    # 🛡️ VIP/Admin Dynamic statusni tekshirish
     user_service = UserService(session=session)
     user_data = await user_service.get_user(actual_user_id)
     
-    
-    # 👑 Global Creator ID tekshiruvini aniq va xavfsiz holatga keltiramiz
     try:
         from config import config
         c_id = getattr(config, "CREATOR_ID", None)
@@ -66,7 +69,6 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
             actual_user_id == c_id
         )
     else:
-        # Agar foydalanuvchi bazada hali yo'q bo'lsa ham Creator bo'lsa ruxsat berish
         is_vip_or_admin = actual_user_id == c_id
 
     # Janrlarni yuklash
@@ -93,15 +95,15 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
                 dubbers_str = ", ".join(dubber_names)
     except Exception as dubber_err:
         logger.error(f"❌ Dubberlarni yuklashda xato: {dubber_err}")
+
     is_favorite = False
     if anime_id:
         fav_service = FavoriteService(session=session)
         is_favorite = await fav_service.check_is_favorite(actual_user_id, anime_id)
         fav_text = "❤️ Sevimlida ✓" if is_favorite else "🤍 Sevimli "
     
-    # Siz taqdim etgan UX dizayn qolipi (UMUMAN O'ZGARTIRILMADI)
+    # Caption dizayni
     caption = (
-        
         f"    🎬 <b>{title}</b>\n\n"
         f"📌 <b>Anime haqida ma'lumot:</b>\n"
         f"╔═══════════════╗\n"
@@ -159,11 +161,27 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
         ]
     ])
 
-    # 🧹 ESKI "QIDIRISH MENYUSI" XABARINI TOZALASH
-    # Agar foydalanuvchi avval search_menu orqali ochgan "ANIME QIDIRISH"
-    # rasmli xabari hali chatda tursa (FSM'da last_menu_id sifatida saqlangan),
-    # kartochka chiqishidan oldin uni ham o'chirib tashlaymiz — aks holda
-    # ikkita xabar bir-birining ustiga to'planib qoladi.
+    # 🔄 AGAR EDIT=TRUE BO'LSA: XABARNI SILLIQ TAHRIRLAYMIZ (O'CHIRMASDAN)
+    if edit and callback and callback.message:
+        try:
+            if callback.message.photo or callback.message.video:
+                await callback.message.edit_caption(
+                    caption=caption,
+                    reply_markup=user_anime_kb,
+                    parse_mode="HTML"
+                )
+            else:
+                await callback.message.edit_text(
+                    text=caption,
+                    reply_markup=user_anime_kb,
+                    parse_mode="HTML"
+                )
+            return True
+        except Exception as edit_err:
+            logger.warning(f"⚠️ Edit qilishda xato, yangi xabar yuboriladi: {edit_err}")
+            # Edit o'xshamasa, pastdagi standart yangi xabar jo'natish mantig'iga o'tib ketadi
+
+    # 🧹 ESKI MENYULARNI TOZALASH (Faqat yangi karta yuborilganda)
     if state is not None:
         try:
             state_data = await state.get_data()
@@ -183,7 +201,7 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
     except:
         pass
 
-    # Media turiga qarab jo'natish mantig'i + 🛡️ protect_content integratsiyasi
+    # Yangi xabar yuborish (Media turiga qarab)
     poster_id = anime.get("poster_id")
     if poster_id:
         try:
@@ -192,7 +210,7 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
                 caption=caption, 
                 reply_markup=user_anime_kb, 
                 parse_mode="HTML",
-                protect_content=not is_vip_or_admin  # 🔥 Creator va VIP'larda blokirovka bo'lmaydi!
+                protect_content=not is_vip_or_admin
             )
             return True
         except Exception:
@@ -202,13 +220,12 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
                     caption=caption, 
                     reply_markup=user_anime_kb, 
                     parse_mode="HTML",
-                    protect_content=not is_vip_or_admin  
+                    protect_content=not is_vip_or_admin
                 )
                 return True
             except Exception:
                 pass
 
-    # Agar rasmsiz/videosiz bo'lsa oddiy text xabarni himoyalash
     await message.answer(
         text=caption, 
         reply_markup=user_anime_kb, 
