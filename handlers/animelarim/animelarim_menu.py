@@ -6,6 +6,8 @@ from aiogram.types import (
     InlineKeyboardButton,
 )
 from aiogram.exceptions import TelegramBadRequest
+from sqlalchemy.ext.asyncio import AsyncSession
+from services.favorite_service import FavoriteService
 from config import config
 
 logger = logging.getLogger("Cabinetanimelarim")
@@ -13,16 +15,25 @@ router = Router()
 
 CREATOR_ID = config.CREATOR_ID
 
-
 @router.callback_query(F.data == "animelarim_cabinet")
-async def animelarim_menu(callback: CallbackQuery):
-    # 🔒 Oddiy foydalanuvchilar kira olmaydi
+async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
+    # 🔒 Oddiy foydalanuvchilar uchun cheklov
     if callback.from_user.id != CREATOR_ID:
         await callback.answer(
             text="📩 Bu funksiya tez orada ishga tushadi.",
             show_alert=True
         )
         return
+
+    # 📊 Foydalanuvchining sevimlilari sonini olish
+    user_id = callback.from_user.id
+    fav_count = 0
+    
+    try:
+        favorites = await FavoriteService.get_user_favorites(session, user_id)
+        fav_count = len(favorites) if favorites else 0
+    except Exception as err:
+        logger.error(f"❌ Sevimlilar sonini olishda xato: {err}")
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -37,12 +48,12 @@ async def animelarim_menu(callback: CallbackQuery):
                 InlineKeyboardButton(
                     text="⭐ Baholarim",
                     callback_data="cabinet_ratings",
-                    style="success"
+                    style="primary"
                 ),
                 InlineKeyboardButton(
-                    text="❤️ Sevimlilarim",
+                    text=f"❤️ Sevimlilarim ({fav_count})",
                     callback_data="cabinet_favorite",
-                    style="success"
+                    style="primary"
                 )
             ],
             
@@ -77,14 +88,14 @@ async def animelarim_menu(callback: CallbackQuery):
     )
 
     try:
-        # 🖼 Agar xabar Rasm yoki Video bo'lsa (Media) -> Caption va Keyboard o'zgaradi
+        # 🖼 Agar xabar Media bo'lsa
         if callback.message.photo or callback.message.video or callback.message.document:
             await callback.message.edit_caption(
                 caption=caption_text,
                 parse_mode="HTML",
                 reply_markup=keyboard
             )
-        # 📝 Agar xabar faqat Matndan iborat bo'lsa
+        # 📝 Faqat Matn bo'lsa
         else:
             await callback.message.edit_text(
                 text=caption_text,
@@ -92,7 +103,6 @@ async def animelarim_menu(callback: CallbackQuery):
                 reply_markup=keyboard
             )
     except TelegramBadRequest as e:
-        # Agar xabar o'zgarmas darajada eski bo'lsa yoki boshqa xato bersa, xabarni o'chirib qayta yuboradi
         logger.warning(f"Xabarni tahrirlashda xatolik: {e}")
         await callback.message.answer(
             text=caption_text,

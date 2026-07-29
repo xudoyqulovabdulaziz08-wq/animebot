@@ -6,7 +6,7 @@ logger = logging.getLogger("BackendApiService")
 
 class BackendApiService:
     @staticmethod
-    async def get_web_password(user_id: int) -> Optional[str]:
+    async def get_web_password(user_id: int) -> 4[str]:
         """
         Node.js backend bilan bog'lanib, foydalanuvchi uchun 
         shaxsiy kabinet parolini xavfsiz generatsiya qiladi.

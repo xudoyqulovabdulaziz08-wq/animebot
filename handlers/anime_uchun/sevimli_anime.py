@@ -37,13 +37,13 @@ async def anime_favorite_handler(callback: CallbackQuery, session: AsyncSession)
     # 2. Xabar matnini va yangi tugma nomini tayyorlash
     if action == "added":
         msg_text = "❤️ Ushbu anime sevimlilaringiz ro'yxatiga qo'shildi!"
-        new_fav_text = "❤️ Sevimlim"
-        style_text="success"
+        new_fav_text = "❤️ Sevimlida"
+        
     else:
         msg_text = "💔 Ushbu anime sevimlilaringiz ro'yxatidan olib tashlandi."
         new_fav_text = "🤍 Sevimli"
-        style_text="primary"
-    # 3. 🪄 TUGMALARNI EKRONDA DARHOL YANGILASH (EDIT REPLY MARKUP)
+        
+    # 3. 🪄 TUGMALARNI EKRONDA DARHOL r54t54gYANGILASH (EDIT REPLY MARKUP)
     if callback.message and callback.message.reply_markup:
         current_markup = callback.message.reply_markup
         new_inline_keyboard = []
@@ -58,7 +58,7 @@ async def anime_favorite_handler(callback: CallbackQuery, session: AsyncSession)
                         InlineKeyboardButton(
                             text=new_fav_text,
                             callback_data=button.callback_data,
-                            style=style_text
+                            style="primary"
                         )
                     )
                 else:
