@@ -1,113 +1,145 @@
 import logging
-from typing import List, Dict, Optional, Tuple
+from typing import Tuple, List, Dict, Any
 from sqlalchemy.exc import SQLAlchemyError
 
 from repositories.favorite_repository import FavoriteRepository
+from database.cache import cache_manager  # Markaziy CacheManager import qilindi
 
-# Loggerni sozlash
 logger = logging.getLogger("FavoriteService")
+
 
 class FavoriteService:
     """
-    🚀 Favorite Service
-    - Tranzaksiyalarni xavfsiz boshqarish (Commit / Rollback)
-    - Xatoliklarni (Exception) global ushlash va loglash
-    - Telegram bot / API frontend uchun qulay bo'lgan metodlar (Toggle)
+    🚀 Favorite Service (CACHE-AWARE & TRANSACTION-SAFE)
+    - Valkey/Redis L1+L2 kesh bilan integratsiyalangan
+    - Tranzaksiyaviy xavfsiz (Commit / Rollback)
+    - Kesh avtomatik invalidatsiya qilinadi
     """
 
-    @staticmethod
-    async def add_to_favorites(session, user_id: int, anime_id: int) -> bool:
-        """Animeni sevimlilarga qo'shish va tranzaksiyani yopish."""
-        try:
-            added = await FavoriteRepository.add_favorite(session, user_id, anime_id)
-            if added:
-                await session.commit()
-                logger.info(f"User {user_id} added anime {anime_id} to favorites.")
-            return added
-        except SQLAlchemyError as e:
-            await session.rollback()
-            logger.error(f"DB Error in add_to_favorites for User {user_id}, Anime {anime_id}: {e}")
-            return False
-        except Exception as e:
-            await session.rollback()
-            logger.exception(f"Unexpected error in add_to_favorites: {e}")
-            return False
+    def __init__(self, session):
+        self.session = session
+        self.repo = FavoriteRepository()
+        self.cache = cache_manager
 
-    @staticmethod
-    async def remove_from_favorites(session, user_id: int, anime_id: int) -> bool:
-        """Animeni sevimlilardan o'chirish va tranzaksiyani yopish."""
-        try:
-            removed = await FavoriteRepository.remove_favorite(session, user_id, anime_id)
-            if removed:
-                await session.commit()
-                logger.info(f"User {user_id} removed anime {anime_id} from favorites.")
-            return removed
-        except SQLAlchemyError as e:
-            await session.rollback()
-            logger.error(f"DB Error in remove_from_favorites: {e}")
-            return False
-        except Exception as e:
-            await session.rollback()
-            logger.exception(f"Unexpected error in remove_from_favorites: {e}")
-            return False
+    # ==================================================
+    # 🎯 CHECK IS FAVORITE (CACHE-FIRST)
+    # ==================================================
+    async def check_is_favorite(self, user_id: int, anime_id: int) -> bool:
+        """Kesh orqali tezkor tekshirish (Bot Inline tugmalari uchun ultra-fast)."""
+        # Foydalanuvchining sevimlilar ID-lari ro'yxatini keshdan so'raymiz
+        fav_ids = await self.get_user_favorite_ids(user_id)
+        return anime_id in fav_ids
 
-    @staticmethod
-    async def toggle_favorite(session, user_id: int, anime_id: int) -> Tuple[bool, str]:
+    # ==================================================
+    # 📋 GET USER FAVORITE IDS (CACHE-FIRST)
+    # ==================================================
+    async def get_user_favorite_ids(self, user_id: int) -> List[int]:
+        """User sevgan barcha anime_id lar ro'yxatini keshdan/DBdan oladi."""
+        cached_ids = await self.cache.get("user_fav_ids", user_id)
+        if cached_ids is not None:
+            return cached_ids
+
+        fav_ids = await self.repo.get_user_favorite_ids(self.session, user_id)
+        await self.cache.set("user_fav_ids", user_id, fav_ids, ttl=3600)
+        return fav_ids
+
+    # ==================================================
+    # 🔄 TOGGLE FAVORITE (TRANSACTION SAFE & CACHE INVALIDATE)
+    # ==================================================
+    async def toggle_favorite(self, user_id: int, anime_id: int) -> Tuple[bool, str]:
         """
-        Telegram Bot Inline tugmalari uchun maxsus metod (❤️/🤍).
-        Agar anime sevimlilarda bo'lsa - o'chiradi, bo'lmasa - qo'shadi.
-        
-        Qaytaradi: (Status, Harakat nomi)
-        - (True, "added") -> Muvaffaqiyatli qo'shildi
-        - (True, "removed") -> Muvaffaqiyatli o'chirildi
-        - (False, "error") -> Xatolik yuz berdi
+        Telegram Bot Inline tugmalari uchun (❤️/🤍).
+        O'zgarish bo'lsa DBga commit qiladi va keshni majburiy tozalaydi.
         """
         try:
-            is_fav = await FavoriteRepository.is_favorite(session, user_id, anime_id)
-            
+            if hasattr(self.session, "_ensure_session"):
+                await self.session._ensure_session()
+
+            is_fav = await self.check_is_favorite(user_id, anime_id)
+
             if is_fav:
-                success = await FavoriteRepository.remove_favorite(session, user_id, anime_id)
+                success = await self.repo.remove_favorite(self.session, user_id, anime_id)
                 action = "removed"
             else:
-                success = await FavoriteRepository.add_favorite(session, user_id, anime_id)
+                success = await self.repo.add_favorite(self.session, user_id, anime_id)
                 action = "added"
-                
+
             if success:
-                await session.commit()
+                if hasattr(self.session, "commit"):
+                    await self.session.commit()
+
+                # 🔥 Keshni darhol tozalaymiz (Invalidate)
+                await self.cache.invalidate("user_fav_ids", user_id, broadcast=True)
+                await self.cache.invalidate("user_fav_count", user_id, broadcast=True)
+                await self.cache.invalidate("user_favorites", user_id, broadcast=True)
+                await self.cache.invalidate("user_fav_page", f"{user_id}:*", broadcast=True)
+
                 return True, action
-                
+
             return False, "error"
+
         except Exception as e:
-            await session.rollback()
+            if hasattr(self.session, "rollback"):
+                await self.session.rollback()
             logger.exception(f"Error in toggle_favorite (User: {user_id}, Anime: {anime_id}): {e}")
             return False, "error"
-
-    @staticmethod
-    async def check_is_favorite(session, user_id: int, anime_id: int) -> bool:
-        """Animening sevimlilarda bor-yo'qligini tekshirish (Read-Only)."""
-        try:
-            return await FavoriteRepository.is_favorite(session, user_id, anime_id)
-        except Exception as e:
-            logger.error(f"Error checking favorite status: {e}")
-            return False
-
-    @staticmethod
-    async def get_user_favorites_list(session, user_id: int) -> List[Dict]:
-        """
-        Foydalanuvchining barcha sevimlilarini API formatida qaytarish (Read-Only).
-        """
-        try:
-            return await FavoriteRepository.get_user_favorites(session, user_id)
-        except Exception as e:
-            logger.error(f"Error getting user {user_id} favorites: {e}")
-            return []
         
-    @staticmethod
-    async def get_user_favorites_count(session, user_id: int) -> int:
-        """Foydalanuvchining sevimlilari sonini qaytarish (Read-Only)."""
-        try:
-            favorites = await FavoriteRepository.get_user_favorites(session, user_id)
-            return len(favorites) if favorites else 0
-        except Exception as e:
-            logger.error(f"Error getting user {user_id} favorites count: {e}")
-            return 0
+
+    
+    # ==================================================
+    # 📊 GET USER FAVORITES COUNT (CACHE-FIRST)
+    # ==================================================
+    async def get_user_favorites_count(self, user_id: int) -> int:
+        """
+        Foydalanuvchi yoqtirgan animelar sonini qaytaradi.
+        Keshda bo'lsa keshdan, bo'lmasa DBdan olib keshga yozadi.
+        """
+        # 1. Kesh kalitini aniqlaymiz
+        cache_key = f"user_fav_count:{user_id}"
+
+        # 2. Keshdan izlab ko'ramiz
+        cached_count = await self.cache.get("user_fav_count", user_id)
+        if cached_count is not None:
+            return int(cached_count)
+
+        # 3. Keshda bo'lmasa, DBdan sanaymiz
+        count = await self.repo.get_user_favorites_count(self.session, user_id)
+
+        # 4. Keshga yozib qo'yamiz (TTL: 1 soat)
+        await self.cache.set("user_fav_count", user_id, count, ttl=3600)
+
+        return count
+    
+    # ==================================================
+    # ⚡️ GET USER FAVORITES PAGE (CACHE-FIRST + PAGINATED)
+    # ==================================================
+    async def get_user_favorite_anime_list(
+        self, 
+        user_id: int, 
+        page: int = 1, 
+        per_page: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Foydalanuvchining ma'lum bir sahifadagi sevimlilar ro'yxatini keshdan/DBdan oladi.
+        Cache key har bir sahifa uchun alohida shakllantiriladi (masalan: user_fav_page:12345:1).
+        """
+        cache_sub_key = f"{user_id}:{page}:{per_page}"
+        
+        # 1. Keshni tekshiramiz
+        cached_list = await self.cache.get("user_fav_page", cache_sub_key)
+        if cached_list is not None:
+            return cached_list
+
+        # 2. Keshda bo'lmasa DBdan JOIN so'rovi bilan bittada olamiz
+        offset = (page - 1) * per_page
+        anime_list = await self.repo.get_user_favorite_anime_list(
+            self.session, 
+            user_id=user_id, 
+            offset=offset, 
+            limit=per_page
+        )
+
+        # 3. Keshga yozamiz (TTL: 1 soat)
+        await self.cache.set("user_fav_page", cache_sub_key, anime_list, ttl=3600)
+
+        return anime_list

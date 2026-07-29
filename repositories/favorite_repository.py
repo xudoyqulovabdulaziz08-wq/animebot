@@ -1,21 +1,16 @@
 import logging
 from typing import Any, List, Dict
-from sqlalchemy import select, delete, desc
+from sqlalchemy import select, delete
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import selectinload
+from sqlalchemy import func
 
-from database.models import UserFavoriteAnime
+from database.models import UserFavoriteAnime, Anime
 
 logger = logging.getLogger("FavoriteRepository")
 
 
 class FavoriteRepository:
-    """
-    🚀 Favorite Repository
-    - Tranzaksiyani tashqaridan boshqarish (flush/commit talab qilinmaydi)
-    - on_conflict_do_nothing orqali Race Condition himoyasi
-    - Eager Loading va qisqartirilgan serializatsiya
-    """
 
     @staticmethod
     def _get_real_session(session: Any):
@@ -40,7 +35,6 @@ class FavoriteRepository:
         )
 
         result = await session.execute(stmt)
-        # flush() olib tashlandi. Commit tashqarida qilinadi.
         return result.rowcount > 0
 
     @staticmethod
@@ -72,28 +66,69 @@ class FavoriteRepository:
         return result.scalar_one_or_none() is not None
 
     @staticmethod
-    async def get_user_favorites(session: Any, user_id: int) -> List[Dict]:
+    async def get_user_favorite_ids(session: Any, user_id: int) -> List[int]:
+        """Foydalanuvchi yoqtirgan anime ID-lari ro'yxati (Keshda saqlash uchun juda yengil va qulay)"""
         session = await FavoriteRepository._prepare_session(session)
 
         stmt = (
-            select(UserFavoriteAnime)
+            select(UserFavoriteAnime.anime_id)
             .where(UserFavoriteAnime.user_id == user_id)
-            .options(
-                selectinload(UserFavoriteAnime.anime)
-            )
-            .order_by(desc(UserFavoriteAnime.created_at))
         )
 
         result = await session.execute(stmt)
-        favorites = result.scalars().all()
+        return list(result.scalars().all())
+    
+    @staticmethod
+    async def get_user_favorites_count(session: Any, user_id: int) -> int:
+        """Foydalanuvchining sevimlilar ro'yxatidagi umumiy animelar soni"""
+        session = await FavoriteRepository._prepare_session(session)
 
-        favorites_list = []
-        for fav in favorites:
-            fav_data = fav.to_dict()
-            
-            # Modelning to_api_dict() funksiyasidan foydalanamiz
-            fav_data["anime"] = fav.anime.to_api_dict() if fav.anime else None
-                
-            favorites_list.append(fav_data)
+        stmt = (
+            select(func.count(UserFavoriteAnime.id))
+            .where(UserFavoriteAnime.user_id == user_id)
+        )
 
-        return favorites_list
+        result = await session.execute(stmt)
+        return result.scalar() or 0
+    
+
+    @staticmethod
+    async def get_user_favorite_anime_list(
+        session: Any, 
+        user_id: int, 
+        offset: int = 0, 
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Foydalanuvchining sevimlilar ro'yxatidagi animelarni JOIN orqali 
+        BITTA SQL so'rovida olib keladi (N+1 muammosini hal qiladi).
+        """
+        session = await FavoriteRepository._prepare_session(session)
+
+        stmt = (
+            select(
+                Anime.id,
+                Anime.title,
+                Anime.year,
+                Anime.poster
+            )
+            .join(UserFavoriteAnime, UserFavoriteAnime.anime_id == Anime.id)
+            .where(UserFavoriteAnime.user_id == user_id)
+            .order_by(UserFavoriteAnime.id.desc())  # Oxirgi qo'shilganlar birinchi chiqadi
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        # Ma'lumotlarni dict ko'rinishida qaytaramiz
+        return [
+            {
+                "anime_id": row.id,
+                "title": row.title,
+                "year": row.year,
+                "poster": row.poster
+            }
+            for row in rows
+        ]

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from services.favorite_service import FavoriteService
 from config import config
 
-logger = logging.getLogger("sevimlilarim")
+logger = logging.getLogger("sevimli")
 router = Router()
 
 CREATOR_ID = config.CREATOR_ID
@@ -37,7 +37,7 @@ async def anime_favorite_handler(callback: CallbackQuery, session: AsyncSession)
     # 2. Xabar matnini va yangi tugma nomini tayyorlash
     if action == "added":
         msg_text = "❤️ Ushbu anime sevimlilaringiz ro'yxatiga qo'shildi!"
-        new_fav_text = "❤️ Sevimlida"
+        new_fav_text = "❤️ Sevimlida ✓"
         
     else:
         msg_text = "💔 Ushbu anime sevimlilaringiz ro'yxatidan olib tashlandi."
