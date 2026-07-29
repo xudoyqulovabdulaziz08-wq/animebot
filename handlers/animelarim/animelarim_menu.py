@@ -30,7 +30,8 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
     fav_count = 0
     
     try:
-        fav_count = await FavoriteService.get_user_favorites_count(session, user_id)
+        fav_service = FavoriteService(session=session)
+        fav_count = await fav_service.get_user_favorites_count(user_id)
         if not fav_count: 
             fav_count = 0
     except Exception as err:
