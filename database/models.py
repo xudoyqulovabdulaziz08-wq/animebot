@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import enum
 import uuid
+from sqlalchemy import inspect
 from decimal import Decimal
 from typing import Optional
 from sqlalchemy import (
@@ -335,7 +336,23 @@ class Anime(Base):
         cascade="all, delete-orphan",
         lazy="selectin"
     )
+    def to_api_dict(self) -> dict:
+        data = self.to_dict()
+        data["average_rating"] = self.average_rating
 
+    # Relationship'lar xotiraga yuklanganligini (unloaded emasligini) xavfsiz tekshirish
+        state = inspect(self)
+    
+        if "genres" not in state.unloaded and self.genres:
+            data["genres"] = [g.to_dict() for g in self.genres]
+        
+        if "dubbers" not in state.unloaded and self.dubbers:
+            data["dubbers"] = [d.to_dict() for d in self.dubbers]
+        
+        if "episodes" not in state.unloaded and self.episodes:
+            data["episodes_count"] = len(self.episodes)
+
+        return data
     @hybrid_property
     def average_rating(self) -> float:
         if self.rating_count == 0:

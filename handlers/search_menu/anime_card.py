@@ -7,6 +7,7 @@ from database.models import Genre
 from sqlalchemy import select
 from services.user_service import UserService
 from config import config
+from services.favorite_service import FavoriteService
 CREATOR_ID = config.CREATOR_ID
 
 router = Router()
@@ -110,7 +111,12 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
         f"📝 <b>Tavsif:</b>\n"
         f"<blockquote expandable>{description}</blockquote>"
     )
-
+    is_favorite = False
+    if anime_id:
+        is_favorite = await FavoriteService.check_is_favorite(session, actual_user_id, anime_id)
+        
+    fav_text = "❤️ Sevimli" if is_favorite else "🤍 Sevimli"
+    fav_style = "success" if is_favorite else "primary"
     # Inline tugmalar (style parametrlariga tegilmadi)
     user_anime_kb = InlineKeyboardMarkup(inline_keyboard=[
         [
@@ -127,7 +133,7 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
                 style="primary"
             ),
             InlineKeyboardButton(
-                text="❤️ Sevimlilar", 
+                text=fav_text, 
                 callback_data=f"anime_favorite:{anime_id}",
                 style="primary"
             ),
