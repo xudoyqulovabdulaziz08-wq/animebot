@@ -93,7 +93,13 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
                 dubbers_str = ", ".join(dubber_names)
     except Exception as dubber_err:
         logger.error(f"❌ Dubberlarni yuklashda xato: {dubber_err}")
-
+    is_favorite = False
+    if anime_id:
+        is_favorite = await FavoriteService.check_is_favorite(session, actual_user_id, anime_id)
+        
+    fav_text = "❤️ Sevimli" if is_favorite else "🤍 Sevimli"
+    fav_style = "success" if is_favorite else "primary"
+    
     # Siz taqdim etgan UX dizayn qolipi (UMUMAN O'ZGARTIRILMADI)
     caption = (
         
@@ -112,13 +118,7 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
         f"📝 <b>Tavsif:</b>\n"
         f"<blockquote expandable>{description}</blockquote>"
     )
-    is_favorite = False
-    if anime_id:
-        is_favorite = await FavoriteService.check_is_favorite(session, actual_user_id, anime_id)
-        
-    fav_text = "❤️ Sevimli" if is_favorite else "🤍 Sevimli"
-    fav_style = "success" if is_favorite else "primary"
-    # Inline tugmalar (style parametrlariga tegilmadi)
+    
     user_anime_kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(
@@ -148,7 +148,7 @@ async def send_anime_card(message: Message, anime: dict, session: Any, state: Op
             InlineKeyboardButton(
                 text="💬 Izoh", 
                 callback_data=f"anime_comment:{anime_id}",
-                style="primary"
+                style=fav_style
             ),
         ],
         [
