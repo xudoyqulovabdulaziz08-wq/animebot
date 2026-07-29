@@ -100,4 +100,30 @@ class FavoriteService:
             return await FavoriteRepository.get_user_favorites(session, user_id)
         except Exception as e:
             logger.error(f"Error getting user {user_id} favorites: {e}")
+            return []   
+        
+
+    @staticmethod
+    async def check_is_favorite(session, user_id: int, anime_id: int) -> bool:
+        """Anime foydalanuvchining sevimlilar ro'yxatida bor-yo'qligini tekshiradi."""
+        try:
+            return await FavoriteRepository.is_favorite(session, user_id, anime_id)
+        except SQLAlchemyError as e:
+            logger.error(f"DB Error in check_is_favorite for User {user_id}, Anime {anime_id}: {e}")
+            return False
+        except Exception as e:
+            logger.exception(f"Unexpected error in check_is_favorite: {e}")
+            return False
+
+
+    @staticmethod
+    async def get_user_favorites(session, user_id: int) -> List[Dict]:
+        """Foydalanuvchining barcha sevimli animelarini qaytaradi."""
+        try:
+            return await FavoriteRepository.get_user_favorites(session, user_id)
+        except SQLAlchemyError as e:
+            logger.error(f"DB Error in get_user_favorites for User {user_id}: {e}")
+            return []
+        except Exception as e:
+            logger.exception(f"Unexpected error in get_user_favorites: {e}")
             return []
