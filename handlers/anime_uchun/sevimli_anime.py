@@ -2,9 +2,9 @@ import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from config import config
 from services.favorite_service import FavoriteService
+from config import config
+
 
 logger = logging.getLogger("sevimlilarim")
 router = Router()
