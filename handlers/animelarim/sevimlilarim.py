@@ -11,13 +11,13 @@ from aiogram.fsm.context import FSMContext
 from database.models import Genre
 from aiogram.exceptions import TelegramBadRequest
 from services.user_service import UserService
-
+from config import config
 logger = logging.getLogger("favorite_markup")
-
 
 logger = logging.getLogger("sevimlilarim")
 router = Router()
 
+EPISODES_PER_PAGE = 12
 
 async def get_user_favorites_markup(
     session, 
@@ -429,7 +429,7 @@ async def send_favorite_anime_card(
         [
             InlineKeyboardButton(
                 text="▶️ Tomosha qilish", 
-                callback_data=f"show_episodes_user:{anime_id}",
+                callback_data=f"fav_episodes_user:{anime_id}",
                 style="primary"
             )
         ],
@@ -533,3 +533,164 @@ async def send_favorite_anime_card(
                 protect_content=not is_vip_or_admin
             )
         return True
+
+
+
+
+
+
+@router.callback_query(F.data.startswith("fav_episodes_user:") | F.data.startswith("play_eps_page:"))
+async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
+    await callback.answer()
+    
+    # 1. Kelgan callback ma'lumotlarini ajratib olamiz
+    data_parts = callback.data.split(":")
+    
+    if data_parts[0] == "show_episodes_user":
+        anime_id = int(data_parts[1])
+        current_ep_num = 1  # Birinchi marta kirganda 1-qism
+        current_page = 1
+    else:
+        anime_id = int(data_parts[1])
+        current_ep_num = int(data_parts[2])
+        current_page = int(data_parts[3])
+
+    # 2. Xizmat qatlamlarini chaqiramiz
+    anime_service = AnimeService(session=session)
+    user_service = UserService(session=session)
+    
+    episodes = await anime_service.get_anime_episodes_cache(anime_id)
+    anime = await anime_service.get_anime(anime_id)
+    
+    user_id = callback.from_user.id
+    user = await user_service.get_user(user_id)
+    
+    if not episodes or not anime:
+        await callback.message.answer("⚠️ Kechirasiz, ushbu animening qismlari yuklanmagan yoki topilmadi.")
+        return
+
+    # 🛡️ VIP/Admin/Creator statusini tekshirish
+    c_id = getattr(config, "CREATOR_ID", None)
+    
+    is_vip_or_admin = False
+    if user:
+        is_vip_or_admin = (
+            user.get("is_vip", False) or 
+            user.get("status") == "admin" or 
+            user_id == c_id
+        )
+    else:
+        is_vip_or_admin = user_id == c_id
+
+    # 3. Joriy ko'rilayotgan epizod
+    current_episode = next((e for e in episodes if e["episode"] == current_ep_num), episodes[0])
+    current_ep_num = current_episode["episode"]
+    
+    video_file_id = current_episode.get("file_id") or current_episode.get("video_file_id")
+
+    if not video_file_id:
+        await callback.answer("⚠️ Ushbu qismning video fayli topilmadi!", show_alert=True)
+        return
+
+    # 4. Caption
+    caption = (
+        f"╔══════════════════════╗\n"
+        f"   🎬 <b>{anime['title']}</b>\n"
+        f"╚══════════════════════╝\n\n"
+        f"📌 <b>Joriy tomosha:</b>\n"
+        f"╔══════════════════════╗\n"
+        f"├ 📹 Qism: <b>{current_ep_num}-qism</b>\n"
+        f"├ 🌐 Platforma: <a href='https://t.me/Aninovuz_Bot'>Aninovuz</a>\n"
+        f"╚══════════════════════╝\n\n"
+        f"📢 Kanal @Aninovuz"
+    )
+
+    # 5. Pult (Tugmalar UX Premium)
+    buttons = []
+    start_idx = (current_page - 1) * EPISODES_PER_PAGE
+    end_idx = start_idx + EPISODES_PER_PAGE
+    page_episodes = episodes[start_idx:end_idx]
+    
+    # Qismlar tugmalari (4 tadan)
+    row = []
+    for ep in page_episodes:
+        ep_num = ep["episode"]
+        if ep_num == current_ep_num:
+            # ✨ UX yaxshilandi: [ 1 ] o'rniga ▶️ 1 qo'yildi
+            row.append(InlineKeyboardButton(text=f"▶️ {ep_num}", callback_data="noop", style="success"))
+        else:
+            row.append(InlineKeyboardButton(
+                text=str(ep_num), 
+                callback_data=f"play_eps_page:{anime_id}:{ep_num}:{current_page}"
+            ))
+            
+        if len(row) == 4:
+            buttons.append(row)
+            row = []
+    if row:
+        buttons.append(row)
+
+    # 🌟 PROFESSIONAL PAGINATION (Har doim o'zgarmas tartibda)
+    total_pages = (len(episodes) + EPISODES_PER_PAGE - 1) // EPISODES_PER_PAGE
+    
+    # Agar sahifalar 1 tadan ko'p bo'lsa, navigatsiyani chiroyli 1 qator qilib joylaymiz
+    if total_pages > 1:
+        nav_row = []
+        
+        # ⬅️ Chap tugma (Oldingi sahifa bo'lsa ishlaydi, bo'lmasa ko'rinmas bo'sh tugma)
+        if current_page > 1:
+            nav_row.append(InlineKeyboardButton(text="⬅️", callback_data=f"play_eps_page:{anime_id}:{current_ep_num}:{current_page - 1}", style="primary"))
+        else:
+            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noopa", style="primary"))
+
+        # 📄 O'rta tugma (Har doim turadi va nechanchi sahifaligini ko'rsatadi: masalan 1/5)
+        nav_row.append(InlineKeyboardButton(text=f"📄 {current_page}/{total_pages}", callback_data="noopg", style="primary"))
+
+        # ➡️ O'ng tugma (Keyingi sahifa bo'lsa ishlaydi)
+        if current_page < total_pages:
+            nav_row.append(InlineKeyboardButton(text="➡️", callback_data=f"play_eps_page:{anime_id}:{current_ep_num}:{current_page + 1}", style="primary"))
+        else:
+            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noopa",style="primary"))
+
+        buttons.append(nav_row)
+
+    # VIP funksiya
+    if is_vip_or_admin:
+        buttons.append([InlineKeyboardButton(text="📥 Barcha yuklash", callback_data=f"download_all_vip:{anime_id},", style="success"  )])
+    
+    # Orqaga qaytish
+    buttons.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"cards_anime:{anime_id}", style="danger")])
+    
+    player_kb = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    # 6. EDIT YOKI O'CHIRIB YUBORISH
+    media_player = InputMediaVideo(
+        media=video_file_id,
+        caption=caption,
+        parse_mode="HTML"
+    )
+
+    try:
+        await callback.message.edit_media(
+            media=media_player,
+            reply_markup=player_kb
+        )
+    except TelegramBadRequest as e:
+        error_msg = str(e).lower()
+        if "message is not modified" in error_msg:
+            pass
+        else:
+            try:
+                await callback.message.delete()
+            except Exception:
+                pass
+                
+            await callback.message.answer_video(
+                video=video_file_id,
+                caption=caption,
+                reply_markup=player_kb,
+                parse_mode="HTML",
+                protect_content=not is_vip_or_admin
+            )
+    except Exception as e:
+        logger.error(f"❌ Pleyer tahrirlanishida kutilmagan xato: {e}")
