@@ -8,6 +8,7 @@ from sqlalchemy import select
 from aiogram.types import InputMediaPhoto, InputMediaVideo
 from services.favorite_service import FavoriteService
 from services.user_service import UserService
+from services.anime_service import AnimeService
 from config import config
 
 CREATOR_ID = config.CREATOR_ID
@@ -246,3 +247,10 @@ async def send_anime_card(
         protect_content=not is_vip_or_admin
     )
     return True
+
+
+
+
+
+
+

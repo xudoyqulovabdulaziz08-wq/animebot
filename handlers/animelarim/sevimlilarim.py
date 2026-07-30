@@ -1,10 +1,15 @@
 import math
 import logging
+from typing import Any, Optional
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.favorite_service import FavoriteService
 from services.anime_service import AnimeService
+from sqlalchemy import select
+from aiogram.fsm.context import FSMContext
+from database.models import Genre
+from services.user_service import UserService
 
 logger = logging.getLogger("favorite_markup")
 
@@ -239,3 +244,247 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
         logger.warning(f"Message edit qilishda kichik ogohlantirish: {e}")
 
     await callback.answer()
+
+
+
+
+
+@router.callback_query(F.data.startswith("cards_anime:"))
+async def process_favorite_anime_card(callback: CallbackQuery, session: AsyncSession, state: FSMContext):
+    """
+    Sevimlilar ro'yxatidan anime tanlanganda maxsus kartochkani ochadi.
+    callback.data pattern: cards_anime:{anime_id}:{from_page}
+    """
+    try:
+        parts = callback.data.split(":")
+        anime_id = int(parts[1])
+        from_page = int(parts[2]) if len(parts) > 2 else 1
+
+        anime_service = AnimeService(session=session)
+        anime_data = await anime_service.get_anime_by_id(anime_id)
+
+        if not anime_data:
+            await callback.answer("❌ Anime topilmadi!", show_alert=True)
+            return
+
+        # Maxsus favorite funksiyamizni chaqiramiz:
+        await send_favorite_anime_card(
+            message=callback.message,
+            anime=anime_data,
+            session=session,
+            from_page=from_page,
+            state=state
+        )
+        await callback.answer()
+
+    except Exception as e:
+        logger.error(f"Sevimlilar kartasini ochishda xatolik: {e}")
+        await callback.answer("❌ Xatolik yuz berdi", show_alert=True)
+
+
+
+
+async def send_favorite_anime_card(
+    message: Message, 
+    anime: dict, 
+    session: Any, 
+    from_page: int = 1,
+    state: Optional[FSMContext] = None
+) -> bool:
+    """
+    🚀 Sevimlilar ro'yxatidan tanlangan anime uchun maxsus kartochka funksiyasi.
+    - 'Orqaga' tugmasi bosilganda foydalanuvchi turgan sahifaga (fav_page:{from_page}) aniq qaytaradi.
+    - Barcha xabarni almashtirish (Delete -> Answer) silliq va xatosiz bajariladi.
+    """
+    if not anime:
+        return False
+        
+    anime_id = anime.get("anime_id")
+    title = anime.get("title", "Nomsiz anime")    
+    year = anime.get("year", "—")
+    description = anime.get("description") or "Tavsif kiritilmagan."
+    episodes_count = len(anime.get("episodes", []))
+    languages = anime.get("languages", [])
+    languages_str = ", ".join(languages) if languages else "Mavjud emas"
+
+    # 📊 KO'RILISHLAR SONINI +1 QILISH
+    if anime_id:
+        try:
+            from services.anime_service import AnimeService
+            view_service = AnimeService(session=session)
+            await view_service.track_anime_view(anime_id)
+        except Exception as view_err:
+            logger.error(f"❌ Sevimlilar kartasida ko'rilishlar sonini oshirishda xato: {view_err}")
+
+    actual_user_id = message.from_user.id if message.from_user and not message.from_user.is_bot else message.chat.id
+
+    # 🛡️ VIP/Admin Dynamic statusni tekshirish
+    user_service = UserService(session=session)
+    user_data = await user_service.get_user(actual_user_id)
+    
+    try:
+        from config import config
+        c_id = getattr(config, "CREATOR_ID", None)
+    except Exception:
+        c_id = globals().get("CREATOR_ID", None)
+
+    is_vip_or_admin = False
+    if user_data:
+        is_vip_or_admin = (
+            user_data.get("is_vip", False) or 
+            user_data.get("status") == "admin" or 
+            actual_user_id == c_id
+        )
+    else:
+        is_vip_or_admin = actual_user_id == c_id
+
+    # Janrlarni yuklash
+    genres_str = "Mavjud emas"
+    try:
+        genre_ids = anime.get("genres", [])
+        if genre_ids:
+            res = await session.execute(select(Genre).where(Genre.id.in_(genre_ids)))
+            genre_names = [g.name for g in res.scalars().all()]
+            if genre_names:
+                genres_str = ", ".join(genre_names)
+    except Exception as genre_err:
+        logger.error(f"❌ Janrlarni yuklashda xato: {genre_err}")
+
+    # Dubberlarni yuklash
+    dubbers_str = "Mavjud emas"
+    try:
+        dubber_ids = anime.get("dubbers", [])
+        if dubber_ids:
+            from database.models import Dubber
+            res = await session.execute(select(Dubber).where(Dubber.id.in_(dubber_ids)))
+            dubber_names = [d.name for d in res.scalars().all()]
+            if dubber_names:
+                dubbers_str = ", ".join(dubber_names)
+    except Exception as dubber_err:
+        logger.error(f"❌ Dubberlarni yuklashda xato: {dubber_err}")
+
+    is_favorite = False
+    if anime_id:
+        fav_service = FavoriteService(session=session)
+        is_favorite = await fav_service.check_is_favorite(actual_user_id, anime_id)
+        fav_text = "❤️ Sevimlida ✓" if is_favorite else "🤍 Sevimli "
+
+    # 🎨 Maxsus ramkali Caption
+    caption = (
+        f"    🎬 <b>{title}</b>\n\n"
+        f"📌 <b>Anime haqida ma'lumot:</b>\n"
+        f"╔═══════════════╗\n"
+        f"├ 🆔 Kod: <code>#{anime_id}</code>\n"  
+        f"├ 📅 Yil: <b>{year}</b>\n"
+        f"├ ▶️ Qism: <b>{episodes_count}</b> \n"
+        f"├ 🌐 Til: <b>{languages_str}</b>\n"
+        f"├ 🎙 Dubber: <b>{dubbers_str}</b>\n"
+        f"╚═══════════════╝\n"
+        f"╔═══════════════╗\n"
+        f" 🔮 Janrlar: <i>{genres_str}</i>\n"
+        f"╚═══════════════╝\n\n"
+        f"📝 <b>Tavsif:</b>\n"
+        f"<blockquote expandable>{description}</blockquote>"
+    )
+    
+    # 🔘 Sevimlilar uchun moslashtirilgan tugmalar to'plami
+    user_anime_kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(
+                text="▶️ Tomosha qilish", 
+                callback_data=f"show_episodes_user:{anime_id}",
+                style="primary"
+            )
+        ],
+        [
+            InlineKeyboardButton(
+                text="🔔 Obuna", 
+                callback_data=f"anime_subscription:{anime_id}",
+                style="primary"
+            ),
+            InlineKeyboardButton(
+                text=fav_text, 
+                callback_data=f"anime_favorite:{anime_id}",
+                style="primary"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                text="⭐ Baholash", 
+                callback_data=f"anime_rating:{anime_id}",
+                style="primary"
+            ),
+            InlineKeyboardButton(
+                text="💬 Izoh", 
+                callback_data=f"anime_comment:{anime_id}",
+                style="primary"
+            ),
+        ],
+        [
+            # 👈 Kalit tugma: Sevimlilar ro'yxatining kelingan sahifasiga to'g'ri qaytaradi
+            InlineKeyboardButton(
+                text="⬅️ Sevimlilarga qaytish", 
+                callback_data=f"fav_page:{from_page}",
+                style="danger"
+            )
+        ]
+    ])
+
+    # 🧹 Eskirgan xabar va kesh xabarlarni tozalash (Delete-first)
+    if state is not None:
+        try:
+            state_data = await state.get_data()
+            stale_menu_id = state_data.get("last_menu_id")
+            if stale_menu_id and stale_menu_id != message.message_id:
+                try:
+                    await message.bot.delete_message(chat_id=message.chat.id, message_id=stale_menu_id)
+                except Exception:
+                    pass
+                await state.update_data(last_menu_id=None)
+        except Exception as state_err:
+            logger.error(f"❌ last_menu_id tozalashda xato: {state_err}")
+
+    # Joriy tugma bosilgan xabarni o'chiramiz
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+    # Yangi kartani yuboramiz (Media turi tekshiruvi bilan)
+    poster_id = anime.get("poster_id")
+    if poster_id:
+        try:
+            sent_msg = await message.answer_photo(
+                photo=poster_id, 
+                caption=caption, 
+                reply_markup=user_anime_kb, 
+                parse_mode="HTML",
+                protect_content=not is_vip_or_admin
+            )
+            if state:
+                await state.update_data(last_menu_id=sent_msg.message_id)
+            return True
+        except Exception:
+            try:
+                sent_msg = await message.answer_video(
+                    video=poster_id, 
+                    caption=caption, 
+                    reply_markup=user_anime_kb, 
+                    parse_mode="HTML",
+                    protect_content=not is_vip_or_admin
+                )
+                if state:
+                    await state.update_data(last_menu_id=sent_msg.message_id)
+                return True
+            except Exception:
+                pass
+
+    sent_msg = await message.answer(
+        text=caption, 
+        reply_markup=user_anime_kb, 
+        parse_mode="HTML",
+        protect_content=not is_vip_or_admin
+    )
+    if state:
+        await state.update_data(last_menu_id=sent_msg.message_id)
+    return True

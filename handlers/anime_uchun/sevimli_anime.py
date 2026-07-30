@@ -3,6 +3,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.favorite_service import FavoriteService
+
 from config import config
 
 logger = logging.getLogger("sevimli")
@@ -80,3 +81,6 @@ async def anime_favorite_handler(callback: CallbackQuery, session: AsyncSession)
         text=msg_text,
         show_alert=True
     )
+
+
+
