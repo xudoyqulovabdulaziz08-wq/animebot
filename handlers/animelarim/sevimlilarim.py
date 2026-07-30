@@ -216,7 +216,7 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
     if total_count > 0:
         text = (
             f"<b>❤️Sevimlilar bo'limi</b>\n\n"
-            f"📚<bSizning sevimli animelaringiz</b>\n"
+            f"📚<b>Sizning sevimli animelaringiz</b>\n"
             f"<blockquote expandable>📌 Jami saqlangan animelar: <b>{total_count} ta</b></blockquote>\n\n"
             f"👇 Tomosha qilish uchun kerakli animeni tanlang:"
         )
