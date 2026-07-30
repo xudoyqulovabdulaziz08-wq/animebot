@@ -4,6 +4,7 @@ from aiogram.types import (
     CallbackQuery,
     InlineKeyboardMarkup,
     InlineKeyboardButton,
+    InputMediaPhoto
 )
 from aiogram.exceptions import TelegramBadRequest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +15,10 @@ logger = logging.getLogger("Cabinetanimelarim")
 router = Router()
 
 CREATOR_ID = config.CREATOR_ID
+
+ANIME_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA20AAz0E"
+
+
 
 @router.callback_query(F.data == "animelarim_cabinet")
 async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
@@ -58,7 +63,6 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
                     style="primary"
                 )
             ],
-            
             [
                 InlineKeyboardButton(
                     text="💬 Izohlarim",
@@ -71,13 +75,11 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
                     style="primary"
                 )
             ],
-        
             [
                 InlineKeyboardButton(
                     text="⬅️ Orqaga",
                     callback_data="cabinet",
                     style="danger"
-                    
                 )
             ]
         ]
@@ -89,25 +91,39 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
         "Kerakli bo'limni tanlang."
     )
 
+    # 🖼️ HAR DOIM SILLIQ EDIT_MEDIA BILAN BREND COVER'GA ALMASHTIRAMIZ
     try:
-        # 🖼 Agar xabar Media bo'lsa
-        if callback.message.photo or callback.message.video or callback.message.document:
-            await callback.message.edit_caption(
-                caption=caption_text,
-                parse_mode="HTML",
-                reply_markup=keyboard
-            )
-        # 📝 Faqat Matn bo'lsa
-        else:
-            await callback.message.edit_text(
-                text=caption_text,
-                parse_mode="HTML",
-                reply_markup=keyboard
-            )
+        # InputMediaPhoto orqali eski poster o'rniga brend rasmimizni va yangi tekstni joylaymiz
+        media_obj = InputMediaPhoto(
+            media=ANIME_COVER,
+            caption=caption_text,
+            parse_mode="HTML"
+        )
+        
+        await callback.message.edit_media(
+            media=media_obj,
+            reply_markup=keyboard
+        )
+
     except TelegramBadRequest as e:
-        logger.warning(f"Xabarni tahrirlashda xatolik: {e}")
-        await callback.message.answer(
-            text=caption_text,
+        err_str = str(e).lower()
+        
+        # Agar xabar o'zgarmagan bo'lsa, e'tiborsiz qoldiramiz
+        if "message is not modified" in err_str:
+            await callback.answer()
+            return
+
+        logger.warning(f"⚠️ edit_media bajarishda xatolik (Fallback rejimiga o'tilmoqda): {e}")
+        
+        # Kamdan-kam uchraydigan xatolikda (masalan, eski xabar o'chib ketgan bo'lsa) o'chirib yangisini yuboramiz
+        try:
+            await callback.message.delete()
+        except Exception:
+            pass
+
+        await callback.message.answer_photo(
+            photo=ANIME_COVER,
+            caption=caption_text,
             parse_mode="HTML",
             reply_markup=keyboard
         )

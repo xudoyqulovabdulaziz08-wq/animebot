@@ -2,13 +2,14 @@ import math
 import logging
 from typing import Any, Optional
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Message
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Message, InputMediaPhoto, InputMediaVideo
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.favorite_service import FavoriteService
 from services.anime_service import AnimeService
 from sqlalchemy import select
 from aiogram.fsm.context import FSMContext
 from database.models import Genre
+from aiogram.exceptions import TelegramBadRequest
 from services.user_service import UserService
 
 logger = logging.getLogger("favorite_markup")
@@ -282,8 +283,6 @@ async def process_favorite_anime_card(callback: CallbackQuery, session: AsyncSes
         await callback.answer("❌ Xatolik yuz berdi", show_alert=True)
 
 
-
-
 async def send_favorite_anime_card(
     message: Message, 
     anime: dict, 
@@ -293,8 +292,8 @@ async def send_favorite_anime_card(
 ) -> bool:
     """
     🚀 Sevimlilar ro'yxatidan tanlangan anime uchun maxsus kartochka funksiyasi.
-    - 'Orqaga' tugmasi bosilganda foydalanuvchi turgan sahifaga (fav_page:{from_page}) aniq qaytaradi.
-    - Barcha xabarni almashtirish (Delete -> Answer) silliq va xatosiz bajariladi.
+    - O'chirish va qayta yuborish o'rniga silliq EDIT qilinadi.
+    - 'Orqaga' tugmasi bosilganda (fav_page:{from_page}) ham bitta xabarda edit bo'ladi.
     """
     if not anime:
         return False
@@ -318,7 +317,7 @@ async def send_favorite_anime_card(
 
     actual_user_id = message.from_user.id if message.from_user and not message.from_user.is_bot else message.chat.id
 
-    # 🛡️ VIP/Admin Dynamic statusni tekshirish
+    # 🛡️ VIP/Admin statusini tekshirish
     user_service = UserService(session=session)
     user_data = await user_service.get_user(actual_user_id)
     
@@ -369,7 +368,7 @@ async def send_favorite_anime_card(
         is_favorite = await fav_service.check_is_favorite(actual_user_id, anime_id)
         fav_text = "❤️ Sevimlida ✓" if is_favorite else "🤍 Sevimli "
 
-    # 🎨 Maxsus ramkali Caption
+    # 🎨 Caption
     caption = (
         f"    🎬 <b>{title}</b>\n\n"
         f"📌 <b>Anime haqida ma'lumot:</b>\n"
@@ -387,7 +386,7 @@ async def send_favorite_anime_card(
         f"<blockquote expandable>{description}</blockquote>"
     )
     
-    # 🔘 Sevimlilar uchun moslashtirilgan tugmalar to'plami
+    # 🔘 Tugmalar to'plami
     user_anime_kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(
@@ -421,7 +420,6 @@ async def send_favorite_anime_card(
             ),
         ],
         [
-            # 👈 Kalit tugma: Sevimlilar ro'yxatining kelingan sahifasiga to'g'ri qaytaradi
             InlineKeyboardButton(
                 text="⬅️ Sevimlilarga qaytish", 
                 callback_data=f"fav_page:{from_page}",
@@ -430,61 +428,70 @@ async def send_favorite_anime_card(
         ]
     ])
 
-    # 🧹 Eskirgan xabar va kesh xabarlarni tozalash (Delete-first)
-    if state is not None:
-        try:
-            state_data = await state.get_data()
-            stale_menu_id = state_data.get("last_menu_id")
-            if stale_menu_id and stale_menu_id != message.message_id:
-                try:
-                    await message.bot.delete_message(chat_id=message.chat.id, message_id=stale_menu_id)
-                except Exception:
-                    pass
-                await state.update_data(last_menu_id=None)
-        except Exception as state_err:
-            logger.error(f"❌ last_menu_id tozalashda xato: {state_err}")
-
-    # Joriy tugma bosilgan xabarni o'chiramiz
-    try:
-        await message.delete()
-    except Exception:
-        pass
-
-    # Yangi kartani yuboramiz (Media turi tekshiruvi bilan)
     poster_id = anime.get("poster_id")
-    if poster_id:
+
+    # 🔄 SILIK EDIT AMALGA OSHIRISH (O'chirish va answer qilinmaydi)
+    try:
+        if poster_id:
+            # Agar muqovasi bo'lsa, edit_media qilamiz
+            media_obj = InputMediaPhoto(
+                media=poster_id,
+                caption=caption,
+                parse_mode="HTML"
+            )
+            await message.edit_media(
+                media=media_obj,
+                reply_markup=user_anime_kb
+            )
+        else:
+            # Rasm bo'lmasa shunchaki text edit qilinadi
+            await message.edit_text(
+                text=caption,
+                reply_markup=user_anime_kb,
+                parse_mode="HTML"
+            )
+        return True
+
+    except TelegramBadRequest as e:
+        err_str = str(e).lower()
+        if "message is not modified" in err_str:
+            return True
+        
+        # Fallback: Agar Telegram edit_media bajarishda turli format xatosi bersa (masalan media tipi Video bo'lsa)
         try:
-            sent_msg = await message.answer_photo(
-                photo=poster_id, 
-                caption=caption, 
-                reply_markup=user_anime_kb, 
+            if poster_id:
+                media_obj = InputMediaVideo(
+                    media=poster_id,
+                    caption=caption,
+                    parse_mode="HTML"
+                )
+                await message.edit_media(
+                    media=media_obj,
+                    reply_markup=user_anime_kb
+                )
+                return True
+        except Exception:
+            pass
+
+        # Juda kam hollarda (masalan xabar o'chib ketgan bo'lsa) yangi xabar yuboriladi:
+        try:
+            await message.delete()
+        except Exception:
+            pass
+
+        if poster_id:
+            await message.answer_photo(
+                photo=poster_id,
+                caption=caption,
+                reply_markup=user_anime_kb,
                 parse_mode="HTML",
                 protect_content=not is_vip_or_admin
             )
-            if state:
-                await state.update_data(last_menu_id=sent_msg.message_id)
-            return True
-        except Exception:
-            try:
-                sent_msg = await message.answer_video(
-                    video=poster_id, 
-                    caption=caption, 
-                    reply_markup=user_anime_kb, 
-                    parse_mode="HTML",
-                    protect_content=not is_vip_or_admin
-                )
-                if state:
-                    await state.update_data(last_menu_id=sent_msg.message_id)
-                return True
-            except Exception:
-                pass
-
-    sent_msg = await message.answer(
-        text=caption, 
-        reply_markup=user_anime_kb, 
-        parse_mode="HTML",
-        protect_content=not is_vip_or_admin
-    )
-    if state:
-        await state.update_data(last_menu_id=sent_msg.message_id)
-    return True
+        else:
+            await message.answer(
+                text=caption,
+                reply_markup=user_anime_kb,
+                parse_mode="HTML",
+                protect_content=not is_vip_or_admin
+            )
+        return True
