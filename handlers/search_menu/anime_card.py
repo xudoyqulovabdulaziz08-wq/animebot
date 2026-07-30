@@ -5,6 +5,7 @@ from aiogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from database.models import Genre
 from sqlalchemy import select
+from aiogram.types import InputMediaPhoto, InputMediaVideo
 from services.favorite_service import FavoriteService
 from services.user_service import UserService
 from config import config
@@ -163,12 +164,21 @@ async def send_anime_card(
 
     # 🔄 AGAR EDIT=TRUE BO'LSA: XABARNI SILLIQ TAHRIRLAYMIZ (O'CHIRMASDAN)
     if edit and callback and callback.message:
+        poster_id = anime.get("poster_id")
+        
+        # Silliq transformatsiya uchun InputMedia ob'ektini tayyorlaymiz
+        if poster_id:
+            # Media rasm yoki video ekanligini ajratamiz (yoki standart photo deb ketamiz)
+            media_obj = InputMediaPhoto(media=poster_id, caption=caption, parse_mode="HTML")
+        else:
+            media_obj = None
+
         try:
-            if callback.message.photo or callback.message.video:
-                await callback.message.edit_caption(
-                    caption=caption,
-                    reply_markup=user_anime_kb,
-                    parse_mode="HTML"
+            if media_obj:
+                # 💥 AYNAN SHU METOD VIDEONI RASMGA SILLIQ ALMASHTIRADI:
+                await callback.message.edit_media(
+                    media=media_obj,
+                    reply_markup=user_anime_kb
                 )
             else:
                 await callback.message.edit_text(
@@ -178,7 +188,10 @@ async def send_anime_card(
                 )
             return True
         except Exception as edit_err:
-            logger.warning(f"⚠️ Edit qilishda xato, yangi xabar yuboriladi: {edit_err}")
+            err_str = str(edit_err).lower()
+            if "message is not modified" in err_str:
+                return True
+            logger.warning(f"⚠️ Edit_media qilishda xatolik: {edit_err}")
             # Edit o'xshamasa, pastdagi standart yangi xabar jo'natish mantig'iga o'tib ketadi
 
     # 🧹 ESKI MENYULARNI TOZALASH (Faqat yangi karta yuborilganda)

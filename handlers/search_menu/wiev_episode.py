@@ -307,30 +307,13 @@ async def process_back_to_anime_card(callback: CallbackQuery, session: Any, stat
         await callback.answer("❌ Kechirasiz, anime ma'lumotlari topilmadi.", show_alert=True)
         return
 
-    # 3. Joriy xabar Video ekanligini tekshiramiz
-    is_video_message = bool(callback.message.video)
-
-    if is_video_message:
-        # 🎬 Videodan Kartochkaga qaytganda: Video o'chiriladi va rasmli kartochka yuboriladi
-        try:
-            await callback.message.delete()
-        except Exception as e:
-            logger.debug(f"Video xabarini o'chirishda xatolik: {e}")
-
-        await send_anime_card(
-            message=callback.message, 
-            anime=anime, 
-            session=session,
-            state=state,
-            edit=False  # Yangi xabar bo'lib boradi
-        )
-    else:
-        # 🖼 Rasmli menyudan qaytganda: Xabar o'chirilmasdan silliq edit qilinadi
-        await send_anime_card(
-            message=callback.message, 
-            anime=anime, 
-            session=session,
-            state=state,
-            edit=True,
-            callback=callback
-        )
+    # 3. Xabar video yoki rasm bo'lishidan qat'i nazar har doim edit=True beramiz!
+    # Telegram edit_media orqali Video -> Photo transformatsiyasini silliq bajaradi.
+    await send_anime_card(
+        message=callback.message, 
+        anime=anime, 
+        session=session,
+        state=state,
+        edit=True,
+        callback=callback
+    )
