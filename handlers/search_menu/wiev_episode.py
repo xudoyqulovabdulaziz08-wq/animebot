@@ -8,6 +8,7 @@ from handlers.search_menu.anime_card import send_anime_card
 from aiogram.fsm.context import FSMContext
 from services.anime_service import AnimeService
 from services.user_service import UserService
+from aiogram.exceptions import TelegramRetryAfter
 from config import config
 CREATOR_ID = config.CREATOR_ID
 logger = logging.getLogger("PlayerHandler")
@@ -15,7 +16,7 @@ router = Router()
 
 # Bir sahifada nechta qism tugmasi chiqishi (4 tadan 3 qator = 12 ta)
 EPISODES_PER_PAGE = 12
-
+BATCH_SIZE = 12
 
 
 @router.callback_query(F.data.startswith("show_episodes_user:") | F.data.startswith("play_ep_page:"))
@@ -180,24 +181,23 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
 
 @router.callback_query(F.data.startswith("download_all_vip:"))
 async def process_download_all_vip(callback: CallbackQuery, session: Any):
+    # 1. Callback datani xavfsiz parsing qilish
     try:
-        anime_id = int(callback.data.split(":")[1])
+        data_parts = callback.data.rstrip(",").split(":")
+        anime_id = int(data_parts[1])
+        # Nechanchi paketligini aniqlash (1-paket, 2-paket...)
+        batch_page = int(data_parts[2]) if len(data_parts) > 2 else 1
     except (IndexError, ValueError):
-        await callback.answer("🚨 Noto'g'ri so'rov!", show_alert=True)
+        await callback.answer("🚨 Noto'g'ri so'rov formati!", show_alert=True)
         return
 
-    # 1. 🗑 Eski pleer xabarini darhol o'chiramiz
-    try:
-        await callback.message.delete()
-    except Exception as e:
-        logger.debug(f"Xabarni o'chirishda xato: {e}")
+    await callback.answer("📥 Qismlar tayyorlanmoqda...")
 
-    await callback.answer("📥 Qismlar bazadan qidirilmoqda...")
-
-    # 2. Qismlarni keshdan yoki DB dan yuklaymiz
+    # 2. Epizodlarni kesh / DB dan yuklash
     try:
         anime_service = AnimeService(session=session)
         episodes = await anime_service.get_anime_episodes_cache(anime_id=anime_id)
+        anime = await anime_service.get_anime(anime_id)
     except Exception as e:
         logger.error(f"VIP yuklashda qismlarni olishda xato: {e}")
         await callback.message.answer("❌ Qismlarni yuklashda texnik xatolik yuz berdi.")
@@ -207,51 +207,138 @@ async def process_download_all_vip(callback: CallbackQuery, session: Any):
         await callback.message.answer("📭 Ushbu animening yuklangan qismlari topilmadi.")
         return
 
-    # 3. Qismlarni tartiblaymiz (ustun nomi 'episode_number' yoki 'number' bo'lishi mumkin)
+    # 3. Qismlarni tartiblash
     sorted_episodes = sorted(
         episodes, 
-        key=lambda x: x.get("episode_number") or x.get("number") or 0
+        key=lambda x: x.get("episode") or x.get("episode_number") or x.get("number") or 0
     )
 
-    # 4. Foydalanuvchiga yuklash boshlanganini xabar qilamiz
+    total_episodes = len(sorted_episodes)
+    
+    # Paginatsiya hisob-kitoblari
+    start_idx = (batch_page - 1) * BATCH_SIZE
+    end_idx = start_idx + BATCH_SIZE
+    current_batch = sorted_episodes[start_idx:end_idx]
+
+    if not current_batch:
+        await callback.message.answer("⚠️ Ushbu sahifada qismlar topilmadi.")
+        return
+
+    total_batches = (total_episodes + BATCH_SIZE - 1) // BATCH_SIZE
+    anime_title = anime.get("title", "Anime") if anime else "Anime"
+
+    # 4. Status xabarini yuborish
     status_msg = await callback.message.answer(
-        f"📦 <b>Jami {len(sorted_episodes)} ta qism tayyorlanmoqda, ketma-ket yuboriladi...</b>", 
+        f"📦 <b>{anime_title}</b>\n"
+        f"🚀 <b>{start_idx + 1}-{min(end_idx, total_episodes)}</b> qismlar yuborilmoqda... (Paket: {batch_page}/{total_batches})", 
         parse_mode="HTML"
     )
 
     sent_count = 0
 
-    # 5. 🚀 KETMA-KET YUBORISH SIKLI
-    for ep in sorted_episodes:
-        # 🔥 DIQQAT: Har xil nomlanish formatlarini tekshiramiz (Baza yoki Kesh mosligi uchun)
-        video_file_id = ep.get("video_file_id") or ep.get("video_id") or ep.get("file_id")
+    # 5. 🚀 12 TA QISMNI XAVFSIZ KETMA-KET YUBORISH
+    for ep in current_batch:
+        video_file_id = ep.get("video_file_id") or ep.get("file_id") or ep.get("video_id")
         ep_num = ep.get("episode") or ep.get("episode_number") or ep.get("number") or "?"
         
-        # Agar dict ichida video ID umuman topilmasa, log yozamiz va tekshiramiz
         if not video_file_id:
-            logger.warning(f"⚠️ Epizod dict ichida video kaliti topilmadi! Bor kalitlar: {list(ep.keys())}")
+            logger.warning(f"⚠️ Epizod dict ichida video kaliti topilmadi! Epizod: {ep_num}")
             continue
             
         try:
-            # Telegram API orqali videoni uzatamiz
             await callback.bot.send_video(
                 chat_id=callback.from_user.id,
                 video=str(video_file_id),
-                caption=f"🎬 <b>{ep_num}-Qism</b>\n\n🍿 @AniNovuz loyihasi taqdim etadi.",
+                caption=f"🎬 <b>{anime_title} — {ep_num}-Qism</b>\n\n🍿 @AniNovuz loyihasi taqdim etadi.",
                 parse_mode="HTML"
             )
             sent_count += 1
-            # Telegram FloodWait olmaslik uchun har bir videodan keyin qisqa 0.3 soniya kutish qo'shamiz
-            await asyncio.sleep(0.3)
+            # FloodWait oldini olish uchun xavfsiz pauza (0.4s)
+            await asyncio.sleep(0.4)
             
+        except TelegramRetryAfter as e:
+            # Agar Telegram spam protection ishga tushsa, aytilgan soniya kutib davom etadi
+            logger.warning(f"FloodWait: {e.retry_after} soniya kutilmoqda...")
+            await asyncio.sleep(e.retry_after + 1)
+            # Qayta yuborishga urinish
+            try:
+                await callback.bot.send_video(
+                    chat_id=callback.from_user.id,
+                    video=str(video_file_id),
+                    caption=f"🎬 <b>{anime_title} — {ep_num}-Qism</b>\n\n🍿 @AniNovuz loyihasi taqdim etadi.",
+                    parse_mode="HTML"
+                )
+                sent_count += 1
+            except Exception as retry_err:
+                logger.error(f"Retry xatosi: {retry_err}")
+
         except Exception as send_err:
             logger.error(f"❌ Qism yuborishda xato (Epizod: {ep_num}): {send_err}")
             continue
 
-    # 6. Yakuniy tekshiruv va xabar
+    # Status xabarini o'chiramiz
+    try:
+        await status_msg.delete()
+    except Exception:
+        pass
+
+    # 6. 🔘 UX TUGMALARINI SHAKLLANTIRISH (Keyingi 12 ta / Orqaga)
+    nav_buttons = []
+    
+    # 1. Paginatsiya tugmalari
+    batch_nav_row = []
+    if batch_page > 1:
+        batch_nav_row.append(
+            InlineKeyboardButton(
+                text="⬅️ Oldingi 12 ta", 
+                callback_data=f"download_all_vip:{anime_id}:{batch_page - 1}",
+                style="primary"
+            )
+        )
+    if end_idx < total_episodes:
+        batch_nav_row.append(
+            InlineKeyboardButton(
+                text="➡️ Keyingi 12 ta", 
+                callback_data=f"download_all_vip:{anime_id}:{batch_page + 1}",
+                style="primary"
+            )
+        )
+    if batch_nav_row:
+        nav_buttons.append(batch_nav_row)
+
+    # 2. Yangi Pleyer va Anime Kartasini pastda ochish tugmalari
+    nav_buttons.append([
+        InlineKeyboardButton(
+            text="🎬 Pleyerni ochish", 
+            callback_data=f"show_episodes_user:{anime_id}",
+            style="primary"
+        ),
+        InlineKeyboardButton(
+            text="🎴 Anime kartasi", 
+            callback_data=f"cards_anime:{anime_id}:1",
+            style="primary"
+        )
+    ])
+
+    batch_kb = InlineKeyboardMarkup(inline_keyboard=nav_buttons)
+
+    # 7. Yakuniy natija xabari
     if sent_count > 0:
+        if end_idx < total_episodes:
+            finish_text = (
+                f"✅ <b>{sent_count} ta qism muvaffaqiyatli yuborildi!</b>\n\n"
+                f"📊 <i>Progress: {min(end_idx, total_episodes)} / {total_episodes} qism</i>\n"
+                f"👇 Keyingi qismlarni yuklab olish uchun tugmani bosing:"
+            )
+        else:
+            finish_text = (
+                f"🎉 <b>Barcha {total_episodes} ta qism to'liq yuklab berildi!</b>\n\n"
+                f"🍿 Yoqimli tomosha!"
+            )
+            
         await callback.message.answer(
-            f"✅ <b>Barcha {sent_count} ta qism muvaffaqiyatli yuborildi! Yoqimli tomosha!</b> 🍿", 
+            text=finish_text,
+            reply_markup=batch_kb,
             parse_mode="HTML"
         )
     else:
@@ -259,7 +346,6 @@ async def process_download_all_vip(callback: CallbackQuery, session: Any):
             "⚠️ Qismlar topildi, biroq ularning video fayllari (`file_id`) botga mos kelmadi.\n"
             "Iltimos, admin panel orqali epizodlar to'g'ri yuklanganini tekshiring."
         )
-
         
 
 
