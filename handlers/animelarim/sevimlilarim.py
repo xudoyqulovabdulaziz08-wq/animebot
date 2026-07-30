@@ -192,8 +192,8 @@ async def process_select_page_menu(callback: CallbackQuery):
 @router.callback_query(F.data.startswith("fav_page:"))
 async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
     """
-    Sevimlilar ro'yxati bosilganda caption/text va tugmalarni yangilaydi.
-    Paginatsiyani ham bir xil handlerda ushlaydi.
+    Sevimlilar ro'yxati bosilganda rasmni (FAVORITES_POSTER) joyida edit_media
+    orqali yangilab, ostiga tugmalarni chiqaradi.
     """
     user_id = callback.from_user.id
     
@@ -215,34 +215,72 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
     # Chiroyli matn shakllantiramiz
     if total_count > 0:
         text = (
-            f"❤️ <b>Sizning Sevimlilaringiz</b>\n\n"
-            f"📌 Jami saqlangan animelar: <b>{total_count} ta</b>\n"
+            f"❤️ <b>Sizning sevimli animelaringiz</b>\n\n"
+            f"<blockquote expandable>📌 Jami saqlangan animelar: <b>{total_count} ta</b></blockquote>\n\n"
             f"👇 Tomosha qilish uchun kerakli animeni tanlang:"
         )
     else:
         text = (
             f"💔 <b>Sevimlilar ro'yxatingiz bo'sh!</b>\n\n"
-            f"Siz hali birorta ham animeni sevimlilarga qo'shmadingiz.\n"
+            f"<blockquote expandable>Siz hali birorta ham animeni sevimlilarga qo'shmadingiz.</blockquote>\n\n"
             f"<i>Animelar sahifasidagi ❤️ tugmasi orqali bu yerga qo'shishingiz mumkin.</i>"
         )
 
+    favorites_poster = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA20AAz0E"
+
     try:
-        # Agar rasm/video caption bo'lsa `edit_caption`, aks holda `edit_text` qilamiz
-        if callback.message.photo or callback.message.video:
-            await callback.message.edit_caption(
+        if favorites_poster:
+            # Agar Sevimlilar uchun maxsus rasm/poster o'rnatilgan bo'lsa
+            media_obj = InputMediaPhoto(
+                media=favorites_poster,
                 caption=text,
-                reply_markup=reply_markup,
                 parse_mode="HTML"
+            )
+            await callback.message.edit_media(
+                media=media_obj,
+                reply_markup=reply_markup
             )
         else:
-            await callback.message.edit_text(
-                text=text,
-                reply_markup=reply_markup,
-                parse_mode="HTML"
-            )
+            # Agar maxsus rasm o'rnatilmagan bo'lsa va mavjud xabar allaqachon media bo'lsa:
+            if callback.message.photo or callback.message.video:
+                await callback.message.edit_caption(
+                    caption=text,
+                    reply_markup=reply_markup,
+                    parse_mode="HTML"
+                )
+            else:
+                await callback.message.edit_text(
+                    text=text,
+                    reply_markup=reply_markup,
+                    parse_mode="HTML"
+                )
+
+    except TelegramBadRequest as e:
+        err_str = str(e).lower()
+        if "message is not modified" in err_str:
+            pass  # Xabar o'zgarmagan bo'lsa e'tiborsiz qoldiramiz
+        else:
+            logger.warning(f"Message edit_media qilishda ogohlantirish: {e}")
+            
+            # Har qanday kutilmagan holatda oddiy edit_caption/edit_text fallback
+            try:
+                if callback.message.photo or callback.message.video:
+                    await callback.message.edit_caption(
+                        caption=text,
+                        reply_markup=reply_markup,
+                        parse_mode="HTML"
+                    )
+                else:
+                    await callback.message.edit_text(
+                        text=text,
+                        reply_markup=reply_markup,
+                        parse_mode="HTML"
+                    )
+            except Exception as ex:
+                logger.error(f"Fallback edit xatosi: {ex}")
+
     except Exception as e:
-        # Xabar o'zgarmagan bo'lsa Telegram error berishini oldini olamiz
-        logger.warning(f"Message edit qilishda kichik ogohlantirish: {e}")
+        logger.error(f"Sevimlilar menyusini ko'rsatishda kutilmagan xato: {e}")
 
     await callback.answer()
 

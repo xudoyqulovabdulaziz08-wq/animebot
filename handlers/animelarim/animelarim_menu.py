@@ -87,7 +87,7 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
 
     caption_text = (
         "🎬 <b>Animelarim</b>\n\n"
-        "Bu bo'lim orqali o'zingizga tegishli ma'lumotlarni boshqarishingiz mumkin.\n\n"
+        "<blockquote expandable>Bu bo'lim orqali o'zingizga tegishli ma'lumotlarni boshqarishingiz mumkin.</blockquote>\n\n"
         "Kerakli bo'limni tanlang."
     )
 
