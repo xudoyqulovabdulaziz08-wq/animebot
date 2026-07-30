@@ -215,13 +215,15 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
     # Chiroyli matn shakllantiramiz
     if total_count > 0:
         text = (
-            f"❤️ <b>Sizning sevimli animelaringiz</b>\n\n"
+            f"<b>❤️Sevimlilar bo'limi</b>\n\n"
+            f"📚<bSizning sevimli animelaringiz</b>\n"
             f"<blockquote expandable>📌 Jami saqlangan animelar: <b>{total_count} ta</b></blockquote>\n\n"
             f"👇 Tomosha qilish uchun kerakli animeni tanlang:"
         )
     else:
         text = (
-            f"💔 <b>Sevimlilar ro'yxatingiz bo'sh!</b>\n\n"
+            f"<b>❤️Sevimlilar bo'limi</b>\n\n"
+            f"📚 <b>Sevimlilar ro'yxatingiz bo'sh!</b>\n\n"
             f"<blockquote expandable>Siz hali birorta ham animeni sevimlilarga qo'shmadingiz.</blockquote>\n\n"
             f"<i>Animelar sahifasidagi ❤️ tugmasi orqali bu yerga qo'shishingiz mumkin.</i>"
         )
@@ -546,7 +548,7 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
     # 1. Kelgan callback ma'lumotlarini ajratib olamiz
     data_parts = callback.data.split(":")
     
-    if data_parts[0] == "show_episodes_user":
+    if data_parts[0] == "fav_episodes_user":
         anime_id = int(data_parts[1])
         current_ep_num = 1  # Birinchi marta kirganda 1-qism
         current_page = 1
@@ -594,14 +596,14 @@ async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
 
     # 4. Caption
     caption = (
-        f"╔══════════════════════╗\n"
+        f"╔════════════════════╗\n"
         f"   🎬 <b>{anime['title']}</b>\n"
-        f"╚══════════════════════╝\n\n"
+        f"╚════════════════════╝\n\n"
         f"📌 <b>Joriy tomosha:</b>\n"
-        f"╔══════════════════════╗\n"
+        f"╔════════════════════╗\n"
         f"├ 📹 Qism: <b>{current_ep_num}-qism</b>\n"
         f"├ 🌐 Platforma: <a href='https://t.me/Aninovuz_Bot'>Aninovuz</a>\n"
-        f"╚══════════════════════╝\n\n"
+        f"╚════════════════════╝\n\n"
         f"📢 Kanal @Aninovuz"
     )
 
