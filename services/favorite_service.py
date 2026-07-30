@@ -7,7 +7,6 @@ from database.cache import cache_manager  # Markaziy CacheManager import qilindi
 
 logger = logging.getLogger("FavoriteService")
 
-
 class FavoriteService:
     """
     🚀 Favorite Service (CACHE-AWARE & TRANSACTION-SAFE)
@@ -26,7 +25,6 @@ class FavoriteService:
     # ==================================================
     async def check_is_favorite(self, user_id: int, anime_id: int) -> bool:
         """Kesh orqali tezkor tekshirish (Bot Inline tugmalari uchun ultra-fast)."""
-        # Foydalanuvchining sevimlilar ID-lari ro'yxatini keshdan so'raymiz
         fav_ids = await self.get_user_favorite_ids(user_id)
         return anime_id in fav_ids
 
@@ -68,11 +66,19 @@ class FavoriteService:
                 if hasattr(self.session, "commit"):
                     await self.session.commit()
 
-                # 🔥 Keshni darhol tozalaymiz (Invalidate)
+                # 🔥 Keshni aniq va to'g'ri tozalaymiz (Invalidate)
                 await self.cache.invalidate("user_fav_ids", user_id, broadcast=True)
                 await self.cache.invalidate("user_fav_count", user_id, broadcast=True)
-                await self.cache.invalidate("user_favorites", user_id, broadcast=True)
-                await self.cache.invalidate("user_fav_page", f"{user_id}:*", broadcast=True)
+                
+                # 💥 BARCHA SAHIFALAR KESHINI TOZALASH:
+                # Wildcard keshda ishlamasligi mumkinligi sababli pattern yoki barcha umumiy prefiksni o'chiramiz
+                if hasattr(self.cache, "delete_pattern"):
+                    await self.cache.delete_pattern(f"user_fav_page:{user_id}:*")
+                else:
+                    # Agar delete_pattern bo'lmasa, eng ko'p kiriladigan 10 ta sahifa keshini tozalaymiz
+                    for page_num in range(1, 11):
+                        for limit_num in [6, 10]:
+                            await self.cache.invalidate("user_fav_page", f"{user_id}:{page_num}:{limit_num}", broadcast=True)
 
                 return True, action
 
@@ -83,7 +89,6 @@ class FavoriteService:
                 await self.session.rollback()
             logger.exception(f"Error in toggle_favorite (User: {user_id}, Anime: {anime_id}): {e}")
             return False, "error"
-        
 
     
     # ==================================================
@@ -92,24 +97,16 @@ class FavoriteService:
     async def get_user_favorites_count(self, user_id: int) -> int:
         """
         Foydalanuvchi yoqtirgan animelar sonini qaytaradi.
-        Keshda bo'lsa keshdan, bo'lmasa DBdan olib keshga yozadi.
         """
-        # 1. Kesh kalitini aniqlaymiz
-        cache_key = f"user_fav_count:{user_id}"
-
-        # 2. Keshdan izlab ko'ramiz
         cached_count = await self.cache.get("user_fav_count", user_id)
         if cached_count is not None:
             return int(cached_count)
 
-        # 3. Keshda bo'lmasa, DBdan sanaymiz
         count = await self.repo.get_user_favorites_count(self.session, user_id)
-
-        # 4. Keshga yozib qo'yamiz (TTL: 1 soat)
         await self.cache.set("user_fav_count", user_id, count, ttl=3600)
 
         return count
-    
+
     # ==================================================
     # ⚡️ GET USER FAVORITES PAGE (CACHE-FIRST + PAGINATED)
     # ==================================================
@@ -121,7 +118,6 @@ class FavoriteService:
     ) -> List[Dict[str, Any]]:
         """
         Foydalanuvchining ma'lum bir sahifadagi sevimlilar ro'yxatini keshdan/DBdan oladi.
-        Cache key har bir sahifa uchun alohida shakllantiriladi (masalan: user_fav_page:12345:1).
         """
         cache_sub_key = f"{user_id}:{page}:{per_page}"
         
