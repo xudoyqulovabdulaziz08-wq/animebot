@@ -261,7 +261,7 @@ async def process_favorite_anime_card(callback: CallbackQuery, session: AsyncSes
         from_page = int(parts[2]) if len(parts) > 2 else 1
 
         anime_service = AnimeService(session=session)
-        anime_data = await anime_service.get_anime_by_id(anime_id)
+        anime_data = await anime_service.get_anime(anime_id)
 
         if not anime_data:
             await callback.answer("❌ Anime topilmadi!", show_alert=True)
