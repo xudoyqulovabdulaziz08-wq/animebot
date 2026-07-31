@@ -15,7 +15,7 @@ async def open_page(
 ):
     from handlers.start import send_or_edit_start_menu
     from handlers.search import search_menu  # fayl nomingizga qarab moslang
-    from handlers.qollanma import guide_menu, 
+    from handlers.qollanma import guide_menu
     from handlers.help import support_menu
     from handlers.reklama import advertise_menu, advertise_submit
     from handlers.kabinet import open_cabinet_handler
