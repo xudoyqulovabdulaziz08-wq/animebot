@@ -3,15 +3,6 @@ from typing import Dict, Any
 from aiogram.types import CallbackQuery, Message
 
 # Handler funksiyalaringizdan importlar:
-from handlers.start import send_or_edit_start_menu
-from handlers.search import search_menu  # fayl nomingizga qarab moslang
-from handlers.qollanma import guide_menu
-from handlers.help import support_menu
-from handlers.reklama import advertise_menu, advertise_submit
-from handlers.kabinet import open_cabinet_handler
-from handlers.buy_vip import buy_vip_menu, vip_payed, process_vip_checkout
-from handlers.admin_menu import admin_menu
-from handlers.creator_menu import creator_menu
 
 async def open_page(
     event: CallbackQuery | Message, 
@@ -22,6 +13,16 @@ async def open_page(
     state: Any = None,
     user: dict = None
 ):
+    from handlers.start import send_or_edit_start_menu
+    from handlers.search import search_menu  # fayl nomingizga qarab moslang
+    from handlers.qollanma import guide_menu
+    from handlers.help import support_menu
+    from handlers.reklama import advertise_menu, advertise_submit
+    from handlers.kabinet import open_cabinet_handler
+    from handlers.buy_vip import buy_vip_menu, vip_payed, process_vip_checkout
+    from handlers.admin_menu import admin_menu
+    from handlers.creator_menu import creator_menu
+
     """
     Butun bot bo'yicha sahifalarni tarix asosida qayta tiklovchi universal markaz.
     """
