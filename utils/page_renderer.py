@@ -22,6 +22,7 @@ async def open_page(
     from handlers.buy_vip import buy_vip_menu, vip_payed, process_vip_checkout
     from handlers.admin_menu import admin_menu
     from handlers.creator_menu import creator_menu
+    from handlers.search_menu.search_genr import search_by_genre
 
     """
     Butun bot bo'yicha sahifalarni tarix asosida qayta tiklovchi universal markaz.
@@ -45,6 +46,9 @@ async def open_page(
 
     elif page == "advertise_submit":
         await advertise_submit(event)
+        
+    elif page == "search_genre":
+        await search_by_genre(event, state=state)
 
     elif page == "cabinet":
         await open_cabinet_handler(event, user_service=user_service)

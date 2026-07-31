@@ -3,6 +3,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from dotenv.main import logger
 from aiogram.fsm.context import FSMContext
+from services.navigation import NavigationManager
 from config import config
 POSTER_ID = config.RASM_ID
 router = Router()
@@ -12,10 +13,22 @@ router = Router()
 async def search_menu(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     
-    # 1. Oldingi state'larni tozalaymiz, lekin saqlangan xabar ID'larini saqlab qolamiz
+    # 1. Tozalashdan OLDIN kerakli qiymatlarni o'zgaruvchiga olamiz
     data = await state.get_data()
     last_menu_id = data.get("last_menu_id")
-    await state.clear()  # State toza bo'lishi uchun
+    
+    # 2. State'ni tozalaymiz (State holati va qidiruv ma'lumotlari o'chadi)
+    await state.clear() 
+
+    # 3. Navigation Stack'ga kiritamiz va kerakli kalitlarni qayta tiklaymiz
+    from services.navigation import NavigationManager
+    nav = NavigationManager(state)
+    await nav.push("search_menu")
+
+    # Agar last_menu_id bor bo'lsa, uni qaytarib saqlaymiz
+    if last_menu_id:
+        await state.update_data(last_menu_id=last_menu_id)
+     
 
     SEARCH_COVER = POSTER_ID
 
@@ -37,7 +50,7 @@ async def search_menu(callback: CallbackQuery, state: FSMContext):
                 InlineKeyboardButton(text="🔢 ID ", callback_data="search_by_id", style="primary"),
                 InlineKeyboardButton(text="🎭 Janr", callback_data="search_by_genre", style="primary")
             ],
-            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_start", style="danger")]
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_global", style="danger")]
         ]
     )
 

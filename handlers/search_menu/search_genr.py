@@ -5,6 +5,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from dotenv.main import logger
 from aiogram.fsm.context import FSMContext
+from services.navigation import NavigationManager
 from sqlalchemy import select
 from database.models import Genre
 from handlers.search_menu.anime_card import send_anime_card
@@ -85,7 +86,10 @@ async def get_user_genres_search_markup(
 async def search_by_genre(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     
-    # Yangi botingizdagi to'g'ri file_id
+    # 📌 1. Navigatsiya tarixiga qo'shamiz
+    from services.navigation import NavigationManager
+    await NavigationManager(state).push("search_genre")
+    
     SEARCH_COVER = POSTER_ID
     
     # Har safar kirganda tanlangan janrlar keshini tozalaymiz
@@ -101,12 +105,12 @@ async def search_by_genre(callback: CallbackQuery, state: FSMContext):
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="🔍 Boshlash", callback_data="user_g_page:1", style="success")],
-            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="search_menu", style="danger")]
+            # 📌 2. Hardcode 'search_menu' o'rniga 'back_global' ishlatamiz!
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_global", style="danger")]
         ]
     )
     
     try:
-        # edit_caption o'rniga edit_media ishlatamiz!
         await callback.message.edit_media(
             media=InputMediaPhoto(
                 media=SEARCH_COVER,
@@ -122,8 +126,6 @@ async def search_by_genre(callback: CallbackQuery, state: FSMContext):
             logger.error(f"❌ Janr menyusida kutilmagan xatolik: {e}")
     except Exception as e:
         logger.error(f"❌ Janr menyusida tizim xatoligi: {e}")
-
-
 
 
 
