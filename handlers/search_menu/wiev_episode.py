@@ -185,13 +185,18 @@ async def process_download_all_vip(callback: CallbackQuery, session: Any):
     try:
         data_parts = callback.data.rstrip(",").split(":")
         anime_id = int(data_parts[1])
-        # Nechanchi paketligini aniqlash (1-paket, 2-paket...)
         batch_page = int(data_parts[2]) if len(data_parts) > 2 else 1
     except (IndexError, ValueError):
         await callback.answer("🚨 Noto'g'ri so'rov formati!", show_alert=True)
         return
 
     await callback.answer("📥 Qismlar tayyorlanmoqda...")
+
+    # 🔥 TEPADAGI ESKI PLEYERNI YOKI OLDINGI BATCH XABARINI O'CHIRISH
+    try:
+        await callback.message.delete()
+    except Exception as del_err:
+        logger.warning(f"⚠️ Eski pleyer xabarini o'chirishda xatolik (allaqachon o'chirilgan bo'lishi mumkin): {del_err}")
 
     # 2. Epizodlarni kesh / DB dan yuklash
     try:
@@ -200,11 +205,17 @@ async def process_download_all_vip(callback: CallbackQuery, session: Any):
         anime = await anime_service.get_anime(anime_id)
     except Exception as e:
         logger.error(f"VIP yuklashda qismlarni olishda xato: {e}")
-        await callback.message.answer("❌ Qismlarni yuklashda texnik xatolik yuz berdi.")
+        await callback.bot.send_message(
+            chat_id=callback.from_user.id, 
+            text="❌ Qismlarni yuklashda texnik xatolik yuz berdi."
+        )
         return
 
     if not episodes:
-        await callback.message.answer("📭 Ushbu animening yuklangan qismlari topilmadi.")
+        await callback.bot.send_message(
+            chat_id=callback.from_user.id, 
+            text="📭 Ushbu animening yuklangan qismlari topilmadi."
+        )
         return
 
     # 3. Qismlarni tartiblash
@@ -221,16 +232,22 @@ async def process_download_all_vip(callback: CallbackQuery, session: Any):
     current_batch = sorted_episodes[start_idx:end_idx]
 
     if not current_batch:
-        await callback.message.answer("⚠️ Ushbu sahifada qismlar topilmadi.")
+        await callback.bot.send_message(
+            chat_id=callback.from_user.id, 
+            text="⚠️ Ushbu sahifada qismlar topilmadi."
+        )
         return
 
     total_batches = (total_episodes + BATCH_SIZE - 1) // BATCH_SIZE
     anime_title = anime.get("title", "Anime") if anime else "Anime"
 
-    # 4. Status xabarini yuborish
-    status_msg = await callback.message.answer(
-        f"📦 <b>{anime_title}</b>\n"
-        f"🚀 <b>{start_idx + 1}-{min(end_idx, total_episodes)}</b> qismlar yuborilmoqda... (Paket: {batch_page}/{total_batches})", 
+    # 4. Status xabarini yuborish (Endi bot.send_message orqali, chunki callback.message o'chirildi)
+    status_msg = await callback.bot.send_message(
+        chat_id=callback.from_user.id,
+        text=(
+            f"📦 <b>{anime_title}</b>\n"
+            f"🚀 <b>{start_idx + 1}-{min(end_idx, total_episodes)}</b> qismlar yuborilmoqda... (Paket: {batch_page}/{total_batches})"
+        ), 
         parse_mode="HTML"
     )
 
@@ -253,14 +270,11 @@ async def process_download_all_vip(callback: CallbackQuery, session: Any):
                 parse_mode="HTML"
             )
             sent_count += 1
-            # FloodWait oldini olish uchun xavfsiz pauza (0.4s)
             await asyncio.sleep(0.4)
             
         except TelegramRetryAfter as e:
-            # Agar Telegram spam protection ishga tushsa, aytilgan soniya kutib davom etadi
             logger.warning(f"FloodWait: {e.retry_after} soniya kutilmoqda...")
             await asyncio.sleep(e.retry_after + 1)
-            # Qayta yuborishga urinish
             try:
                 await callback.bot.send_video(
                     chat_id=callback.from_user.id,
@@ -282,7 +296,7 @@ async def process_download_all_vip(callback: CallbackQuery, session: Any):
     except Exception:
         pass
 
-    # 6. 🔘 UX TUGMALARINI SHAKLLANTIRISH (Keyingi 12 ta / Orqaga)
+    # 6. 🔘 UX TUGMALARINI SHAKLLANTIRISH
     nav_buttons = []
     
     # 1. Paginatsiya tugmalari
@@ -315,20 +329,20 @@ async def process_download_all_vip(callback: CallbackQuery, session: Any):
         ),
         InlineKeyboardButton(
             text="🎴 Anime kartasi", 
-            callback_data=f"cards_anime:{anime_id}:1",
+            callback_data=f"back_to_card:{anime_id}:1",
             style="primary"
         )
     ])
 
     batch_kb = InlineKeyboardMarkup(inline_keyboard=nav_buttons)
 
-    # 7. Yakuniy natija xabari
+    # 7. Yakuniy natija xabari (Eng ostida yangi tugmalar bilan chiqadi)
     if sent_count > 0:
         if end_idx < total_episodes:
             finish_text = (
                 f"✅ <b>{sent_count} ta qism muvaffaqiyatli yuborildi!</b>\n\n"
                 f"📊 <i>Progress: {min(end_idx, total_episodes)} / {total_episodes} qism</i>\n"
-                f"👇 Keyingi qismlarni yuklab olish uchun tugmani bosing:"
+                f"👇 Keyingi qismlarni yuklab olish yoki pleyerga qaytish uchun tugmani bosing:"
             )
         else:
             finish_text = (
@@ -336,15 +350,19 @@ async def process_download_all_vip(callback: CallbackQuery, session: Any):
                 f"🍿 Yoqimli tomosha!"
             )
             
-        await callback.message.answer(
+        await callback.bot.send_message(
+            chat_id=callback.from_user.id,
             text=finish_text,
             reply_markup=batch_kb,
             parse_mode="HTML"
         )
     else:
-        await callback.message.answer(
-            "⚠️ Qismlar topildi, biroq ularning video fayllari (`file_id`) botga mos kelmadi.\n"
-            "Iltimos, admin panel orqali epizodlar to'g'ri yuklanganini tekshiring."
+        await callback.bot.send_message(
+            chat_id=callback.from_user.id,
+            text=(
+                "⚠️ Qismlar topildi, biroq ularning video fayllari (`file_id`) botga mos kelmadi.\n"
+                "Iltimos, admin panel orqali epizodlar to'g'ri yuklanganini tekshiring."
+            )
         )
         
 
