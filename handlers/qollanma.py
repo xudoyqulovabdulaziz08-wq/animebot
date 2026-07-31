@@ -2,12 +2,14 @@ from aiogram import Router, html, types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from dotenv.main import logger
-
+from aiogram.fsm.context import FSMContext
+from services.navigation import NavigationManager
 router = Router()
 
 
 @router.callback_query(lambda c: c.data == "guide")
-async def guide_menu(callback: CallbackQuery):
+async def guide_menu(callback: CallbackQuery, state: FSMContext):
+    await NavigationManager(state).push("support")
     await callback.answer()
     
     
@@ -33,7 +35,7 @@ async def guide_menu(callback: CallbackQuery):
                 InlineKeyboardButton(text="💬 Aloqa", callback_data="support", style="success")
             ],
             [
-                InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_to_start", style="danger")
+                InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_global", style="danger")
             ]
         ]
     )

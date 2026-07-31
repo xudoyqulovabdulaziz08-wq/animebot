@@ -8,6 +8,8 @@ from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKe
 from services.user_service import UserService
 from config import config
 from handlers.search_menu.anime_card import send_anime_card
+from services.navigation import NavigationManager
+from utils.page_renderer import open_page
 from aiogram.fsm.context import FSMContext
 logger = logging.getLogger("StartRouter")
 CREATOR_ID = config.CREATOR_ID
@@ -254,41 +256,23 @@ async def check_sub_callback_handler(callback: CallbackQuery, session: Any, stat
 
 
 
+@router.callback_query(F.data == "back_global")
+@router.callback_query(F.data == "back_to_start") # eski tugmalaringiz sinib qolmasligi uchun
+async def global_back_handler(callback: CallbackQuery, state: FSMContext, session: Any = None, user_service: UserService = None, user: dict = None):
+    nav = NavigationManager(state)
+    
+    # Tarixdan bitta oldingi stepni olamiz
+    prev_step = await nav.pop()
+    
+    # Markaziy renderer orqali oldingi sahifaga qaytamiz
+    await open_page(
+        event=callback, 
+        page=prev_step["page"], 
+        params=prev_step.get("params", {}),
+        session=session,
+        user_service=user_service,
+        state=state,
+        user=user
+    )
 
 
-
-
-@router.message(Command("admin"))
-async def admin_command(message: Message, user: dict):
-    user_id = message.from_user.id
-    user_status = user.get("status", "user").lower()
-
-    if user_id == CREATOR_ID:
-        keyboard = ReplyKeyboardMarkup(
-            keyboard=[
-                [KeyboardButton(text="⚙️ Creator Paneli"),
-                 KeyboardButton(text="🛠 Admin Paneli")]
-            ],
-            resize_keyboard=True
-        )
-
-        await message.answer(
-            "👑 Creator paneli ochildi.",
-            reply_markup=keyboard
-        )
-
-    elif user_status == "admin":
-        keyboard = ReplyKeyboardMarkup(
-            keyboard=[
-                [KeyboardButton(text="🛠 Admin Paneli")]
-            ],
-            resize_keyboard=True
-        )
-
-        await message.answer(
-            "🛠 Admin paneli ochildi.",
-            reply_markup=keyboard
-        )
-
-    else:
-        await message.answer("❌ Siz admin emassiz.")
