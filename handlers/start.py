@@ -11,6 +11,7 @@ from handlers.search_menu.anime_card import send_anime_card
 from aiogram.fsm.context import FSMContext
 logger = logging.getLogger("StartRouter")
 CREATOR_ID = config.CREATOR_ID
+POSTER_ID = config.RASM_ID
 router = Router()
 
 
@@ -28,7 +29,7 @@ async def send_or_edit_start_menu(
     VIP va Adminlar uchun protect_content = False,
     Oddiy foydalanuvchilar uchun protect_content = True bo'ladi.
     """
-    start_image_file_id = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA20AAz0E" 
+    start_image_file_id = POSTER_ID 
     sayt_url = "https://aninov.uz"
     
     # 🛡️ 1. USER STATUSINI TEKSHIRISH (VIP/ADMIN)
