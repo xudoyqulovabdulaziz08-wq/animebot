@@ -139,6 +139,8 @@ class AnimeService:
     # ==================================================
     # 🎬 ADD EPISODE (TRANSACTION SAFE)
     # ==================================================
+    # services/anime_service.py
+
     async def add_episode(
         self,
         anime_id: int,
@@ -152,6 +154,9 @@ class AnimeService:
             if ok:
                 await self.cache.invalidate("anime", anime_id, broadcast=True)
                 await self.cache.invalidate("anime", "all", broadcast=True)
+                # 💥 MANA SHU QATOR QO'SHILADI:
+                await self.cache.invalidate("anime_episodes", anime_id, broadcast=True)
+                logger.info(f"➕ Episode added + cache invalidated: Anime {anime_id}, Ep {episode_num}")
             return ok
 
         except Exception as e:
@@ -180,6 +185,7 @@ class AnimeService:
                 # Keshni invalidatsiya qilamiz, shunda ro'yxat darhol yangilanadi
                 await self.cache.invalidate("anime", anime_id, broadcast=True)
                 await self.cache.invalidate("anime", "all", broadcast=True)
+                await self.cache.invalidate("anime_episodes", anime_id, broadcast=True)
                 logger.info(f"🗑 Episode cache invalidated: Anime {anime_id}, Ep {episode_num}")
 
             return ok

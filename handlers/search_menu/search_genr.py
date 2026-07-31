@@ -73,7 +73,7 @@ async def get_user_genres_search_markup(
         InlineKeyboardButton(text="🔍 Qidirish", callback_data="user_g_search", style="success")
     ])
     keyboard.append([
-        InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_global", style="danger")
+        InlineKeyboardButton(text="⬅️ Orqaga", callback_data="search_by_genre", style="danger")
     ])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
