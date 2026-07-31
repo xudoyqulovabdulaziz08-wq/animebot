@@ -35,6 +35,7 @@ class Config:
     # ================= BOT CORE =================
     BOT_TOKEN: str = os.getenv("BOT_TOKEN", "").strip()
     CREATOR_ID: int = safe_cast("CREATOR_ID", 0)
+    RASM_ID: str = (os.getenv("RASM_ID") or "").strip()
 
     # ================= INFRA =================
     VALKEY_URL: str = os.getenv(
