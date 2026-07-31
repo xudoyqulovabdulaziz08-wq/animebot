@@ -12,6 +12,8 @@ from database.models import Genre
 from aiogram.exceptions import TelegramBadRequest
 from services.user_service import UserService
 from config import config
+
+POSTER_ID = config.RASM_ID
 logger = logging.getLogger("favorite_markup")
 
 logger = logging.getLogger("sevimlilarim")
@@ -228,7 +230,7 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
             f"<i>Animelar sahifasidagi ❤️ tugmasi orqali bu yerga qo'shishingiz mumkin.</i>"
         )
 
-    favorites_poster = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA20AAz0E"
+    favorites_poster = POSTER_ID
 
     try:
         if favorites_poster:

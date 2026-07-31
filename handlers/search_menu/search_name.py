@@ -9,8 +9,8 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from dotenv.main import logger
 from aiogram.fsm.context import FSMContext
 from handlers.search_menu.anime_card import send_anime_card
-
-
+from config import config
+POSTER_ID = config.RASM_ID
 
 router = Router()
 
@@ -40,7 +40,7 @@ class SearchStates(StatesGroup):
 @router.callback_query(lambda c: c.data == "search_by_name")
 async def search_by_name(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
-    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA20AAz0E"
+    SEARCH_COVER = POSTER_ID
     
     
     text = (

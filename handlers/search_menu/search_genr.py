@@ -9,7 +9,8 @@ from sqlalchemy import select
 from database.models import Genre
 from handlers.search_menu.anime_card import send_anime_card
 from services.anime_service import AnimeService
-
+from config import config
+POSTER_ID = config.RASM_ID
 router = Router()
 
 
@@ -85,7 +86,7 @@ async def search_by_genre(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     
     # Yangi botingizdagi to'g'ri file_id
-    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA20AAz0E"
+    SEARCH_COVER = POSTER_ID
     
     # Har safar kirganda tanlangan janrlar keshini tozalaymiz
     await state.update_data(selected_genres=[])

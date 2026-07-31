@@ -3,7 +3,8 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from dotenv.main import logger
 from aiogram.fsm.context import FSMContext
-
+from config import config
+POSTER_ID = config.RASM_ID
 router = Router()
 
 # ✅ F.data orqali yaxshilandi
@@ -16,7 +17,7 @@ async def search_menu(callback: CallbackQuery, state: FSMContext):
     last_menu_id = data.get("last_menu_id")
     await state.clear()  # State toza bo'lishi uchun
 
-    SEARCH_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA20AAz0E"
+    SEARCH_COVER = POSTER_ID
 
     text = (
         "🔍 <b>ANIME QIDIRISH</b>\n\n"

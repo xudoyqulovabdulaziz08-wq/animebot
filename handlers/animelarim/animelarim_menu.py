@@ -11,12 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from services.favorite_service import FavoriteService
 from config import config
 
+POSTER_ID = config.RASM_ID
 logger = logging.getLogger("Cabinetanimelarim")
 router = Router()
 
 CREATOR_ID = config.CREATOR_ID
 
-ANIME_COVER = "AgACAgIAAxkBAAFQCZRqZCQF0c5psFnoAiOw5BrIOWe2-wACTRZrG9sKKEvA-QJNWCdkVAEAAwIAA20AAz0E"
+ANIME_COVER = POSTER_ID
 
 
 
