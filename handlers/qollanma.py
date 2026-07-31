@@ -9,7 +9,7 @@ router = Router()
 
 @router.callback_query(lambda c: c.data == "guide")
 async def guide_menu(callback: CallbackQuery, state: FSMContext):
-    await NavigationManager(state).push("support")
+    await NavigationManager(state).push("guide")
     await callback.answer()
     
     
