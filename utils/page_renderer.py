@@ -35,10 +35,10 @@ async def open_page(
         await search_menu(event, state=state)
 
     elif page == "guide":
-        await guide_menu(event)
+        await guide_menu(event, state=state)
 
     elif page == "support":
-        await support_menu(event)
+        await support_menu(event, state=state)
 
     elif page == "advertise":
         await advertise_menu(event)
