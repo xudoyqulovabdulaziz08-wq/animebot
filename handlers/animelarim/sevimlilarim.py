@@ -195,7 +195,7 @@ async def process_select_page_menu(callback: CallbackQuery):
 
 @router.callback_query(F.data == "cabinet_favorite")
 @router.callback_query(F.data.startswith("fav_page:"))
-async def animelarim_menu(callback: CallbackQuery, session: AsyncSession, state: FSMContext = None):
+async def animelarim_menu(callback: CallbackQuery, session: AsyncSession, state: FSMContext = None, page_override: Optional[int] = None):
     """
     Sevimlilar ro'yxati bosilganda rasmni (FAVORITES_POSTER) joyida edit_media
     orqali yangilab, ostiga tugmalarni chiqaradi.
@@ -203,12 +203,15 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession, state:
     user_id = callback.from_user.id
     
     # Paginatsiya sahifasini aniqlash
-    page = 1
-    if callback.data.startswith("fav_page:"):
+    if page_override is not None:
+        page = page_override
+    elif callback.data and callback.data.startswith("fav_page:"):
         try:
             page = int(callback.data.split(":")[1])
         except ValueError:
             page = 1
+    else:
+        page = 1
     
     if state is not None:
         nav = NavigationManager(state)

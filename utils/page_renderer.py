@@ -100,8 +100,13 @@ async def open_page(
             event.data = f"play_ep_page:{anime_id}:{ep_num}:{page_num}"
             await process_anime_streaming_player(event, session=session)
     elif page == "favorites":
-        from handlers.animelarim.sevimlilarim import animelarim_menu # fayl nomiga moslang
+        from handlers.animelarim.sevimlilarim import animelarim_menu
         page_num = params.get("page", 1)
         if isinstance(event, CallbackQuery):
-            event.data = f"fav_page:{page_num}"
-            await animelarim_menu(event, session=session)
+            # ❌ event.data = f"fav_page:{page_num}"  <-- BU O'CHIRILADI
+            await animelarim_menu(
+                callback=event, 
+                session=session, 
+                state=state, 
+                page_override=page_num  # 👈 TO'G'RI UZATISH
+            )
