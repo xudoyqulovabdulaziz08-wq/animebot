@@ -3,27 +3,26 @@ from typing import Optional, Dict, Any
 from aiogram.fsm.context import FSMContext
 
 MAX_HISTORY = 30  # Xotirani tejash va ortiqcha yuklamani oldini olish uchun limit
-
 class NavigationManager:
-    def __init__(self, state: FSMContext):
-        self.state = state
-
-    async def push(self, page_name: str, **kwargs) -> None:
-        """Yangi sahifaga o'tganda uni tarixga qo'shadi."""
-        data = await self.state.get_data()
-        history: list = data.get("nav_history", [])
+    def __init__(self, state: FSMContext): #[cite: 18]
+        self.state = state #[cite: 18]
+    async def push(self, page_name: str, **kwargs) -> None: #[cite: 18]
+        data = await self.state.get_data() #[cite: 18]
+        history: list = data.get("nav_history", []) #[cite: 18]
         
-        current_step = {"page": page_name, "params": kwargs}
+        current_step = {"page": page_name, "params": kwargs} #[cite: 18]
         
-        # Ketma-ket mutlaqo bir xil (sahifa + parametr) takrorlanishini oldini olish
-        if not history or history[-1] != current_step:
-            history.append(current_step)
+        # 1. Agar oxirgi sahifa ham xuddi shu bo'lsa (masalan: favorites -> favorites), qayta qo'shma[cite: 18]
+        if history and history[-1]["page"] == page_name:
+            # Faqat parametrlarni yangilab qo'yamiz
+            history[-1] = current_step
+        else:
+            history.append(current_step) #[cite: 18]
             
-        # Stack hajmini cheklaymiz (oxirgi 30 ta qadamni saqlash)
-        if len(history) > MAX_HISTORY:
-            history = history[-MAX_HISTORY:]
+        if len(history) > MAX_HISTORY: #[cite: 18]
+            history = history[-MAX_HISTORY:] #[cite: 18]
             
-        await self.state.update_data(nav_history=history)
+        await self.state.update_data(nav_history=history) #[cite: 18]
 
     async def pop(self) -> Dict[str, Any]:
         """Orqaga bosilganda joriy sahifani o'chirib, OLDINGI sahifaga qaytaradi."""

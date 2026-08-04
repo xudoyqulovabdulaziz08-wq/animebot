@@ -1,8 +1,5 @@
-# utils/page_renderer.py
 from typing import Dict, Any
 from aiogram.types import CallbackQuery, Message
-
-# Handler funksiyalaringizdan importlar:
 
 async def open_page(
     event: CallbackQuery | Message, 
@@ -14,7 +11,7 @@ async def open_page(
     user: dict = None
 ):
     from handlers.start import send_or_edit_start_menu
-    from handlers.search import search_menu  # fayl nomingizga qarab moslang
+    from handlers.search import search_menu
     from handlers.qollanma import guide_menu
     from handlers.help import support_menu
     from handlers.reklama import advertise_menu, advertise_submit
@@ -24,8 +21,8 @@ async def open_page(
     from handlers.creator_menu import creator_menu
     from handlers.search_menu.search_genr import search_by_genre
     from handlers.search_menu.anime_card import send_anime_card
-    from handlers.search_menu.wiev_episode import process_anime_streaming_player, process_download_all_vip
-    from handlers.animelarim.sevimlilarim import animelarim_menu
+    from handlers.search_menu.wiev_episode import process_anime_streaming_player
+    from handlers.animelarim.sevimlilarim import animelarim_menu as show_favorites_menu  # Aliasing
     from services.anime_service import AnimeService
 
     """
@@ -57,17 +54,22 @@ async def open_page(
     elif page == "cabinet":
         await open_cabinet_handler(event, user_service=user_service)
 
+    # 📌 1. YANGI: Animelarim sub-menyusi uchun shart
+    elif page == "animelarim_cabinet":
+        from handlers.kabinet import animelarim_menu
+        if isinstance(event, CallbackQuery):
+            await animelarim_menu(callback=event, session=session, state=state)
+
     elif page == "buy_vip":
         await buy_vip_menu(event, user_service=user_service)
 
     elif page == "purchase_vip":
         await vip_payed(event, user_service=user_service)
 
+    # 📌 2. TUZATILDI: event.data mutation olib tashlandi
     elif page == "purchases_vip":
-        # Dynamic callback soxtalashtiriladi
         months = params.get("months", "1")
-        event.data = f"purchases_vip:{months}"
-        await process_vip_checkout(event)
+        await process_vip_checkout(event, months_override=months)
 
     elif page == "admin_menu":
         await admin_menu(event, user=user or {})
@@ -91,22 +93,28 @@ async def open_page(
                     edit=bool(cb),
                     callback=cb
                 )
+
+    # 📌 3. TUZATILDI: event.data mutation olib tashlandi
     elif page == "video_player":
-        from handlers.search_menu.wiev_episode import process_anime_streaming_player
         if isinstance(event, CallbackQuery):
             anime_id = params.get("anime_id")
             ep_num = params.get("ep_num", 1)
             page_num = params.get("page_num", 1)
-            event.data = f"play_ep_page:{anime_id}:{ep_num}:{page_num}"
-            await process_anime_streaming_player(event, session=session)
+            await process_anime_streaming_player(
+                event, 
+                session=session,
+                anime_id_override=anime_id,
+                ep_num_override=ep_num,
+                page_num_override=page_num
+            )
+
+    # 📌 4. TO'G'RILANGAN SEVIMLILAR BO'LIMI
     elif page == "favorites":
-        from handlers.animelarim.sevimlilarim import animelarim_menu
         page_num = params.get("page", 1)
         if isinstance(event, CallbackQuery):
-            # ❌ event.data = f"fav_page:{page_num}"  <-- BU O'CHIRILADI
-            await animelarim_menu(
+            await show_favorites_menu(
                 callback=event, 
                 session=session, 
                 state=state, 
-                page_override=page_num  # 👈 TO'G'RI UZATISH
+                page_override=page_num
             )

@@ -12,6 +12,7 @@ from aiogram.fsm.context import FSMContext
 from database.models import Genre
 from aiogram.exceptions import TelegramBadRequest
 from services.user_service import UserService
+from handlers.search_menu.anime_card import send_anime_card
 from aiogram.exceptions import TelegramRetryAfter
 from services.navigation import NavigationManager
 from config import config
@@ -195,14 +196,14 @@ async def process_select_page_menu(callback: CallbackQuery):
 
 @router.callback_query(F.data == "cabinet_favorite")
 @router.callback_query(F.data.startswith("fav_page:"))
-async def animelarim_menu(callback: CallbackQuery, session: AsyncSession, state: FSMContext = None, page_override: Optional[int] = None):
-    """
-    Sevimlilar ro'yxati bosilganda rasmni (FAVORITES_POSTER) joyida edit_media
-    orqali yangilab, ostiga tugmalarni chiqaradi.
-    """
+async def animelarim_menu(
+    callback: CallbackQuery, 
+    session: AsyncSession, 
+    state: Optional[FSMContext] = None,
+    page_override: Optional[int] = None
+):
     user_id = callback.from_user.id
     
-    # Paginatsiya sahifasini aniqlash
     if page_override is not None:
         page = page_override
     elif callback.data and callback.data.startswith("fav_page:"):
@@ -212,12 +213,10 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession, state:
             page = 1
     else:
         page = 1
-    
-    if state is not None:
-        nav = NavigationManager(state)
-        await nav.push("favorites", page=page)
 
-    # Markup va umumiy sonini olamiz
+    # ❌ BU YERDAGI await nav.push("favorites", page=page) QATORINI O'CHIRING!
+    # Sahifani ko'rsatish funksiyasi push qilmasligi kerak.
+
     reply_markup, total_count = await get_user_favorites_markup(
         session=session, 
         user_id=user_id, 
@@ -302,7 +301,7 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession, state:
 
 
 
-from handlers.search_menu.anime_card import send_anime_card
+
 
 @router.callback_query(F.data.startswith("cards_anime:"))
 async def process_favorite_anime_card(
@@ -327,11 +326,13 @@ async def process_favorite_anime_card(
         await callback.answer("❌ Anime topilmadi!", show_alert=True)
         return
 
-    # 1. Oldin turgan sevimlilar sahifasini tarixgaga push qilamiz
     nav = NavigationManager(state)
+    
+    # 1. Oldingi Sevimlilar sahifasini saqlaymiz
     await nav.push("favorites", page=fav_page)
+    # 2. Joriy ochilayotgan Anime Kartasini ham stack'ga qo'shamiz
+    await nav.push("anime_card", anime_id=anime_id)
 
-    # 2. Anime kartasini ko'rsatamiz[cite: 14]
     await send_anime_card(
         message=callback.message,
         anime=anime,

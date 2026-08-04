@@ -9,6 +9,8 @@ from aiogram.types import (
 from aiogram.exceptions import TelegramBadRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.favorite_service import FavoriteService
+from services.navigation import NavigationManager
+from aiogram.fsm.context import FSMContext
 from config import config
 
 POSTER_ID = config.RASM_ID
@@ -22,7 +24,11 @@ ANIME_COVER = POSTER_ID
 
 
 @router.callback_query(F.data == "animelarim_cabinet")
-async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
+async def animelarim_menu(
+    callback: CallbackQuery, 
+    session: AsyncSession, 
+    state: FSMContext  # 👈 1. STATE PARAMETRI QO'SHILDI
+):
     # 🔒 Oddiy foydalanuvchilar uchun cheklov
     if callback.from_user.id != CREATOR_ID:
         await callback.answer(
@@ -30,6 +36,10 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
             show_alert=True
         )
         return
+
+    # 📌 NAVIGATSIYA TARIXIGA QO'SHAMIZ
+    nav = NavigationManager(state)
+    await nav.push("animelarim_cabinet")  # 👈 2. SHU SAHIFA STACK'GA TUSHADI
 
     # 📊 Foydalanuvchining sevimlilari sonini olish
     user_id = callback.from_user.id
@@ -79,7 +89,7 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
             [
                 InlineKeyboardButton(
                     text="⬅️ Orqaga",
-                    callback_data="cabinet",
+                    callback_data="back_global",  # 👈 HAR DOIM UNIVERSAL "back_global" ISHLATILADI
                     style="danger"
                 )
             ]
@@ -92,9 +102,7 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
         f"Kerakli bo'limni tanlang."
     )
 
-    # 🖼️ HAR DOIM SILLIQ EDIT_MEDIA BILAN BREND COVER'GA ALMASHTIRAMIZ
     try:
-        # InputMediaPhoto orqali eski poster o'rniga brend rasmimizni va yangi tekstni joylaymiz
         media_obj = InputMediaPhoto(
             media=ANIME_COVER,
             caption=caption_text,
@@ -108,15 +116,12 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
 
     except TelegramBadRequest as e:
         err_str = str(e).lower()
-        
-        # Agar xabar o'zgarmagan bo'lsa, e'tiborsiz qoldiramiz
         if "message is not modified" in err_str:
             await callback.answer()
             return
 
         logger.warning(f"⚠️ edit_media bajarishda xatolik (Fallback rejimiga o'tilmoqda): {e}")
         
-        # Kamdan-kam uchraydigan xatolikda (masalan, eski xabar o'chib ketgan bo'lsa) o'chirib yangisini yuboramiz
         try:
             await callback.message.delete()
         except Exception:

@@ -131,6 +131,7 @@ async def send_or_edit_start_menu(
 @router.message(CommandStart())
 async def cmd_start(message: Message, command: CommandObject, session: Any, user: dict, user_service: UserService, state: FSMContext):
     await state.clear()
+    
     user_id = message.from_user.id
     username = message.from_user.username or "do'stim"
     user_status = user.get('status', 'user').lower()
