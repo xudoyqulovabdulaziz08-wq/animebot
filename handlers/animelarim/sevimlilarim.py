@@ -13,6 +13,7 @@ from database.models import Genre
 from aiogram.exceptions import TelegramBadRequest
 from services.user_service import UserService
 from aiogram.exceptions import TelegramRetryAfter
+from services.navigation import NavigationManager
 from config import config
 
 POSTER_ID = config.RASM_ID
@@ -194,7 +195,7 @@ async def process_select_page_menu(callback: CallbackQuery):
 
 @router.callback_query(F.data == "cabinet_favorite")
 @router.callback_query(F.data.startswith("fav_page:"))
-async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
+async def animelarim_menu(callback: CallbackQuery, session: AsyncSession, state: FSMContext = None):
     """
     Sevimlilar ro'yxati bosilganda rasmni (FAVORITES_POSTER) joyida edit_media
     orqali yangilab, ostiga tugmalarni chiqaradi.
@@ -208,6 +209,10 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
             page = int(callback.data.split(":")[1])
         except ValueError:
             page = 1
+    
+    if state is not None:
+        nav = NavigationManager(state)
+        await nav.push("favorites", page=page)
 
     # Markup va umumiy sonini olamiz
     reply_markup, total_count = await get_user_favorites_markup(
@@ -294,603 +299,41 @@ async def animelarim_menu(callback: CallbackQuery, session: AsyncSession):
 
 
 
+from handlers.search_menu.anime_card import send_anime_card
+
 @router.callback_query(F.data.startswith("cards_anime:"))
-async def process_favorite_anime_card(callback: CallbackQuery, session: AsyncSession, state: FSMContext):
-    """
-    Sevimlilar ro'yxatidan anime tanlanganda maxsus kartochkani ochadi.
-    callback.data pattern: cards_anime:{anime_id}:{from_page}
-    """
-    try:
-        parts = callback.data.split(":")
-        anime_id = int(parts[1])
-        from_page = int(parts[2]) if len(parts) > 2 else 1
-
-        anime_service = AnimeService(session=session)
-        anime_data = await anime_service.get_anime(anime_id)
-
-        if not anime_data:
-            await callback.answer("❌ Anime topilmadi!", show_alert=True)
-            return
-
-        # Maxsus favorite funksiyamizni chaqiramiz:
-        await send_favorite_anime_card(
-            message=callback.message,
-            anime=anime_data,
-            session=session,
-            from_page=from_page,
-            state=state
-        )
-        await callback.answer()
-
-    except Exception as e:
-        logger.error(f"Sevimlilar kartasini ochishda xatolik: {e}")
-        await callback.answer("❌ Xatolik yuz berdi", show_alert=True)
-
-
-async def send_favorite_anime_card(
-    message: Message, 
-    anime: dict, 
-    session: Any, 
-    from_page: int = 1,
-    state: Optional[FSMContext] = None
-) -> bool:
-    """
-    🚀 Sevimlilar ro'yxatidan tanlangan anime uchun maxsus kartochka funksiyasi.
-    - O'chirish va qayta yuborish o'rniga silliq EDIT qilinadi.
-    - 'Orqaga' tugmasi bosilganda (fav_page:{from_page}) ham bitta xabarda edit bo'ladi.
-    """
-    if not anime:
-        return False
-        
-    anime_id = anime.get("anime_id")
-    title = anime.get("title", "Nomsiz anime")    
-    year = anime.get("year", "—")
-    description = anime.get("description") or "Tavsif kiritilmagan."
-    episodes_count = len(anime.get("episodes", []))
-    languages = anime.get("languages", [])
-    languages_str = ", ".join(languages) if languages else "Mavjud emas"
-
-    # 📊 KO'RILISHLAR SONINI +1 QILISH
-    if anime_id:
-        try:
-            from services.anime_service import AnimeService
-            view_service = AnimeService(session=session)
-            await view_service.track_anime_view(anime_id)
-        except Exception as view_err:
-            logger.error(f"❌ Sevimlilar kartasida ko'rilishlar sonini oshirishda xato: {view_err}")
-
-    actual_user_id = message.from_user.id if message.from_user and not message.from_user.is_bot else message.chat.id
-
-    # 🛡️ VIP/Admin statusini tekshirish
-    user_service = UserService(session=session)
-    user_data = await user_service.get_user(actual_user_id)
-    
-    try:
-        from config import config
-        c_id = getattr(config, "CREATOR_ID", None)
-    except Exception:
-        c_id = globals().get("CREATOR_ID", None)
-
-    is_vip_or_admin = False
-    if user_data:
-        is_vip_or_admin = (
-            user_data.get("is_vip", False) or 
-            user_data.get("status") == "admin" or 
-            actual_user_id == c_id
-        )
-    else:
-        is_vip_or_admin = actual_user_id == c_id
-
-    # Janrlarni yuklash
-    genres_str = "Mavjud emas"
-    try:
-        genre_ids = anime.get("genres", [])
-        if genre_ids:
-            res = await session.execute(select(Genre).where(Genre.id.in_(genre_ids)))
-            genre_names = [g.name for g in res.scalars().all()]
-            if genre_names:
-                genres_str = ", ".join(genre_names)
-    except Exception as genre_err:
-        logger.error(f"❌ Janrlarni yuklashda xato: {genre_err}")
-
-    # Dubberlarni yuklash
-    dubbers_str = "Mavjud emas"
-    try:
-        dubber_ids = anime.get("dubbers", [])
-        if dubber_ids:
-            from database.models import Dubber
-            res = await session.execute(select(Dubber).where(Dubber.id.in_(dubber_ids)))
-            dubber_names = [d.name for d in res.scalars().all()]
-            if dubber_names:
-                dubbers_str = ", ".join(dubber_names)
-    except Exception as dubber_err:
-        logger.error(f"❌ Dubberlarni yuklashda xato: {dubber_err}")
-
-    is_favorite = False
-    if anime_id:
-        fav_service = FavoriteService(session=session)
-        is_favorite = await fav_service.check_is_favorite(actual_user_id, anime_id)
-        fav_text = "❤️ Sevimlida ✓" if is_favorite else "🤍 Sevimli "
-
-    # 🎨 Caption
-    caption = (
-        f"    🎬 <b>{title}</b>\n\n"
-        f"📌 <b>Anime haqida ma'lumot:</b>\n"
-        f"╔═══════════════╗\n"
-        f"├ 🆔 Kod: <code>#{anime_id}</code>\n"  
-        f"├ 📅 Yil: <b>{year}</b>\n"
-        f"├ ▶️ Qism: <b>{episodes_count}</b> \n"
-        f"├ 🌐 Til: <b>{languages_str}</b>\n"
-        f"├ 🎙 Dubber: <b>{dubbers_str}</b>\n"
-        f"╚═══════════════╝\n"
-        f"╔═══════════════╗\n"
-        f" 🔮 Janrlar: <i>{genres_str}</i>\n"
-        f"╚═══════════════╝\n\n"
-        f"📝 <b>Tavsif:</b>\n"
-        f"<blockquote expandable>{description}</blockquote>"
-    )
-    
-    # 🔘 Tugmalar to'plami
-    user_anime_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(
-                text="▶️ Tomosha qilish", 
-                callback_data=f"fav_episodes_user:{anime_id}",
-                style="primary"
-            )
-        ],
-        [
-            InlineKeyboardButton(
-                text="🔔 Obuna", 
-                callback_data=f"anime_subscription:{anime_id}",
-                style="primary"
-            ),
-            InlineKeyboardButton(
-                text=fav_text, 
-                callback_data=f"anime_favorite:{anime_id}",
-                style="primary"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                text="⭐ Baholash", 
-                callback_data=f"anime_rating:{anime_id}",
-                style="primary"
-            ),
-            InlineKeyboardButton(
-                text="💬 Izoh", 
-                callback_data=f"anime_comment:{anime_id}",
-                style="primary"
-            ),
-        ],
-        [
-            InlineKeyboardButton(
-                text="⬅️ Sevimlilarga qaytish", 
-                callback_data=f"fav_page:{from_page}",
-                style="danger"
-            )
-        ]
-    ])
-
-    poster_id = anime.get("poster_id")
-
-    # 🔄 SILIK EDIT AMALGA OSHIRISH (O'chirish va answer qilinmaydi)
-    try:
-        if poster_id:
-            # Agar muqovasi bo'lsa, edit_media qilamiz
-            media_obj = InputMediaPhoto(
-                media=poster_id,
-                caption=caption,
-                parse_mode="HTML"
-            )
-            await message.edit_media(
-                media=media_obj,
-                reply_markup=user_anime_kb
-            )
-        else:
-            # Rasm bo'lmasa shunchaki text edit qilinadi
-            await message.edit_text(
-                text=caption,
-                reply_markup=user_anime_kb,
-                parse_mode="HTML"
-            )
-        return True
-
-    except TelegramBadRequest as e:
-        err_str = str(e).lower()
-        if "message is not modified" in err_str:
-            return True
-        
-        # Fallback: Agar Telegram edit_media bajarishda turli format xatosi bersa (masalan media tipi Video bo'lsa)
-        try:
-            if poster_id:
-                media_obj = InputMediaVideo(
-                    media=poster_id,
-                    caption=caption,
-                    parse_mode="HTML"
-                )
-                await message.edit_media(
-                    media=media_obj,
-                    reply_markup=user_anime_kb
-                )
-                return True
-        except Exception:
-            pass
-
-        # Juda kam hollarda (masalan xabar o'chib ketgan bo'lsa) yangi xabar yuboriladi:
-        try:
-            await message.delete()
-        except Exception:
-            pass
-
-        if poster_id:
-            await message.answer_photo(
-                photo=poster_id,
-                caption=caption,
-                reply_markup=user_anime_kb,
-                parse_mode="HTML",
-                protect_content=not is_vip_or_admin
-            )
-        else:
-            await message.answer(
-                text=caption,
-                reply_markup=user_anime_kb,
-                parse_mode="HTML",
-                protect_content=not is_vip_or_admin
-            )
-        return True
-
-
-
-
-
-
-@router.callback_query(F.data.startswith("fav_episodes_user:") | F.data.startswith("play_eps_page:"))
-async def process_anime_streaming_player(callback: CallbackQuery, session: Any):
+async def process_favorite_anime_card(
+    callback: CallbackQuery, 
+    session: AsyncSession, 
+    state: FSMContext
+):
     await callback.answer()
     
-    # 1. Kelgan callback ma'lumotlarini ajratib olamiz
-    data_parts = callback.data.split(":")
-    
-    if data_parts[0] == "fav_episodes_user":
-        anime_id = int(data_parts[1])
-        current_ep_num = 1  # Birinchi marta kirganda 1-qism
-        current_page = 1
-    else:
-        anime_id = int(data_parts[1])
-        current_ep_num = int(data_parts[2])
-        current_page = int(data_parts[3])
+    try:
+        _, anime_id, fav_page = callback.data.split(":")
+        anime_id = int(anime_id)
+        fav_page = int(fav_page)
+    except (ValueError, IndexError):
+        await callback.answer("❌ Noto'g'ri ma'lumot formati!", show_alert=True)
+        return
 
-    # 2. Xizmat qatlamlarini chaqiramiz
     anime_service = AnimeService(session=session)
-    user_service = UserService(session=session)
-    
-    episodes = await anime_service.get_anime_episodes_cache(anime_id)
     anime = await anime_service.get_anime(anime_id)
-    
-    user_id = callback.from_user.id
-    user = await user_service.get_user(user_id)
-    
-    if not episodes or not anime:
-        await callback.message.answer("⚠️ Kechirasiz, ushbu animening qismlari yuklanmagan yoki topilmadi.")
+
+    if not anime:
+        await callback.answer("❌ Anime topilmadi!", show_alert=True)
         return
 
-    # 🛡️ VIP/Admin/Creator statusini tekshirish
-    c_id = getattr(config, "CREATOR_ID", None)
-    
-    is_vip_or_admin = False
-    if user:
-        is_vip_or_admin = (
-            user.get("is_vip", False) or 
-            user.get("status") == "admin" or 
-            user_id == c_id
-        )
-    else:
-        is_vip_or_admin = user_id == c_id
+    # 1. Oldin turgan sevimlilar sahifasini tarixgaga push qilamiz
+    nav = NavigationManager(state)
+    await nav.push("favorites", page=fav_page)
 
-    # 3. Joriy ko'rilayotgan epizod
-    current_episode = next((e for e in episodes if e["episode"] == current_ep_num), episodes[0])
-    current_ep_num = current_episode["episode"]
-    
-    video_file_id = current_episode.get("file_id") or current_episode.get("video_file_id")
-
-    if not video_file_id:
-        await callback.answer("⚠️ Ushbu qismning video fayli topilmadi!", show_alert=True)
-        return
-
-    # 4. Caption
-    caption = (
-        f"╔════════════════════╗\n"
-        f"   🎬 <b>{anime['title']}</b>\n"
-        f"╚════════════════════╝\n\n"
-        f"📌 <b>Joriy tomosha:</b>\n"
-        f"╔════════════════════╗\n"
-        f"├ 📹 Qism: <b>{current_ep_num}-qism</b>\n"
-        f"├ 🌐 Platforma: <a href='https://t.me/Aninovuz_Bot'>Aninovuz</a>\n"
-        f"╚════════════════════╝\n\n"
-        f"📢 Kanal @Aninovuz"
+    # 2. Anime kartasini ko'rsatamiz[cite: 14]
+    await send_anime_card(
+        message=callback.message,
+        anime=anime,
+        session=session,
+        state=state,
+        edit=True,
+        callback=callback
     )
-
-    # 5. Pult (Tugmalar UX Premium)
-    buttons = []
-    start_idx = (current_page - 1) * EPISODES_PER_PAGE
-    end_idx = start_idx + EPISODES_PER_PAGE
-    page_episodes = episodes[start_idx:end_idx]
-    
-    # Qismlar tugmalari (4 tadan)
-    row = []
-    for ep in page_episodes:
-        ep_num = ep["episode"]
-        if ep_num == current_ep_num:
-            # ✨ UX yaxshilandi: [ 1 ] o'rniga ▶️ 1 qo'yildi
-            row.append(InlineKeyboardButton(text=f"▶️ {ep_num}", callback_data="noop", style="success"))
-        else:
-            row.append(InlineKeyboardButton(
-                text=str(ep_num), 
-                callback_data=f"play_eps_page:{anime_id}:{ep_num}:{current_page}"
-            ))
-            
-        if len(row) == 4:
-            buttons.append(row)
-            row = []
-    if row:
-        buttons.append(row)
-
-    # 🌟 PROFESSIONAL PAGINATION (Har doim o'zgarmas tartibda)
-    total_pages = (len(episodes) + EPISODES_PER_PAGE - 1) // EPISODES_PER_PAGE
-    
-    # Agar sahifalar 1 tadan ko'p bo'lsa, navigatsiyani chiroyli 1 qator qilib joylaymiz
-    if total_pages > 1:
-        nav_row = []
-        
-        # ⬅️ Chap tugma (Oldingi sahifa bo'lsa ishlaydi, bo'lmasa ko'rinmas bo'sh tugma)
-        if current_page > 1:
-            nav_row.append(InlineKeyboardButton(text="⬅️", callback_data=f"play_eps_page:{anime_id}:{current_ep_num}:{current_page - 1}", style="primary"))
-        else:
-            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noopa", style="primary"))
-
-        # 📄 O'rta tugma (Har doim turadi va nechanchi sahifaligini ko'rsatadi: masalan 1/5)
-        nav_row.append(InlineKeyboardButton(text=f"📄 {current_page}/{total_pages}", callback_data="noopg", style="primary"))
-
-        # ➡️ O'ng tugma (Keyingi sahifa bo'lsa ishlaydi)
-        if current_page < total_pages:
-            nav_row.append(InlineKeyboardButton(text="➡️", callback_data=f"play_eps_page:{anime_id}:{current_ep_num}:{current_page + 1}", style="primary"))
-        else:
-            nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noopa",style="primary"))
-
-        buttons.append(nav_row)
-
-    # VIP funksiya
-    if is_vip_or_admin:
-        buttons.append([InlineKeyboardButton(text="📥 Barcha yuklash", callback_data=f"download_all_fal_vip:{anime_id},", style="success"  )])
-    
-    # Orqaga qaytish
-    buttons.append([InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"cards_anime:{anime_id}", style="danger")])
-    
-    player_kb = InlineKeyboardMarkup(inline_keyboard=buttons)
-
-    # 6. EDIT YOKI O'CHIRIB YUBORISH
-    media_player = InputMediaVideo(
-        media=video_file_id,
-        caption=caption,
-        parse_mode="HTML"
-    )
-
-    try:
-        await callback.message.edit_media(
-            media=media_player,
-            reply_markup=player_kb
-        )
-    except TelegramBadRequest as e:
-        error_msg = str(e).lower()
-        if "message is not modified" in error_msg:
-            pass
-        else:
-            try:
-                await callback.message.delete()
-            except Exception:
-                pass
-                
-            await callback.message.answer_video(
-                video=video_file_id,
-                caption=caption,
-                reply_markup=player_kb,
-                parse_mode="HTML",
-                protect_content=not is_vip_or_admin
-            )
-    except Exception as e:
-        logger.error(f"❌ Pleyer tahrirlanishida kutilmagan xato: {e}")
-
-
-
-
-
-
-
-
-
-@router.callback_query(F.data.startswith("download_all_fal_vip:"))
-async def process_download_all_fal_vip(callback: CallbackQuery, session: Any):
-    # 1. Callback datani xavfsiz parsing qilish
-    try:
-        data_parts = callback.data.rstrip(",").split(":")
-        anime_id = int(data_parts[1])
-        batch_page = int(data_parts[2]) if len(data_parts) > 2 else 1
-    except (IndexError, ValueError):
-        await callback.answer("🚨 Noto'g'ri so'rov formati!", show_alert=True)
-        return
-
-    await callback.answer("📥 Qismlar tayyorlanmoqda...")
-
-    # 🔥 TEPADAGI ESKI PLEYERNI YOKI OLDINGI BATCH XABARINI O'CHIRISH
-    try:
-        await callback.message.delete()
-    except Exception as del_err:
-        logger.warning(f"⚠️ Eski pleyer xabarini o'chirishda xatolik (allaqachon o'chirilgan bo'lishi mumkin): {del_err}")
-
-    # 2. Epizodlarni kesh / DB dan yuklash
-    try:
-        anime_service = AnimeService(session=session)
-        episodes = await anime_service.get_anime_episodes_cache(anime_id=anime_id)
-        anime = await anime_service.get_anime(anime_id)
-    except Exception as e:
-        logger.error(f"VIP yuklashda qismlarni olishda xato: {e}")
-        await callback.bot.send_message(
-            chat_id=callback.from_user.id, 
-            text="❌ Qismlarni yuklashda texnik xatolik yuz berdi."
-        )
-        return
-
-    if not episodes:
-        await callback.bot.send_message(
-            chat_id=callback.from_user.id, 
-            text="📭 Ushbu animening yuklangan qismlari topilmadi."
-        )
-        return
-
-    # 3. Qismlarni tartiblash
-    sorted_episodes = sorted(
-        episodes, 
-        key=lambda x: x.get("episode") or x.get("episode_number") or x.get("number") or 0
-    )
-
-    total_episodes = len(sorted_episodes)
-    
-    # Paginatsiya hisob-kitoblari
-    start_idx = (batch_page - 1) * BATCH_SIZE
-    end_idx = start_idx + BATCH_SIZE
-    current_batch = sorted_episodes[start_idx:end_idx]
-
-    if not current_batch:
-        await callback.bot.send_message(
-            chat_id=callback.from_user.id, 
-            text="⚠️ Ushbu sahifada qismlar topilmadi."
-        )
-        return
-
-    total_batches = (total_episodes + BATCH_SIZE - 1) // BATCH_SIZE
-    anime_title = anime.get("title", "Anime") if anime else "Anime"
-
-    # 4. Status xabarini yuborish (Endi bot.send_message orqali, chunki callback.message o'chirildi)
-    status_msg = await callback.bot.send_message(
-        chat_id=callback.from_user.id,
-        text=(
-            f"📦 <b>{anime_title}</b>\n"
-            f"🚀 <b>{start_idx + 1}-{min(end_idx, total_episodes)}</b> qismlar yuborilmoqda... (Paket: {batch_page}/{total_batches})"
-        ), 
-        parse_mode="HTML"
-    )
-
-    sent_count = 0
-
-    # 5. 🚀 12 TA QISMNI XAVFSIZ KETMA-KET YUBORISH
-    for ep in current_batch:
-        video_file_id = ep.get("video_file_id") or ep.get("file_id") or ep.get("video_id")
-        ep_num = ep.get("episode") or ep.get("episode_number") or ep.get("number") or "?"
-        
-        if not video_file_id:
-            logger.warning(f"⚠️ Epizod dict ichida video kaliti topilmadi! Epizod: {ep_num}")
-            continue
-            
-        try:
-            await callback.bot.send_video(
-                chat_id=callback.from_user.id,
-                video=str(video_file_id),
-                caption=f"🎬 <b>{anime_title} — {ep_num}-Qism</b>\n\n🍿 @AniNovuz loyihasi taqdim etadi.",
-                parse_mode="HTML"
-            )
-            sent_count += 1
-            await asyncio.sleep(0.4)
-            
-        except TelegramRetryAfter as e:
-            logger.warning(f"FloodWait: {e.retry_after} soniya kutilmoqda...")
-            await asyncio.sleep(e.retry_after + 1)
-            try:
-                await callback.bot.send_video(
-                    chat_id=callback.from_user.id,
-                    video=str(video_file_id),
-                    caption=f"🎬 <b>{anime_title} — {ep_num}-Qism</b>\n\n🍿 @AniNovuz loyihasi taqdim etadi.",
-                    parse_mode="HTML"
-                )
-                sent_count += 1
-            except Exception as retry_err:
-                logger.error(f"Retry xatosi: {retry_err}")
-
-        except Exception as send_err:
-            logger.error(f"❌ Qism yuborishda xato (Epizod: {ep_num}): {send_err}")
-            continue
-
-    # Status xabarini o'chiramiz
-    try:
-        await status_msg.delete()
-    except Exception:
-        pass
-
-    # 6. 🔘 UX TUGMALARINI SHAKLLANTIRISH
-    nav_buttons = []
-    
-    # 1. Paginatsiya tugmalari
-    batch_nav_row = []
-    if batch_page > 1:
-        batch_nav_row.append(
-            InlineKeyboardButton(
-                text="⬅️ Oldingi 12 ta", 
-                callback_data=f"download_all_fal_vip:{anime_id}:{batch_page - 1}",
-                style="primary"
-            )
-        )
-    if end_idx < total_episodes:
-        batch_nav_row.append(
-            InlineKeyboardButton(
-                text="➡️ Keyingi 12 ta", 
-                callback_data=f"download_all_fal_vip:{anime_id}:{batch_page + 1}",
-                style="primary"
-            )
-        )
-    if batch_nav_row:
-        nav_buttons.append(batch_nav_row)
-
-    # 2. Yangi Pleyer va Anime Kartasini pastda ochish tugmalari
-    nav_buttons.append([
-        InlineKeyboardButton(
-            text="🎬 Pleyerni ochish", 
-            callback_data=f"fav_episodes_user:{anime_id}",
-            style="primary"
-        ),
-        InlineKeyboardButton(
-            text="🎴 Anime kartasi", 
-            callback_data=f"cards_anime:{anime_id}:1",
-            style="primary"
-        )
-    ])
-
-    batch_kb = InlineKeyboardMarkup(inline_keyboard=nav_buttons)
-
-    # 7. Yakuniy natija xabari (Eng ostida yangi tugmalar bilan chiqadi)
-    if sent_count > 0:
-        if end_idx < total_episodes:
-            finish_text = (
-                f"✅ <b>{sent_count} ta qism muvaffaqiyatli yuborildi!</b>\n\n"
-                f"📊 <i>Progress: {min(end_idx, total_episodes)} / {total_episodes} qism</i>\n"
-                f"👇 Keyingi qismlarni yuklab olish yoki pleyerga qaytish uchun tugmani bosing:"
-            )
-        else:
-            finish_text = (
-                f"🎉 <b>Barcha {total_episodes} ta qism to'liq yuklab berildi!</b>\n\n"
-                f"🍿 Yoqimli tomosha!"
-            )
-            
-        await callback.bot.send_message(
-            chat_id=callback.from_user.id,
-            text=finish_text,
-            reply_markup=batch_kb,
-            parse_mode="HTML"
-        )
-    else:
-        await callback.bot.send_message(
-            chat_id=callback.from_user.id,
-            text=(
-                "⚠️ Qismlar topildi, biroq ularning video fayllari (`file_id`) botga mos kelmadi.\n"
-                "Iltimos, admin panel orqali epizodlar to'g'ri yuklanganini tekshiring."
-            )
-        )

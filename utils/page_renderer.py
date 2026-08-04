@@ -25,6 +25,7 @@ async def open_page(
     from handlers.search_menu.search_genr import search_by_genre
     from handlers.search_menu.anime_card import send_anime_card
     from handlers.search_menu.wiev_episode import process_anime_streaming_player, process_download_all_vip
+    from handlers.animelarim.sevimlilarim import animelarim_menu
     from services.anime_service import AnimeService
 
     """
@@ -98,3 +99,9 @@ async def open_page(
             page_num = params.get("page_num", 1)
             event.data = f"play_ep_page:{anime_id}:{ep_num}:{page_num}"
             await process_anime_streaming_player(event, session=session)
+    elif page == "favorites":
+        from handlers.animelarim.sevimlilarim import animelarim_menu # fayl nomiga moslang
+        page_num = params.get("page", 1)
+        if isinstance(event, CallbackQuery):
+            event.data = f"fav_page:{page_num}"
+            await animelarim_menu(event, session=session)
