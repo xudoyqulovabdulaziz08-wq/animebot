@@ -3,7 +3,8 @@ import asyncio
 from aiogram import Router, F, html
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from services.user_service import UserService  # O'zingizning service yo'lingiz
-
+from aiogram.fsm.context import FSMContext
+from services.navigation import NavigationManager
 logger = logging.getLogger("CabinetHandler")
 router = Router()
 
@@ -14,11 +15,13 @@ router = Router()
 
 @router.callback_query(F.data == "cabinet")
 @router.callback_query(F.data.startswith("refresh_web_code:"))
-async def open_cabinet_handler(callback: CallbackQuery, user_service: UserService):
+async def open_cabinet_handler(callback: CallbackQuery, user_service: UserService, state: FSMContext = None,):
     user_id = callback.from_user.id
     user_data = await user_service.get_user(callback.from_user.id)
     user_data = user_service._ensure_fresh_vip_status(user_data)
-    
+    if state and callback.data == "cabinet":
+        nav = NavigationManager(state)
+        await nav.push("cabinet")
     is_vip = user_data.get("is_vip", False)
     vip_expire = user_data.get("vip_expire_date") # ISO string formatda keladi
 
