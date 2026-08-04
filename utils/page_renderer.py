@@ -23,6 +23,9 @@ async def open_page(
     from handlers.admin_menu import admin_menu
     from handlers.creator_menu import creator_menu
     from handlers.search_menu.search_genr import search_by_genre
+    from handlers.search_menu.anime_card import send_anime_card
+    from handlers.search_menu.wiev_episode import process_anime_streaming_player, process_download_all_vip
+    from services.anime_service import AnimeService
 
     """
     Butun bot bo'yicha sahifalarni tarix asosida qayta tiklovchi universal markaz.
@@ -70,3 +73,28 @@ async def open_page(
 
     elif page == "creator_menu":
         await creator_menu(event, user=user or {})
+
+    elif page == "anime_card":
+        anime_id = params.get("anime_id")
+        if anime_id:
+            anime_service = AnimeService(session=session)
+            anime = await anime_service.get_anime(anime_id)
+            if anime:
+                msg = event.message if isinstance(event, CallbackQuery) else event
+                cb = event if isinstance(event, CallbackQuery) else None
+                await send_anime_card(
+                    message=msg,
+                    anime=anime,
+                    session=session,
+                    state=state,
+                    edit=bool(cb),
+                    callback=cb
+                )
+    elif page == "video_player":
+        from handlers.search_menu.wiev_episode import process_anime_streaming_player
+        if isinstance(event, CallbackQuery):
+            anime_id = params.get("anime_id")
+            ep_num = params.get("ep_num", 1)
+            page_num = params.get("page_num", 1)
+            event.data = f"play_ep_page:{anime_id}:{ep_num}:{page_num}"
+            await process_anime_streaming_player(event, session=session)

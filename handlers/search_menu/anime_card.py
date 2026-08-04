@@ -9,6 +9,7 @@ from aiogram.types import InputMediaPhoto, InputMediaVideo
 from services.favorite_service import FavoriteService
 from services.user_service import UserService
 from services.anime_service import AnimeService
+from services.navigation import NavigationManager
 from config import config
 
 CREATOR_ID = config.CREATOR_ID
@@ -35,6 +36,9 @@ async def send_anime_card(
         return False
         
     anime_id = anime.get("anime_id")
+    if state is not None and anime_id:
+        nav = NavigationManager(state)
+        await nav.push("anime_card", anime_id=anime_id)
     title = anime.get("title", "Nomsiz anime")    
     year = anime.get("year", "—")
     description = anime.get("description") or "Tavsif kiritilmagan."
@@ -156,8 +160,8 @@ async def send_anime_card(
         ],
         [
             InlineKeyboardButton(
-                text="🏠 Bosh menyu", 
-                callback_data="back_to_start",
+                text="⬅️ Orqaga", 
+                callback_data="back_global",
                 style="danger"
             )
         ]
