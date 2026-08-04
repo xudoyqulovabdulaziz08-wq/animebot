@@ -1,28 +1,41 @@
-# services/navigation.py
 from typing import Optional, Dict, Any
 from aiogram.fsm.context import FSMContext
 
 MAX_HISTORY = 30  # Xotirani tejash va ortiqcha yuklamani oldini olish uchun limit
+
 class NavigationManager:
-    def __init__(self, state: FSMContext): #[cite: 18]
-        self.state = state #[cite: 18]
-    async def push(self, page_name: str, **kwargs) -> None: #[cite: 18]
-        data = await self.state.get_data() #[cite: 18]
-        history: list = data.get("nav_history", []) #[cite: 18]
+    def __init__(self, state: FSMContext):
+        self.state = state
+
+    async def push(self, page_name: str, **kwargs) -> None:
+        data = await self.state.get_data()
+        history: list = data.get("nav_history", [])
         
-        current_step = {"page": page_name, "params": kwargs} #[cite: 18]
+        current_step = {"page": page_name, "params": kwargs}
         
-        # 1. Agar oxirgi sahifa ham xuddi shu bo'lsa (masalan: favorites -> favorites), qayta qo'shma[cite: 18]
+        # 1. Agar oxirgi sahifa ham xuddi shu bo'lsa (masalan: favorites -> favorites), qayta qo'shmaymiz
         if history and history[-1]["page"] == page_name:
-            # Faqat parametrlarni yangilab qo'yamiz
             history[-1] = current_step
         else:
-            history.append(current_step) #[cite: 18]
+            # 2. HALQANI (LOOP) KESISH:
+            # Agar qo'shilayotgan sahifa tarixdan allaqachon bo'lsa (masalan cabinet -> favorites -> cabinet),
+            # o'sha sahifadan keyingi barcha zanjirni kesib tashlaymiz!
+            found_index = None
+            for i, step in enumerate(history):
+                if step["page"] == page_name:
+                    found_index = i
+                    break
             
-        if len(history) > MAX_HISTORY: #[cite: 18]
-            history = history[-MAX_HISTORY:] #[cite: 18]
+            if found_index is not None:
+                # Topilgan joygacha bo'lgan tarixni saqlaymiz va joriy parametrlar bilan yangilaymiz
+                history = history[:found_index]
             
-        await self.state.update_data(nav_history=history) #[cite: 18]
+            history.append(current_step)
+            
+        if len(history) > MAX_HISTORY:
+            history = history[-MAX_HISTORY:]
+            
+        await self.state.update_data(nav_history=history)
 
     async def pop(self) -> Dict[str, Any]:
         """Orqaga bosilganda joriy sahifani o'chirib, OLDINGI sahifaga qaytaradi."""
