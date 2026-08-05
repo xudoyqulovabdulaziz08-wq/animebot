@@ -17,5 +17,3 @@ async def anime_comment_handler(callback: CallbackQuery):
             show_alert=True
         )
         return
-
-    # Qolgan mantiq (keyinchalik yoziladi)...
