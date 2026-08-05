@@ -22,11 +22,11 @@ def get_rating_keyboard(anime_id: int, user_score: int | None = None) -> InlineK
     if user_score is None:
         # 🟢 HOLAT 1: Foydalanuvchi hali baho bermagan
         row1 = [
-            InlineKeyboardButton(text=f"⭐ {i}", callback_data=f"set_rate:{anime_id}:{i}")
+            InlineKeyboardButton(text=f"⭐ {i}", callback_data=f"set_rate:{anime_id}:{i}", style="primary")
             for i in range(1, 6)
         ]
         row2 = [
-            InlineKeyboardButton(text=f"⭐ {i}", callback_data=f"set_rate:{anime_id}:{i}")
+            InlineKeyboardButton(text=f"⭐ {i}", callback_data=f"set_rate:{anime_id}:{i}", style="primary")
             for i in range(6, 11)
         ]
         builder.append(row1)
@@ -37,20 +37,26 @@ def get_rating_keyboard(anime_id: int, user_score: int | None = None) -> InlineK
         builder.append([
             InlineKeyboardButton(
                 text=f"🌟 Sizning bahoingiz: {user_score}/10", 
-                callback_data=f"rate_info:{user_score}"
+                callback_data=f"rate_info:{user_score}",
+                style="primary"
             )
         ])
         # 2-qator: Bekor qilish tugmasi
         builder.append([
             InlineKeyboardButton(
                 text="❌ Bahoni bekor qilish", 
-                callback_data=f"del_rate:{anime_id}"
+                callback_data=f"del_rate:{anime_id}",
+                style="danger"
             )
         ])
 
     # Oxirgi qator: Doimiy "Orqaga" tugmasi
     builder.append([
-        InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"anime_card:{anime_id}")
+        InlineKeyboardButton(
+            text="⬅️ Orqaga",
+            callback_data=f"anime_card:{anime_id}",
+            style="danger"
+        )
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=builder)
