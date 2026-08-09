@@ -199,7 +199,7 @@ async def process_select_page_menu(callback: CallbackQuery):
 
 
 
-@router.callback_query(F.data == "cabinet_rating")
+@router.callback_query(F.data == "cabinet_ratings")
 @router.callback_query(F.data.startswith("rat_page:"))
 async def animelarim_menu(
     callback: CallbackQuery, 
