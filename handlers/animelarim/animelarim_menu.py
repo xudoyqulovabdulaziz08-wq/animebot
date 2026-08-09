@@ -9,6 +9,7 @@ from aiogram.types import (
 from aiogram.exceptions import TelegramBadRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.favorite_service import FavoriteService
+from services.rating_service import RatingService
 from services.navigation import NavigationManager
 from aiogram.fsm.context import FSMContext
 from config import config
@@ -45,6 +46,7 @@ async def animelarim_menu(
     user_id = callback.from_user.id
     fav_count = 0
     
+    
     try:
         fav_service = FavoriteService(session=session)
         fav_count = await fav_service.get_user_favorites_count(user_id)
@@ -64,7 +66,7 @@ async def animelarim_menu(
             ],
             [
                 InlineKeyboardButton(
-                    text="⭐ Baholarim",
+                    text="⭐ Baholarim ({})",
                     callback_data="cabinet_ratings",
                     style="primary"
                 ),

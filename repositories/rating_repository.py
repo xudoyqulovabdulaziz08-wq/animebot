@@ -1,6 +1,5 @@
-# repositories/rating_repository.py
 import logging
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Dict
 from sqlalchemy import select, func, update, delete
 from sqlalchemy.dialects.postgresql import insert
 
@@ -68,7 +67,6 @@ class RatingRepository:
         """
         anime_ratings jadvalidan haqiqiy SUM/COUNT ni qayta hisoblab,
         Anime.rating_sum va Anime.rating_count ustunlarini yangilaydi.
-        Increment o'rniga har safar qayta hisoblash — drift bo'lmaydi.
         """
         session = await RatingRepository._prepare_session(session)
 
@@ -88,3 +86,29 @@ class RatingRepository:
 
         average = round(float(rating_sum) / rating_count, 1) if rating_count else 0.0
         return average, rating_count
+
+    @staticmethod
+    async def get_user_ratings_count(session: Any, user_id: int) -> int:
+        """Foydalanuvchi jami nechta animega baho berganini hisoblaydi."""
+        session = await RatingRepository._prepare_session(session)
+
+        stmt = select(func.count(AnimeRating.id)).where(
+            AnimeRating.user_id == user_id
+        )
+        result = await session.execute(stmt)
+        return result.scalar() or 0
+
+    @staticmethod
+    async def get_user_ratings_map(session: Any, user_id: int) -> Dict[int, int]:
+        """
+        Foydalanuvchi baholagan barcha animelar va ularga qo'yilgan ballarni
+        {anime_id: score} lug'at ko'rinishida olib keladi (keshlash uchun qulay va yengil).
+        """
+        session = await RatingRepository._prepare_session(session)
+
+        stmt = select(AnimeRating.anime_id, AnimeRating.score).where(
+            AnimeRating.user_id == user_id
+        )
+        result = await session.execute(stmt)
+        rows = result.all()
+        return {row.anime_id: row.score for row in rows}
