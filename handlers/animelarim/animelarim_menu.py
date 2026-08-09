@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from aiogram import Router, F
 from aiogram.types import (
     CallbackQuery,
@@ -44,16 +45,21 @@ async def animelarim_menu(
 
     # 📊 Foydalanuvchining sevimlilari sonini olish
     user_id = callback.from_user.id
+    rat_count = 0
     fav_count = 0
-    
-    
+
     try:
+        rat_service = RatingService(session=session)
         fav_service = FavoriteService(session=session)
-        fav_count = await fav_service.get_user_favorites_count(user_id)
-        if not fav_count: 
-            fav_count = 0
+
+        # Ikkala keshlangan query'ni bir vaqtda parallel bajarish
+        rat_count, fav_count = await asyncio.gather(
+            rat_service.get_user_ratings_count(user_id),
+            fav_service.get_user_favorites_count(user_id),
+            return_exceptions=False
+        )
     except Exception as err:
-        logger.error(f"❌ Sevimlilar sonini olishda xato: {err}")
+        logger.error(f"❌ Kabinet statistikasini olishda xato: {err}")
 
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -66,7 +72,7 @@ async def animelarim_menu(
             ],
             [
                 InlineKeyboardButton(
-                    text="⭐ Baholarim ({})",
+                    text=f"⭐ Baholarim ({rat_count})",
                     callback_data="cabinet_ratings",
                     style="primary"
                 ),
