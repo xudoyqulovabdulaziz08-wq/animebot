@@ -21,11 +21,9 @@ class RatingService:
     # 🎯 GET USER RATING FOR SPECIFIC ANIME (CACHE-FIRST)
     # ==================================================
     async def get_user_rating(self, user_id: int, anime_id: int) -> Optional[int]:
-        """
-        Foydalanuvchining bitta animega bergan bahosini keshdan/DBdan oladi.
-        """
         user_ratings_map = await self.get_user_ratings_map(user_id)
-        return user_ratings_map.get(anime_id)
+        # str(anime_id) orqali izlaymiz
+        return user_ratings_map.get(str(anime_id))
 
     # ==================================================
     # 📋 GET ALL USER RATINGS MAP (CACHE-FIRST)

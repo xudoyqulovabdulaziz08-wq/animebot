@@ -99,10 +99,10 @@ class RatingRepository:
         return result.scalar() or 0
 
     @staticmethod
-    async def get_user_ratings_map(session: Any, user_id: int) -> Dict[int, int]:
+    async def get_user_ratings_map(session: Any, user_id: int) -> Dict[str, int]:
         """
-        Foydalanuvchi baholagan barcha animelar va ularga qo'yilgan ballarni
-        {anime_id: score} lug'at ko'rinishida olib keladi (keshlash uchun qulay va yengil).
+        Anime ID larni string korinishida lug'atga joylaymiz.
+        Natija: {"101": 9, "102": 8}
         """
         session = await RatingRepository._prepare_session(session)
 
@@ -111,4 +111,6 @@ class RatingRepository:
         )
         result = await session.execute(stmt)
         rows = result.all()
-        return {row.anime_id: row.score for row in rows}
+        
+        # 💡 row.anime_id ni str(...) ga otkazamiz:
+        return {str(row.anime_id): row.score for row in rows}
