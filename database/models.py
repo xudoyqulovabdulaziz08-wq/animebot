@@ -313,7 +313,7 @@ class Anime(Base):
         back_populates="anime",
         cascade="all, delete-orphan",
         order_by=lambda: Comment.created_at.desc(), # Oxirgi yozilgan izohlar birinchi chiqadi
-        lazy="selectin"
+        lazy="noload"
     )
 
     # Anime class'ining ichiga (masalan, genres munosabatidan keyin) qo'shing:
@@ -465,7 +465,11 @@ class Episode(Base):
 #========================================================================#
 class Comment(Base):
     __tablename__ = "anime_comments"
-
+    
+    user: Mapped["DBUser"] = relationship(
+        "DBUser",
+        lazy="selectin"
+    )
     id: Mapped[int] = mapped_column(
         Integer,
         primary_key=True
