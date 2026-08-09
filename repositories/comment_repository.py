@@ -31,3 +31,21 @@ class CommentRepository:
         )
         result = await real_session.execute(stmt)
         return result.scalar() or 0
+    
+    @staticmethod
+    async def get_user_comments_count_by_anime_id(
+        session: Any, anime_id: int, user_id: int
+    ) -> int:
+        """
+        ⚡ Muayyan foydalanuvchining ushbu animega yozgan izohlari sonini oladi.
+        """
+        real_session = await CommentRepository._prepare_session(session)
+        stmt = (
+            select(func.count(Comment.id))
+            .where(
+                Comment.anime_id == anime_id,
+                Comment.user_id == user_id
+            )
+        )
+        result = await real_session.execute(stmt)
+        return result.scalar() or 0

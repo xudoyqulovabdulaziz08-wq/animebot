@@ -27,14 +27,15 @@ async def anime_comment_handler(callback: CallbackQuery, session):
 
     try:
         anime_id = int(callback.data.split(":")[1])
-
+        user_id = callback.from_user.id
         comment_service = CommentService(session=session)
         anime_service = AnimeService(session=session)
 
         # Async o'qish (DB/Cache)
         anime = await anime_service.get_anime(anime_id)
         comment_count = await comment_service.get_comments_count(anime_id)
-
+        user_comments = await comment_service.get_user_comments_count(anime_id, user_id) or 0
+        btn_text = f"🗨️ Izohlarim ({user_comments})" if user_comments > 0 else "🗨️ Izohlarim"
         anime_title = anime.get("title", "Anime") if isinstance(anime, dict) else getattr(anime, "title", "Anime")
 
         text = (
@@ -46,14 +47,14 @@ async def anime_comment_handler(callback: CallbackQuery, session):
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="➕ Izoh yozish", callback_data=f"add_comment:{anime_id}"),
-                    InlineKeyboardButton(text="💬 Izohlar", callback_data=f"view_comments:{anime_id}:1")
+                    InlineKeyboardButton(text="➕ Izoh yozish", callback_data=f"add_comment:{anime_id}", style="success"),
+                    InlineKeyboardButton(text="💬 Izohlar", callback_data=f"view_comments:{anime_id}:1", style="primary")
                 ],
                 [
-                    InlineKeyboardButton(text="🗨️ Izohlarim", callback_data=f"my_comments:{anime_id}")
+                    InlineKeyboardButton(text=btn_text, callback_data=f"my_comments:{anime_id}", style="primary")
                 ],
                 [
-                    InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"anime_card_com_back:{anime_id}")
+                    InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"anime_card_com_back:{anime_id}", style="danger")
                 ]
             ]
         )

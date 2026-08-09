@@ -34,3 +34,23 @@ class CommentService:
         logger.info(f"💾 CACHE SET: Comment count for anime_id={anime_id} is {count}")
 
         return count
+    
+    async def get_user_comments_count(self, anime_id: int, user_id: int) -> int:
+        """
+        💬 Userning bitta animega yozgan izohlari sonini kesh/DB'dan oladi.
+        """
+        cache_key = f"user_comments_count:{user_id}"
+        cached_count = await self.cache.get(cache_key, anime_id)
+        if cached_count is not None:
+            return int(cached_count)
+
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        count = await self.repo.get_user_comments_count_by_anime_id(
+            self.session, anime_id, user_id
+        )
+
+        # Keshga yozamiz (15 daqiqa TTL yetarli)
+        await self.cache.set(cache_key, anime_id, count, ttl=900)
+        return count
