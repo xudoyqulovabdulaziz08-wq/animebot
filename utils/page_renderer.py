@@ -23,6 +23,7 @@ async def open_page(
     from handlers.search_menu.anime_card import send_anime_card
     from handlers.search_menu.wiev_episode import process_anime_streaming_player
     from handlers.animelarim.sevimlilarim import animelarim_menu as show_favorites_menu  # Aliasing
+    from handlers.animelarim.baholaganlarim import animelarim_menu as show_rating_menu
     from services.anime_service import AnimeService
 
     """
@@ -113,6 +114,16 @@ async def open_page(
         page_num = params.get("page", 1)
         if isinstance(event, CallbackQuery):
             await show_favorites_menu(
+                callback=event, 
+                session=session, 
+                state=state, 
+                page_override=page_num
+            )
+
+    elif page == "rating":
+        page_num = params.get("page", 1)
+        if isinstance(event, CallbackQuery):
+            await show_rating_menu(
                 callback=event, 
                 session=session, 
                 state=state, 

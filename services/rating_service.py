@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from repositories.rating_repository import RatingRepository
 from database.cache import cache_manager
@@ -121,3 +121,31 @@ class RatingService:
         """Anime ma'lumotlari yangilanganda anime keshini tozalash."""
         await self.cache.invalidate("anime", anime_id, broadcast=True)
         await self.cache.invalidate("anime", "all", broadcast=True)
+
+
+    
+    async def get_user_rated_anime_list(
+        self, 
+        user_id: int, 
+        page: int = 1, 
+        per_page: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Foydalanuvchi baholagan animelar ro'yxatini keshdan/DBdan oladi.
+        """
+        cache_sub_key = f"{user_id}:{page}:{per_page}"
+        
+        cached_list = await self.cache.get("user_rated_page", cache_sub_key)
+        if cached_list is not None:
+            return cached_list
+
+        offset = (page - 1) * per_page
+        anime_list = await self.repo.get_user_rated_anime_list(
+            self.session, 
+            user_id=user_id, 
+            offset=offset, 
+            limit=per_page
+        )
+
+        await self.cache.set("user_rated_page", cache_sub_key, anime_list, ttl=3600)
+        return anime_list

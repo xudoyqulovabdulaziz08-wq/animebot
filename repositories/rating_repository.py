@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Optional, Tuple, Dict
+from typing import Any, Optional, Tuple, Dict, List
 from sqlalchemy import select, func, update, delete
 from sqlalchemy.dialects.postgresql import insert
 
@@ -114,3 +114,45 @@ class RatingRepository:
         
         # 💡 row.anime_id ni str(...) ga otkazamiz:
         return {str(row.anime_id): row.score for row in rows}
+    
+    @staticmethod
+    async def get_user_rated_anime_list(
+        session: Any, 
+        user_id: int, 
+        offset: int = 0, 
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Foydalanuvchi baholagan animelarni JOIN orqali 
+        BITTA SQL so'rovida olib keladi.
+        """
+        session = await RatingRepository._prepare_session(session)
+
+        stmt = (
+            select(
+                Anime.anime_id,
+                Anime.title,
+                Anime.year,
+                Anime.poster_id,
+                AnimeRating.score
+            )
+            .join(AnimeRating, AnimeRating.anime_id == Anime.anime_id)
+            .where(AnimeRating.user_id == user_id)
+            .order_by(AnimeRating.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        return [
+            {
+                "anime_id": row.anime_id,
+                "title": row.title,
+                "year": row.year,
+                "poster": row.poster_id,
+                "user_score": row.score
+            }
+            for row in rows
+        ]
