@@ -22,8 +22,9 @@ async def open_page(
     from handlers.search_menu.search_genr import search_by_genre
     from handlers.search_menu.anime_card import send_anime_card
     from handlers.search_menu.wiev_episode import process_anime_streaming_player
-    from handlers.animelarim.sevimlilarim import animelarim_menu as show_favorites_menu  # Aliasing
-    from handlers.animelarim.baholaganlarim import animelarim_menu as show_rating_menu
+    
+    from handlers.animelarim.sevimlilarim import animelarim_menu as show_favorites_menu
+    from handlers.animelarim.baholaganlarim import animelarim_menu as show_ratings_menu 
     from services.anime_service import AnimeService
 
     """
@@ -109,7 +110,6 @@ async def open_page(
                 page_num_override=page_num
             )
 
-    # 📌 4. TO'G'RILANGAN SEVIMLILAR BO'LIMI
     elif page == "favorites":
         page_num = params.get("page", 1)
         if isinstance(event, CallbackQuery):
@@ -120,10 +120,10 @@ async def open_page(
                 page_override=page_num
             )
 
-    elif page == "rating":
+    elif page == "ratings":
         page_num = params.get("page", 1)
         if isinstance(event, CallbackQuery):
-            await show_rating_menu(
+            await show_ratings_menu(
                 callback=event, 
                 session=session, 
                 state=state, 

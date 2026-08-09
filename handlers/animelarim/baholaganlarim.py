@@ -307,40 +307,30 @@ async def animelarim_menu(
 
 
 @router.callback_query(F.data.startswith("cards_anime:"))
-async def process_rating_anime_card(
-    callback: CallbackQuery, 
-    session: AsyncSession, 
-    state: FSMContext
-):
-    await callback.answer()
-    
-    try:
-        _, anime_id, rat_page = callback.data.split(":")
-        anime_id = int(anime_id)
-        rat_page = int(rat_page)
-    except (ValueError, IndexError):
-        await callback.answer("❌ Noto'g'ri ma'lumot formati!", show_alert=True)
-        return
-
-    anime_service = AnimeService(session=session)
-    anime = await anime_service.get_anime(anime_id)
-
-    if not anime:
-        await callback.answer("❌ Anime topilmadi!", show_alert=True)
-        return
+async def process_anime_card_click(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    # callback.data shakli: "cards_anime:105:1" yoki kelayotgan menyu turiga qarab
+    data_parts = callback.data.split(":")
+    anime_id = int(data_parts[1])
+    page_num = int(data_parts[2]) if len(data_parts) > 2 else 1
 
     nav = NavigationManager(state)
     
-    # 1. Oldingi Sevimlilar sahifasini saqlaymiz
-    await nav.push("rating", page=rat_page)
-    # 2. Joriy ochilayotgan Anime Kartasini ham stack'ga qo'shamiz
-    await nav.push("anime_card", anime_id=anime_id)
+    # 🔥 QAYSI MENYUDAN KELGANINI ANIQLASH:
+    # Agar ushbu callback handler "baholanganlarim" routerida bo'lsa:
+    await nav.push("ratings", page=page_num)
+    
+    # Yoki "sevimlilarim" routerida bo'lsa:
+    # await nav.push("favorites", page=page_num)
 
-    await send_anime_card(
-        message=callback.message,
-        anime=anime,
-        session=session,
-        state=state,
-        edit=True,
-        callback=callback
-    )
+    anime_service = AnimeService(session)
+    anime = await anime_service.get_anime(anime_id)
+
+    if anime:
+        await send_anime_card(
+            message=callback.message,
+            anime=anime,
+            session=session,
+            state=state,
+            edit=True,
+            callback=callback
+        )
