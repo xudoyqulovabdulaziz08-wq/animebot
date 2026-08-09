@@ -108,7 +108,7 @@ class RatingService:
             await self._invalidate_anime_cache(anime_id)
             await self.cache.invalidate("user_ratings_map", user_id, broadcast=True)
             await self.cache.invalidate("user_ratings_count", user_id, broadcast=True)
-
+            await self.cache.invalidate("user_rated_page", f"{user_id}:*", broadcast=True)
             return {"success": True, "average_rating": average, "rating_count": count}
 
         except Exception as e:

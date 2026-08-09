@@ -233,7 +233,7 @@ async def animelarim1_menu(
         text = (
             f"<b>⭐Baholanganlarim bo'limi</b>\n\n"
             f"📚<b>Sizning baholagan animelaringiz</b>\n"
-            f"<blockquote expandable>📌 Jami saqlangan animelar: <b>{total_count} ta</b></blockquote>\n\n"
+            f"<blockquote expandable>📌 Jami baholangan animelar: <b>{total_count} ta</b></blockquote>\n\n"
             f"👇 Tomosha qilish uchun kerakli animeni tanlang:"
         )
     else:
