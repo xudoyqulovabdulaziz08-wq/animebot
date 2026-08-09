@@ -72,7 +72,7 @@ async def get_user_ratings_markup(
         inline_keyboard.append([
             InlineKeyboardButton(
                 text=f"⭐ {score} | {title} ({year})", 
-                callback_data=f"cards_anime:{anime_id}:{page}"
+                callback_data=f"rat_cards_anime:{anime_id}:{page}"
             )
         ])
 
@@ -201,7 +201,7 @@ async def process_select_page_menu(callback: CallbackQuery):
 
 @router.callback_query(F.data == "cabinet_ratings")
 @router.callback_query(F.data.startswith("rat_page:"))
-async def animelarim_menu(
+async def animelarim1_menu(
     callback: CallbackQuery, 
     session: AsyncSession, 
     state: Optional[FSMContext] = None,
@@ -306,9 +306,9 @@ async def animelarim_menu(
 
 
 
-@router.callback_query(F.data.startswith("cards_anime:"))
+@router.callback_query(F.data.startswith("rat_cards_anime:"))
 async def process_anime_card_click(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    # callback.data shakli: "cards_anime:105:1" yoki kelayotgan menyu turiga qarab
+    # callback.data shakli: "rat_cards_anime:105:1" yoki kelayotgan menyu turiga qarab
     data_parts = callback.data.split(":")
     anime_id = int(data_parts[1])
     page_num = int(data_parts[2]) if len(data_parts) > 2 else 1

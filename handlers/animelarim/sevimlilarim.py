@@ -72,7 +72,7 @@ async def get_user_favorites_markup(
         inline_keyboard.append([
             InlineKeyboardButton(
                 text=f"🎬 {title} ({year})", 
-                callback_data=f"cards_anime:{anime_id}:{page}"
+                callback_data=f"fav_cards_anime:{anime_id}:{page}"
             )
         ])
 
@@ -303,7 +303,7 @@ async def animelarim_menu(
 
 
 
-@router.callback_query(F.data.startswith("cards_anime:"))
+@router.callback_query(F.data.startswith("fav_cards_anime:"))
 async def process_favorite_anime_card(
     callback: CallbackQuery, 
     session: AsyncSession, 

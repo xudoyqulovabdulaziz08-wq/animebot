@@ -24,7 +24,7 @@ async def open_page(
     from handlers.search_menu.wiev_episode import process_anime_streaming_player
     
     from handlers.animelarim.sevimlilarim import animelarim_menu as show_favorites_menu
-    from handlers.animelarim.baholaganlarim import animelarim_menu as show_ratings_menu 
+    from handlers.animelarim.baholaganlarim import animelarim1_menu as show_ratings_menu 
     from services.anime_service import AnimeService
 
     """
