@@ -33,7 +33,8 @@ def get_rating_keyboard(anime_id: int, user_score: int | None = None) -> InlineK
         builder.append([
             InlineKeyboardButton(
                 text=f"🌟 Sizning bahoyingiz: {user_score}/10", 
-                callback_data=f"rate_info:{user_score}"
+                callback_data=f"rate_info:{user_score}",
+                style="primary"
             )
         ])
         builder.append([
