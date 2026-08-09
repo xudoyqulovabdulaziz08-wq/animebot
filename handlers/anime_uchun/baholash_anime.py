@@ -65,16 +65,19 @@ def get_rating_keyboard(anime_id: int, user_score: int | None = None) -> InlineK
 
 def build_rating_caption(
     anime_title: str,
-    avg_rating: float,
+    avg_rating: float | None,
     rating_count: int,
     user_score: int | None = None
 ) -> str:
     """Baholash oynasi uchun dinamik caption yaratadi."""
 
-    avg_text = f"{avg_rating:.1f}"
+    if avg_rating is not None:
+        avg_text = f"{avg_rating:.1f}/10"
+    else:
+        avg_text = "Hali baholanmagan"
 
     score_status = (
-        f"🌟 Sizning bahoingiz: <b>{user_score}/10</b>"
+        f"🌟 Sizning bahoyingiz: <b>{user_score}/10</b>"
         if user_score is not None
         else "⭐ Siz hali baho bermagansiz."
     )
@@ -82,11 +85,10 @@ def build_rating_caption(
     return (
         f"⭐ <b>Baholash</b>\n\n"
         f"🎬 <b>{anime_title}</b>\n\n"
-        f"⭐ Umumiy reyting: <b>{avg_text}/10</b>\n"
+        f"⭐ Umumiy reyting: <b>{avg_text}</b>\n"
         f"👥 <b>{rating_count} ta baho</b>\n\n"
         f"{score_status}"
     )
-
 
 
 
