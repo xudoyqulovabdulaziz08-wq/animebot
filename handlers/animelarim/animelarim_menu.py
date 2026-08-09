@@ -97,7 +97,7 @@ async def animelarim_menu(
             [
                 InlineKeyboardButton(
                     text="⬅️ Orqaga",
-                    callback_data="back_global",  # 👈 HAR DOIM UNIVERSAL "back_global" ISHLATILADI
+                    callback_data="cabinet",  # 👈 HAR DOIM UNIVERSAL "back_global" ISHLATILADI
                     style="danger"
                 )
             ]
