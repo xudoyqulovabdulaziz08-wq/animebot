@@ -7,6 +7,7 @@ from database.models import Genre
 from sqlalchemy import select
 from aiogram.types import InputMediaPhoto, InputMediaVideo
 from services.favorite_service import FavoriteService
+from services.rating_service import RatingService
 from services.user_service import UserService
 from services.anime_service import AnimeService
 from services.navigation import NavigationManager
@@ -103,10 +104,24 @@ async def send_anime_card(
         logger.error(f"❌ Dubberlarni yuklashda xato: {dubber_err}")
 
     is_favorite = False
+    fav_text = "🤍 Sevimli"
     if anime_id:
         fav_service = FavoriteService(session=session)
         is_favorite = await fav_service.check_is_favorite(actual_user_id, anime_id)
-        fav_text = "❤️ Sevimlida ✓" if is_favorite else "🤍 Sevimli "
+        fav_text = "❤️ Sevimlida ✓" if is_favorite else "🤍 Sevimli"
+
+    # Baholash holati va ballini olish
+    user_rating = None
+    rat_text = "⭐ Baholash"
+    if anime_id:
+        rat_service = RatingService(session=session)
+        # 1-argument: user_id, 2-argument: anime_id
+        user_rating = await rat_service.get_user_rating(actual_user_id, anime_id)
+        
+        if user_rating:
+            rat_text = f"⭐ Bahoingiz: {user_rating}/10"
+        else:
+            rat_text = "⭐ Baholash"
     
     # Caption dizayni
     caption = (
@@ -118,6 +133,7 @@ async def send_anime_card(
         f"├ ▶️ Qism: <b>{episodes_count}</b> \n"
         f"├ 🌐 Til: <b>{languages_str}</b>\n"
         f"├ 🎙 Dubber: <b>{dubbers_str}</b>\n"
+        
         f"╚═══════════════╝\n"
         f"╔═══════════════╗\n"
         f" 🔮 Janrlar: <i>{genres_str}</i>\n"
@@ -148,7 +164,7 @@ async def send_anime_card(
         ],
         [
             InlineKeyboardButton(
-                text="⭐ Baholash", 
+                text=rat_text, 
                 callback_data=f"anime_rating:{anime_id}",
                 style="primary"
             ),
