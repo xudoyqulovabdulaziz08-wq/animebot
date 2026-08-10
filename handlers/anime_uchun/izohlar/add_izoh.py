@@ -59,7 +59,7 @@ async def start_add_comment_handler(callback: CallbackQuery, state: FSMContext, 
                     InlineKeyboardButton(
                         text="⬅️ Orqaga", 
                         callback_data=f"cancel_comment_input:{anime_id}",
-                        style="primary"
+                        style="danger"
                     )
                 ]
             ]
@@ -100,6 +100,8 @@ async def start_add_comment_handler(callback: CallbackQuery, state: FSMContext, 
 # =======================================================
 # 2. USER MATN YUBORGANDA (Kutish va User xabarini o'chirish)
 # =======================================================
+import html
+
 @router.message(CommentStates.waiting_for_comment, F.text)
 async def process_comment_input(message: Message, state: FSMContext, session):
     data = await state.get_data()
@@ -107,48 +109,38 @@ async def process_comment_input(message: Message, state: FSMContext, session):
     anime_title = data.get("anime_title")
     prompt_message_id = data.get("prompt_message_id")
     
-    # 1. Validation check: state yo'qolib qolgan bo'lsa
-    if not anime_id or not anime_title:
+    # 1. State va session tekshiruvi
+    if not anime_id or not prompt_message_id:
         await state.clear()
         try:
-            await message.answer("⚠️ Sessiya muddati tugadi. Iltimos, izoh yozishni qaytadan boshlang.")
+            await message.delete()
         except Exception:
             pass
         return
 
-    # 2. Xavfsiz sanitizatsiya (HTML tags injection oldini olish) va bo'shliqlarni tozalash
     raw_text = message.text.strip()
     
-    # Maksimal uzunlik tekshiruvi (Telegram limiti va baza hajmi uchun)
+    # Text uzunligini tekshirish
     if len(raw_text) > 1000:
         try:
             await message.delete()
         except Exception:
             pass
-        
-        warning_msg = await message.answer("⚠️ Izoh juda uzun! Maksimal 1000 ta belgi yuborishingiz mumkin.")
+        await message.answer("⚠️ Izoh juda uzun! Maksimal 1000 ta belgi yuborishingiz mumkin.")
         return
+
+    # Foydalanuvchi yuborgan xabarni o'chirib, chatni toza tutamiz
+    try:
+        await message.delete()
+    except Exception as e:
+        logger.warning(f"User message delete error: {e}")
 
     safe_comment_text = html.escape(raw_text)
     safe_anime_title = html.escape(str(anime_title))
 
-    # 3. Foydalanuvchi yuborgan xabarni o'chiramiz
-    try:
-        await message.delete()
-    except Exception as e:
-        logger.warning(f"User xabarini o'chirishda xatolik: {e}")
-
-    # 4. Oldingi "Izoh yozish..." prompt xabarini o'chiramiz
-    if prompt_message_id:
-        try:
-            await message.bot.delete_message(chat_id=message.chat.id, message_id=prompt_message_id)
-        except Exception as e:
-            logger.warning(f"Kutish xabarini o'chirishda xatolik: {e}")
-
-    # FSM keshiga xavfsiz (raw) matnni saqlaymiz (DB ga yozish uchun raw kerak)
+    # FSM ga izoh matnini saqlaymiz
     await state.update_data(comment_text=raw_text)
 
-    # 5. Tasdiqlash xabarini tayyorlaymiz
     preview_text = (
         f"💬 <b>Izohingiz</b>\n\n"
         f"<blockquote>{safe_comment_text}</blockquote>\n\n"
@@ -159,44 +151,40 @@ async def process_comment_input(message: Message, state: FSMContext, session):
     confirm_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(
-                    text="✅ Yuborish",
-                    callback_data=f"confirm_send_comment:{anime_id}",
-                    style="success"
-                ),
-                InlineKeyboardButton(
-                    text="✏️ Tahrirlash",
-                    callback_data=f"edit_comment_input:{anime_id}",
-                    style="success"
-                )
+                InlineKeyboardButton(text="✅ Yuborish", callback_data=f"confirm_send_comment:{anime_id}"),
+                InlineKeyboardButton(text="✏️ Tahrirlash", callback_data=f"edit_comment_input:{anime_id}")
             ],
             [
-                InlineKeyboardButton(
-                    text="❌ Bekor qilish", 
-                    callback_data=f"cancel_comment_input:{anime_id}",
-                    style="danger"
-                )
+                InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"cancel_comment_input:{anime_id}")
             ]
         ]
     )
 
+    # 🎯 MUHIM QISM: Yangi xabar yubormaymiz!
+    # Dastlabki POSTERLI xabar caption'ini tahrirlaymiz
     try:
-        preview_msg = await message.answer(
-            text=preview_text, 
-            reply_markup=confirm_keyboard, 
+        await message.bot.edit_message_caption(
+            chat_id=message.chat.id,
+            message_id=prompt_message_id,
+            caption=preview_text,
+            reply_markup=confirm_keyboard,
             parse_mode="HTML"
         )
-        # Keyingi bosqichda tahrirlash/o'chirish uchun preview xabari ID sini saqlab qo'yamiz
-        await state.update_data(preview_message_id=preview_msg.message_id)
-
     except TelegramBadRequest as e:
-        logger.error(f"Preview yuborishda TelegramBadRequest: {e}")
-        await state.clear()
-        await message.answer("❌ Izohni shakllantirishda xatolik yuz berdi. Qaytadan urinib ko'ring.")
-    except Exception as e:
-        logger.error(f"Process comment input handler error: {e}", exc_info=True)
-        await state.clear()
-
+        # Agar qandaydir sabab bilan xabar media bo'lmay chiqsa (fallback)
+        if "message is not modified" in str(e):
+            pass
+        else:
+            try:
+                await message.bot.edit_message_text(
+                    chat_id=message.chat.id,
+                    message_id=prompt_message_id,
+                    text=preview_text,
+                    reply_markup=confirm_keyboard,
+                    parse_mode="HTML"
+                )
+            except Exception as ex:
+                logger.error(f"Fallback edit text error: {ex}")
 
 
 # =======================================================
@@ -216,23 +204,21 @@ async def confirm_send_comment_handler(callback: CallbackQuery, state: FSMContex
 
     try:
         comment_service = CommentService(session=session)
-        # Service orqali izohni DB ga yozamiz (U yerda kesh invalidatsiyasi ham bajariladi)
         await comment_service.add_comment(
             anime_id=anime_id,
             user_id=callback.from_user.id,
             text=comment_text
         )
 
-        await callback.answer("✅ Izohingiz muvaffaqiyatli yuborildi!", show_alert=True)
+        await callback.answer("✅ Izohingiz yuborildi!", show_alert=True)
         await state.clear()
 
-        # Izohlar bo'limiga qaytaramiz
+        # Izohlar bo'limiga qaytamiz (O'sha posterli xabarning o'zi edit bo'ladi)
         await anime_comment_handler(callback, session)
 
     except Exception as e:
         logger.error(f"Izohni saqlashda xatolik: {e}", exc_info=True)
         await callback.answer("❌ Izohni saqlashda xatolik yuz berdi.", show_alert=True)
-
 
 # =======================================================
 # 4. ✏️ TAHRIRLASH TUGMASI (Qaytadan kiritish holatiga o'tkazish)
