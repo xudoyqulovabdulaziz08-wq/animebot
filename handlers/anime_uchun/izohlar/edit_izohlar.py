@@ -9,6 +9,7 @@ from services.comment_service import CommentService
 from services.anime_service import AnimeService
 from sqlalchemy.ext.asyncio import AsyncSession
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.exceptions import TelegramBadRequest
 from config import config
 
 logger = logging.getLogger("izohlarim_edit")
@@ -57,7 +58,7 @@ def get_my_comments_keyboard(anime_id: int, total_count: int, current_index: int
 
 
 
-@router.callback_query(lambda c: c.data.startswith("my_comm:") or c.data.startswith("my_comments:"))
+@router.callback_query(lambda c: c.data.startswith(("my_comm:", "my_comments:")))
 async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
     parts = callback.data.split(":")
     anime_id = int(parts[1])
@@ -66,41 +67,52 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
 
     comment_service = CommentService(session)
     
-    # Total count olish (Kesh orqali)
-    total_comments = await comment_service.get_user_comments_count(anime_id, user_id)
+    # 1. Ketma-ket so'rovlarni async (parallel) bajarib vaqtni tejaymiz
+    anime_service = AnimeService(session=session)
+    anime, total_comments = await asyncio.gather(
+        anime_service.get_anime(anime_id),
+        comment_service.get_user_comments_count(anime_id, user_id)
+    )
+
     if total_comments == 0:
         await callback.answer("Siz ushbu animega hali izoh qoldirmagansiz.", show_alert=True)
         return
 
-    # Aynan kerakli index'dagi izohni olish
+    # Index chegaradan chiqib ketmasligini xavfsiz ta'minlaymiz
+    if current_index >= total_comments:
+        current_index = total_comments - 1
+    elif current_index < 0:
+        current_index = 0
+
     comment = await comment_service.get_user_comment_by_index(anime_id, user_id, current_index)
     if not comment:
         await callback.answer("Izoh topilmadi.", show_alert=True)
         return
 
-    # Anime nomini olish (Loyiha modelingizga qarab)
-    anime_title = comment.get("anime_title", "Anime")
+    anime_title = anime.get("title", "Anime") if isinstance(anime, dict) else getattr(anime, "title", "Anime")
 
-    # Matnni tayyorlash
-    caption = f"🗨️ <b>Izohlarim</b>\n\n"
-    caption += f"🎬 <b>{anime_title}</b>\n\n"
-    
-    # Agar bu reply bo'lsa, ota-izoh matnini ham ko'rsatamiz
+    # Matnni yig'ish (List orqali tezroq va toza shakllantiramiz)
+    text_lines = [
+        "💬 <b>Izohlarim</b>\n",
+        f"🎬 <b>{anime_title}</b>\n"
+    ]
+
     if comment.get("parent"):
         parent_author = comment["parent"]["author_name"]
         parent_text = comment["parent"]["text"]
-        caption += f"↩️ <i>{parent_author} ning izohiga javob:</i>\n"
-        caption += f"┗ <i>\"{parent_text}\"</i>\n\n"
+        text_lines.append(f"↩️ <i>{parent_author} ning izohiga javob:</i>")
+        text_lines.append(f"┗ <i>\"{parent_text}\"</i>\n")
 
-    caption += f"┌─────────────────────────┐\n"
-    caption += f"│ 🗨️ <b>Izoh {current_index + 1}</b>\n"
-    caption += f"│ {comment['text']}\n"
-    caption += f"└─────────────────────────┘\n"
+    text_lines.append("┌─────────────────────────┐")
+    text_lines.append(f"│ 💬 <b>Izoh {current_index + 1}/{total_comments}</b>")
+    text_lines.append(f"│ {comment['text']}")
+    text_lines.append("└─────────────────────────┘")
 
-    # Agar ushbu izohga boshqalar javob yozgan bo'lsa
     replies_count = comment.get("replies_count", 0)
     if replies_count > 0:
-        caption += f"\n💬 <b>{replies_count} ta javob</b>"
+        text_lines.append(f"\n💬 <b>{replies_count} ta javob</b>")
+
+    caption = "\n".join(text_lines)
 
     keyboard = get_my_comments_keyboard(
         anime_id=anime_id,
@@ -109,9 +121,23 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
         comment_id=comment["id"]
     )
 
-    await callback.message.edit_caption(
-        caption=caption,
-        reply_markup=keyboard,
-        parse_mode="HTML"
-    )
+    # 2. Xavfsiz tahrirlash (Xabar turi rasm yoki text ekanligiga qarab)
+    try:
+        if callback.message.photo:
+            await callback.message.edit_caption(
+                caption=caption,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+        else:
+            await callback.message.edit_text(
+                text=caption,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+    except TelegramBadRequest as e:
+        # Bir xil xabar qayta bosilganda bot crash bo'lishining oldi olinadi
+        if "message is not modified" not in e.message.lower():
+            raise e
+
     await callback.answer()
