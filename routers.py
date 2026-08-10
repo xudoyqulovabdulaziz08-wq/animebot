@@ -70,6 +70,10 @@ from handlers.anime_uchun import(
     obuna_anime,
     izoh_anime
 )
+from handlers.anime_uchun.izohlar import (
+    add_izoh,
+    edit_izohlar
+)
 
 main_router = Router()
 
@@ -125,6 +129,8 @@ main_router.include_routers(
     izoh_anime.router,
     obuna_anime.router,
     sevimli_anime.router,
+    add_izoh.router,
+    edit_izohlar.router,
 
 
     search.router,
