@@ -4,7 +4,8 @@ import logging
 from typing import Any, Optional, Dict, List
 from sqlalchemy import select, func, delete, update
 from sqlalchemy.orm import selectinload
-from database.models import Comment
+from database.models import Comment, DBUser
+from sqlalchemy.orm import aliased
 
 logger = logging.getLogger("CommentRepository")
 
@@ -169,3 +170,106 @@ class CommentRepository:
         result = await real_session.execute(stmt)
         await real_session.flush()
         return result.rowcount > 0
+    
+    @staticmethod
+    async def get_user_comments_by_anime_id(
+        session: Any, anime_id: int, user_id: int
+    ) -> List[Dict]:
+        """
+        Foydalanuvchining izohlarini ota-izoh (parent) va uning muallifi bilan birga olish.
+        """
+        real_session = await CommentRepository._prepare_session(session)
+
+        # Ota izoh va uning muallifi uchun alias yaratamiz
+        ParentComment = aliased(Comment)
+        ParentUser = aliased(DBUser)
+
+        stmt = (
+            select(Comment, ParentComment, ParentUser)
+            .outerjoin(ParentComment, Comment.parent_id == ParentComment.id)
+            .outerjoin(ParentUser, ParentComment.user_id == ParentUser.id)
+            .where(
+                Comment.anime_id == anime_id,
+                Comment.user_id == user_id
+            )
+            .order_by(Comment.created_at.desc())
+        )
+
+        result = await real_session.execute(stmt)
+    
+        comments = []
+        for row in result.all():
+            comment, parent, parent_author = row
+            c_dict = comment.to_dict()
+        
+            # Agar bu javob (reply) bo'lsa, ota izoh ma'lumotlarini biriktiramiz
+            if parent:
+                c_dict["parent"] = {
+                    "id": parent.id,
+                    "text": parent.text,
+                    "author_id": parent.user_id,
+                    "author_name": parent_author.first_name if parent_author else "Noma'lum"
+                }
+            else:
+                c_dict["parent"] = None
+
+            comments.append(c_dict)
+
+        return comments
+    
+
+    @staticmethod
+    async def get_user_comment_by_index(
+        session: Any, anime_id: int, user_id: int, index: int = 0
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Foydalanuvchining ma'lum bir animega yozgan izohlaridan index-inchisini olish.
+        Unda ota-izoh (agar bu reply bo'lsa) va unga kelgan javoblar soni ham hisoblanadi.
+        """
+        real_session = await CommentRepository._prepare_session(session)
+
+        ParentComment = aliased(Comment)
+        ParentUser = aliased(DBUser)
+        ReplyComment = aliased(Comment)
+
+        # 1. Asosiy so'rov: Izoh, uning Parent'i va Parent muallifi
+        stmt = (
+            select(
+                Comment,
+                ParentComment,
+                ParentUser,
+                func.count(ReplyComment.id).label("replies_count")
+            )
+            .outerjoin(ParentComment, Comment.parent_id == ParentComment.id)
+            .outerjoin(ParentUser, ParentComment.user_id == ParentUser.id)
+            .outerjoin(ReplyComment, ReplyComment.parent_id == Comment.id)
+            .where(
+                Comment.anime_id == anime_id,
+                Comment.user_id == user_id
+            )
+            .group_by(Comment.id, ParentComment.id, ParentUser.id)
+            .order_by(Comment.created_at.desc())
+            .limit(1)
+            .offset(index)
+        )
+
+        result = await real_session.execute(stmt)
+        row = result.first()
+
+        if not row:
+            return None
+
+        comment, parent, parent_author, replies_count = row
+        c_dict = comment.to_dict()
+        c_dict["replies_count"] = replies_count
+
+        if parent:
+            c_dict["parent"] = {
+                "id": parent.id,
+                "text": parent.text,
+                "author_name": parent_author.first_name if parent_author else "Noma'lum"
+            }
+        else:
+            c_dict["parent"] = None
+
+        return c_dict

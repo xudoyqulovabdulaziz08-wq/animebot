@@ -22,6 +22,16 @@ class CommentService:
         self.cache = cache_manager
 
     # ==================================================
+    # 🧹 CACHE INVALIDATION HELPER
+    # ==================================================
+    async def _invalidate_comment_caches(self, anime_id: int, user_id: int) -> None:
+        """Izoh o'zgarganda tegishli barcha kesh to'plamini tozalash."""
+        await self.cache.invalidate("anime_comments_count", anime_id, broadcast=True)
+        await self.cache.invalidate("anime_comments_list", anime_id, broadcast=True)
+        await self.cache.invalidate(f"user_comments_count:{user_id}", anime_id, broadcast=True)
+        await self.cache.invalidate(f"user_comments_list:{user_id}", anime_id, broadcast=True)
+
+    # ==================================================
     # ➕ ADD COMMENT / REPLY (TRANSACTION SAFE)
     # ==================================================
     async def add_comment(
@@ -39,7 +49,6 @@ class CommentService:
             await self.session._ensure_session()
 
         try:
-            # Agar parent_id berilgan bo'lsa, ota izoh mavjudligini va aynan shu animega tegishliligini tekshiramiz
             if parent_id:
                 parent_comment = await self.repo.get_by_id(self.session, parent_id)
                 if not parent_comment or parent_comment["anime_id"] != anime_id:
@@ -50,14 +59,11 @@ class CommentService:
                 self.session, anime_id, user_id, text, parent_id
             )
 
-            # DB ga yozishni tasdiqlaymiz
             if hasattr(self.session, "commit"):
                 await self.session.commit()
 
-            # 🔥 CACHE INVALIDATION
-            await self.cache.invalidate("anime_comments_count", anime_id, broadcast=True)
-            await self.cache.invalidate(f"user_comments_count:{user_id}", anime_id, broadcast=True)
-            await self.cache.invalidate("anime_comments_list", anime_id, broadcast=True)
+            # 🔥 CASCADE CACHE INVALIDATION
+            await self._invalidate_comment_caches(anime_id, user_id)
 
             logger.info(f"💬 Izoh qo'shildi: ID={comment['id']} | Anime={anime_id} | User={user_id}")
             return comment
@@ -77,9 +83,7 @@ class CommentService:
         limit: int = 20, 
         offset: int = 0
     ) -> List[Dict]:
-        """
-        Anime izohlarini kesh-first usulida pagination bilan yuklaydi.
-        """
+        """Anime izohlarini kesh-first usulida pagination bilan yuklaydi."""
         cache_key = f"{limit}:{offset}"
         cached = await self.cache.get(f"anime_comments_list:{anime_id}", cache_key)
         if cached is not None:
@@ -90,7 +94,6 @@ class CommentService:
             self.session, anime_id, limit, offset
         )
 
-        # 10 daqiqa TTL bilan keshga yozamiz
         await self.cache.set(
             f"anime_comments_list:{anime_id}", cache_key, comments, ttl=600
         )
@@ -127,6 +130,23 @@ class CommentService:
         return count
 
     # ==================================================
+    # 📝 GET USER COMMENTS (CACHE-FIRST)
+    # ==================================================
+    async def get_user_comments(self, anime_id: int, user_id: int) -> List[Dict]:
+        """Foydalanuvchining ma'lum animega yozgan barcha izohlari ro'yxati."""
+        cache_key = f"user_comments_list:{user_id}"
+        cached = await self.cache.get(cache_key, anime_id)
+        if cached is not None:
+            return cached
+
+        comments = await self.repo.get_user_comments_by_anime_id(
+            self.session, anime_id, user_id
+        )
+
+        await self.cache.set(cache_key, anime_id, comments, ttl=600)
+        return comments
+
+    # ==================================================
     # 🗑 DELETE COMMENT (TRANSACTION SAFE)
     # ==================================================
     async def delete_comment(
@@ -151,11 +171,12 @@ class CommentService:
             if hasattr(self.session, "commit"):
                 await self.session.commit()
 
-            # Keshni tozalash
-            await self.cache.invalidate("anime_comments_count", anime_id, broadcast=True)
-            await self.cache.invalidate("anime_comments_list", anime_id, broadcast=True)
+            # 🔥 CACHE INVALIDATION
             if user_id:
-                await self.cache.invalidate(f"user_comments_count:{user_id}", anime_id, broadcast=True)
+                await self._invalidate_comment_caches(anime_id, user_id)
+            else:
+                await self.cache.invalidate("anime_comments_count", anime_id, broadcast=True)
+                await self.cache.invalidate("anime_comments_list", anime_id, broadcast=True)
 
             logger.info(f"🗑 Izoh o'chirildi: ID={comment_id} | Anime={anime_id}")
             return True
@@ -165,3 +186,29 @@ class CommentService:
                 await self.session.rollback()
             logger.error(f"❌ Izohni o'chirishda xato yuz berdi: {e}")
             raise e
+        
+
+    async def get_user_comment_by_index(
+        self, anime_id: int, user_id: int, index: int = 0
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Kesh bilan integratsiyalashgan holda foydalanuvchining index-inchi izohini olish.
+        """
+        cache_key = f"user_comment_idx:{index}"
+        cached = await self.cache.get(f"user_comments_list:{user_id}:{anime_id}", cache_key)
+        if cached is not None:
+            return cached
+
+        comment_data = await self.repo.get_user_comment_by_index(
+            self.session, anime_id, user_id, index
+        )
+
+        if comment_data:
+            await self.cache.set(
+                f"user_comments_list:{user_id}:{anime_id}",
+                cache_key,
+                comment_data,
+                ttl=600
+            )
+
+        return comment_data

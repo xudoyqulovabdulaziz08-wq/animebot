@@ -151,11 +151,11 @@ async def process_comment_input(message: Message, state: FSMContext, session):
     confirm_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="✅ Yuborish", callback_data=f"confirm_send_comment:{anime_id}"),
-                InlineKeyboardButton(text="✏️ Tahrirlash", callback_data=f"edit_comment_input:{anime_id}")
+                InlineKeyboardButton(text="✅ Yuborish", callback_data=f"confirm_send_comment:{anime_id}", style="success"),
+                InlineKeyboardButton(text="✏️ Tahrirlash", callback_data=f"edit_comment_input:{anime_id}", style="success")
             ],
             [
-                InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"cancel_comment_input:{anime_id}")
+                InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"cancel_comment_input:{anime_id}" ,style="danger")
             ]
         ]
     )
@@ -192,11 +192,11 @@ async def process_comment_input(message: Message, state: FSMContext, session):
 # =======================================================
 @router.callback_query(F.data.startswith("confirm_send_comment:"))
 async def confirm_send_comment_handler(callback: CallbackQuery, state: FSMContext, session):
-    await callback.answer()
     anime_id = int(callback.data.split(":")[1])
     data = await state.get_data()
     comment_text = data.get("comment_text")
 
+    # 1. State va text validatsiyasi
     if not comment_text:
         await callback.answer("⚠️ Izoh topilmadi!", show_alert=True)
         await state.clear()
@@ -210,16 +210,20 @@ async def confirm_send_comment_handler(callback: CallbackQuery, state: FSMContex
             text=comment_text
         )
 
-        await callback.answer("✅ Izohingiz yuborildi!", show_alert=True)
+        # 2. FSM state'ni tozalaymiz
         await state.clear()
 
-        # Izohlar bo'limiga qaytamiz (O'sha posterli xabarning o'zi edit bo'ladi)
+        # 3. Yagona va muvaffaqiyatli alert chiqarish
+        await callback.answer("✅ Izohingiz muvaffaqiyatli yuborildi!", show_alert=True)
+
+        # 4. Izohlar bo'limiga qaytamiz
+        # Eslatma: anime_comment_handler ichida ham await callback.answer() bor bo'lsa, 
+        # uni try-except ichiga olish yoki u yerdagisini bosib ketishini e'tiborga olish kerak.
         await anime_comment_handler(callback, session)
 
     except Exception as e:
         logger.error(f"Izohni saqlashda xatolik: {e}", exc_info=True)
         await callback.answer("❌ Izohni saqlashda xatolik yuz berdi.", show_alert=True)
-
 # =======================================================
 # 4. ✏️ TAHRIRLASH TUGMASI (Qaytadan kiritish holatiga o'tkazish)
 # =======================================================
