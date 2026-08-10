@@ -58,7 +58,8 @@ async def start_add_comment_handler(callback: CallbackQuery, state: FSMContext, 
                 [
                     InlineKeyboardButton(
                         text="⬅️ Orqaga", 
-                        callback_data=f"cancel_comment_input:{anime_id}"
+                        callback_data=f"cancel_comment_input:{anime_id}",
+                        style="primary"
                     )
                 ]
             ]
@@ -158,11 +159,23 @@ async def process_comment_input(message: Message, state: FSMContext, session):
     confirm_keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="✅ Yuborish", callback_data=f"confirm_send_comment:{anime_id}"),
-                InlineKeyboardButton(text="✏️ Tahrirlash", callback_data=f"edit_comment_input:{anime_id}")
+                InlineKeyboardButton(
+                    text="✅ Yuborish",
+                    callback_data=f"confirm_send_comment:{anime_id}",
+                    style="success"
+                ),
+                InlineKeyboardButton(
+                    text="✏️ Tahrirlash",
+                    callback_data=f"edit_comment_input:{anime_id}",
+                    style="success"
+                )
             ],
             [
-                InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"cancel_comment_input:{anime_id}")
+                InlineKeyboardButton(
+                    text="❌ Bekor qilish", 
+                    callback_data=f"cancel_comment_input:{anime_id}",
+                    style="danger"
+                )
             ]
         ]
     )
@@ -183,6 +196,43 @@ async def process_comment_input(message: Message, state: FSMContext, session):
     except Exception as e:
         logger.error(f"Process comment input handler error: {e}", exc_info=True)
         await state.clear()
+
+
+
+# =======================================================
+# 3. ✅ YUBORISH TUGMASI (DB ga yozish va keshni tozalash)
+# =======================================================
+@router.callback_query(F.data.startswith("confirm_send_comment:"))
+async def confirm_send_comment_handler(callback: CallbackQuery, state: FSMContext, session):
+    await callback.answer()
+    anime_id = int(callback.data.split(":")[1])
+    data = await state.get_data()
+    comment_text = data.get("comment_text")
+
+    if not comment_text:
+        await callback.answer("⚠️ Izoh topilmadi!", show_alert=True)
+        await state.clear()
+        return
+
+    try:
+        comment_service = CommentService(session=session)
+        # Service orqali izohni DB ga yozamiz (U yerda kesh invalidatsiyasi ham bajariladi)
+        await comment_service.add_comment(
+            anime_id=anime_id,
+            user_id=callback.from_user.id,
+            text=comment_text
+        )
+
+        await callback.answer("✅ Izohingiz muvaffaqiyatli yuborildi!", show_alert=True)
+        await state.clear()
+
+        # Izohlar bo'limiga qaytaramiz
+        await anime_comment_handler(callback, session)
+
+    except Exception as e:
+        logger.error(f"Izohni saqlashda xatolik: {e}", exc_info=True)
+        await callback.answer("❌ Izohni saqlashda xatolik yuz berdi.", show_alert=True)
+
 
 # =======================================================
 # 4. ✏️ TAHRIRLASH TUGMASI (Qaytadan kiritish holatiga o'tkazish)
