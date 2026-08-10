@@ -187,7 +187,7 @@ class CommentRepository:
         stmt = (
             select(Comment, ParentComment, ParentUser)
             .outerjoin(ParentComment, Comment.parent_id == ParentComment.id)
-            .outerjoin(ParentUser, ParentComment.user_id == ParentUser.id)
+            .outerjoin(ParentUser, ParentComment.user_id == ParentUser.user_id)  # <-- ParentUser.id -> ParentUser.user_id
             .where(
                 Comment.anime_id == anime_id,
                 Comment.user_id == user_id
@@ -208,7 +208,7 @@ class CommentRepository:
                     "id": parent.id,
                     "text": parent.text,
                     "author_id": parent.user_id,
-                    "author_name": parent_author.first_name if parent_author else "Noma'lum"
+                    "author_name": parent_author.username if parent_author and parent_author.username else "Noma'lum"  # <-- first_name -> username
                 }
             else:
                 c_dict["parent"] = None
@@ -241,13 +241,13 @@ class CommentRepository:
                 func.count(ReplyComment.id).label("replies_count")
             )
             .outerjoin(ParentComment, Comment.parent_id == ParentComment.id)
-            .outerjoin(ParentUser, ParentComment.user_id == ParentUser.id)
+            .outerjoin(ParentUser, ParentComment.user_id == ParentUser.user_id)  # <-- ParentUser.id -> ParentUser.user_id
             .outerjoin(ReplyComment, ReplyComment.parent_id == Comment.id)
             .where(
                 Comment.anime_id == anime_id,
                 Comment.user_id == user_id
             )
-            .group_by(Comment.id, ParentComment.id, ParentUser.id)
+            .group_by(Comment.id, ParentComment.id, ParentUser.user_id)  # <-- ParentUser.id -> ParentUser.user_id
             .order_by(Comment.created_at.desc())
             .limit(1)
             .offset(index)
@@ -267,7 +267,7 @@ class CommentRepository:
             c_dict["parent"] = {
                 "id": parent.id,
                 "text": parent.text,
-                "author_name": parent_author.first_name if parent_author else "Noma'lum"
+                "author_name": parent_author.username if parent_author and parent_author.username else "Noma'lum"  # <-- first_name -> username
             }
         else:
             c_dict["parent"] = None
