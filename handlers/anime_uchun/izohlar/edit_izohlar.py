@@ -196,22 +196,28 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
 
 @router.callback_query(F.data.startswith(("reply_comm:", "rep_page:")))
 async def handle_comment_replies(callback: CallbackQuery, session: AsyncSession):
-    parts = callback.data.split(":")
-    
-    # callback_data parse qilish: rep_page bo'lsa indeks keladi, bo'lmasa 0-indeks
-    comment_id = int(parts[1])
-    anime_id = int(parts[2])
-    current_index = int(parts[3]) if len(parts) > 3 else 0
+    # 1. callback_data xavfsiz parse qilish
+    try:
+        parts = callback.data.split(":")
+        comment_id = int(parts[1])
+        anime_id = int(parts[2])
+        current_index = int(parts[3]) if len(parts) > 3 else 0
+    except (IndexError, ValueError):
+        await callback.answer("❌ Noto'g'ri so'rov!", show_alert=True)
+        return
 
     comment_service = CommentService(session)
 
-    # 1. Parallel ravishda asosiy izohni va javoblar ro'yxatini olamiz
-    parent_comment, replies = await asyncio.gather(
-        comment_service.get_comment_by_id(comment_id),
-        comment_service.get_comment_replies(comment_id, limit=50, offset=0)
-    )
+    # 2. Bazadan ketma-ket ma'lumotlarni olish (asyncio.gather o'rniga)
+    try:
+        parent_comment = await comment_service.get_comment_by_id(comment_id)
+        replies = await comment_service.get_comment_replies(comment_id, limit=50, offset=0)
+    except Exception as err:
+        logger.error(f"❌ Izohlarni olishda xatolik: {err}", exc_info=True)
+        await callback.answer("❌ Tizimda xatolik yuz berdi.", show_alert=True)
+        return
 
-    # ⚠️ 1-Talab: Agar javoblar bo'lmasa, Alert beriladi
+    # 3. Javoblar yo'qligini tekshirish
     if not replies:
         await callback.answer(
             "💬 Hozircha bu izohingizga hech kim javob yozmagan.",
@@ -221,7 +227,7 @@ async def handle_comment_replies(callback: CallbackQuery, session: AsyncSession)
 
     total_replies = len(replies)
 
-    # Index chegaradan chiqib ketmasligini ta'minlaymiz
+    # Index chegarasini to'g'rilash
     if current_index >= total_replies:
         current_index = total_replies - 1
     elif current_index < 0:
@@ -230,17 +236,22 @@ async def handle_comment_replies(callback: CallbackQuery, session: AsyncSession)
     # Joriy tanlangan javob
     current_reply = replies[current_index]
     
-    # Javob bergan foydalanuvchi nomi va matni
-    reply_user_name = current_reply.get("user", {}).get("full_name") or current_reply.get("user", {}).get("username") or "Foydalanuvchi"
+    # Foydalanuvchi ma'lumotlari va matnlarni olish
+    reply_user_name = (
+        current_reply.get("user", {}).get("full_name") 
+        or current_reply.get("user", {}).get("username") 
+        or "Foydalanuvchi"
+    )
+    
     reply_text = current_reply.get("text", "")
     parent_text = parent_comment.get("text", "") if parent_comment else ""
 
-    # 💬 Dizayn bo'yicha matnni shakllantirish
+    # 4. Matn shakllantirish va HTML teglarini qochirish (html.escape)
     text_lines = [
         "↩️ <b>Sizning izohingizga javoblar</b>\n",
-        f"“<i>{parent_text}</i>”\n",
-        f"👤 <b>{reply_user_name}</b>\n",
-        f"<blockquote expandable>{reply_text}</blockquote>",
+        f"“<i>{html.escape(parent_text)}</i>”\n",
+        f"👤 <b>{html.escape(reply_user_name)}</b>\n",
+        f"<blockquote expandable>{html.escape(reply_text)}</blockquote>",
         f"\n💬 <b>Javob {current_index + 1}/{total_replies}</b>"
     ]
 
@@ -254,7 +265,10 @@ async def handle_comment_replies(callback: CallbackQuery, session: AsyncSession)
         current_index=current_index
     )
 
-    # Xabarni yangilash
+    # Callback so'rovini yopamiz
+    await callback.answer()
+
+    # 5. Xabarni xavfsiz yangilash
     try:
         if callback.message.photo:
             await callback.message.edit_caption(
@@ -269,11 +283,15 @@ async def handle_comment_replies(callback: CallbackQuery, session: AsyncSession)
                 parse_mode="HTML"
             )
     except TelegramBadRequest as e:
-        if "message is not modified" not in e.message.lower():
-            raise e
-
-    await callback.answer()
-
+        error_msg = str(e).lower()
+        if "message is not modified" in error_msg:
+            pass  # Xabar o'zgarmagan bo'lsa e'tiborsiz qoldiramiz
+        elif "message to edit not found" in error_msg or "message can't be edited" in error_msg:
+            await callback.message.answer(text=caption, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            logger.error(f"❌ TelegramBadRequest yuz berdi: {e}")
+    except Exception as err:
+        logger.error(f"❌ Javoblarni ko'rsatishda kutilmagan xatolik: {err}")
 
 
 
