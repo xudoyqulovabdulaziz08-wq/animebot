@@ -1,6 +1,6 @@
 from aiogram import Router
 from handlers.menu import (
-     kabinet, qollanma, help
+    qollanma, help
 )
 from handlers.menu.vip import(
     vip_handler
@@ -11,11 +11,14 @@ from handlers.menu.reklama import (
 from handlers.animelarim import (
     animelarim_menu, sevimlilarim, baholaganlarim
 )
+from handlers.menu.cabinet import (
+    cabinet_handlers
+)
 
 user_router = Router()
 
 user_router.include_routers(
-    kabinet.router,
+    cabinet_handlers.router,
     qollanma.router,
     reklama_handlers.router,
     vip_handler.router,

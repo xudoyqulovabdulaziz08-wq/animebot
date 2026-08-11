@@ -15,7 +15,7 @@ async def open_page(
     from handlers.menu.qollanma import guide_menu
     from handlers.menu.help import support_menu
     from handlers.menu.reklama.reklama_handlers import advertise_menu, advertise_submit
-    from handlers.menu.kabinet import open_cabinet_handler
+    from handlers.menu.cabinet.cabinet_handlers import open_cabinet_handler
     from handlers.menu.vip.vip_handler import buy_vip_menu, vip_payed, process_vip_checkout
     from handlers.menu.admin_menu import admin_menu
     from handlers.menu.creator_menu import creator_menu
@@ -58,7 +58,7 @@ async def open_page(
 
     # 📌 1. YANGI: Animelarim sub-menyusi uchun shart
     elif page == "animelarim_cabinet":
-        from handlers.menu.kabinet import animelarim_menu
+        from handlers.menu.kabinet1 import animelarim_menu
         if isinstance(event, CallbackQuery):
             await animelarim_menu(callback=event, session=session, state=state)
 
