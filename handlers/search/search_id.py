@@ -8,7 +8,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, Message
 from dotenv.main import logger
 from aiogram.fsm.context import FSMContext
-from handlers.search_menu.anime_card import send_anime_card
+from handlers.search.anime_card import send_anime_card
 from config import config
 POSTER_ID = config.RASM_ID
 

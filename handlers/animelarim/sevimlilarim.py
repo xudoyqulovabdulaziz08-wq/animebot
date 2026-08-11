@@ -12,7 +12,7 @@ from aiogram.fsm.context import FSMContext
 from database.models import Genre
 from aiogram.exceptions import TelegramBadRequest
 from services.user_service import UserService
-from handlers.search_menu.anime_card import send_anime_card
+from handlers.search.anime_card import send_anime_card
 from aiogram.exceptions import TelegramRetryAfter
 from services.navigation import NavigationManager
 from config import config

@@ -305,7 +305,7 @@ async def back_to_anime_card_handler(callback: CallbackQuery, session):
     anime = await anime_service.get_anime(anime_id)
     if anime:
         # Mavjud send_anime_card funksiyangiz orqali silliq tahrirlaymiz
-        from handlers.search_menu.anime_card import send_anime_card  # Import yo'lini to'g'rilang
+        from handlers.search.anime_card import send_anime_card  # Import yo'lini to'g'rilang
         await send_anime_card(
             message=callback.message,
             anime=anime,

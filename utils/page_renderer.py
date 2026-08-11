@@ -10,15 +10,15 @@ async def open_page(
     state: Any = None,
     user: dict = None
 ):
-    from handlers.start import send_or_edit_start_menu
-    from handlers.search import search_menu
-    from handlers.qollanma import guide_menu
-    from handlers.help import support_menu
-    from handlers.reklama import advertise_menu, advertise_submit
-    from handlers.kabinet import open_cabinet_handler
-    from handlers.buy_vip import buy_vip_menu, vip_payed, process_vip_checkout
-    from handlers.admin_menu import admin_menu
-    from handlers.creator_menu import creator_menu
+    from handlers.start1 import send_or_edit_start_menu
+    from handlers.search_menu.search import search_menu
+    from handlers.menu.qollanma import guide_menu
+    from handlers.menu.help import support_menu
+    from handlers.menu.reklama import advertise_menu, advertise_submit
+    from handlers.menu.kabinet import open_cabinet_handler
+    from handlers.menu.buy_vip import buy_vip_menu, vip_payed, process_vip_checkout
+    from handlers.menu.admin_menu import admin_menu
+    from handlers.menu.creator_menu import creator_menu
     from handlers.search_menu.search_genr import search_by_genre
     from handlers.search_menu.anime_card import send_anime_card
     from handlers.search_menu.wiev_episode import process_anime_streaming_player
@@ -58,7 +58,7 @@ async def open_page(
 
     # 📌 1. YANGI: Animelarim sub-menyusi uchun shart
     elif page == "animelarim_cabinet":
-        from handlers.kabinet import animelarim_menu
+        from handlers.menu.kabinet import animelarim_menu
         if isinstance(event, CallbackQuery):
             await animelarim_menu(callback=event, session=session, state=state)
 

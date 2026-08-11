@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from services.navigation import NavigationManager
 from sqlalchemy import select
 from database.models import Genre
-from handlers.search_menu.anime_card import send_anime_card
+from handlers.search.anime_card import send_anime_card
 from services.anime_service import AnimeService
 from config import config
 POSTER_ID = config.RASM_ID

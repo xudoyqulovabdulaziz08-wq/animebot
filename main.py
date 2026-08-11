@@ -32,7 +32,7 @@ from utils.http import create_http_session, close_http_session
 async def on_startup(bot):
     ...
     await create_http_session()
-from routers import main_router
+from routers.main_router import main_router
 
 logger = logging.getLogger("Main")
 logging.basicConfig(level=logging.INFO)

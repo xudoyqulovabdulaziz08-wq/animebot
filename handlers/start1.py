@@ -7,7 +7,7 @@ from aiogram.filters import CommandStart, CommandObject, Command
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardMarkup, KeyboardButton, InputMediaPhoto
 from services.user_service import UserService
 from config import config
-from handlers.search_menu.anime_card import send_anime_card
+from handlers.search.anime_card import send_anime_card
 from services.navigation import NavigationManager
 from utils.page_renderer import open_page
 from aiogram.fsm.context import FSMContext

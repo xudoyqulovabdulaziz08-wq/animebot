@@ -4,7 +4,7 @@ from typing import Any
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaVideo, BufferedInputFile
 from aiogram.exceptions import TelegramBadRequest
-from handlers.search_menu.anime_card import send_anime_card
+from handlers.search.anime_card import send_anime_card
 from aiogram.fsm.context import FSMContext
 from services.anime_service import AnimeService
 from services.user_service import UserService

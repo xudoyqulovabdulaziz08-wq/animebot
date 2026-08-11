@@ -17,7 +17,7 @@ from aiogram.types import (
 from aiogram.fsm.context import FSMContext
 from services.anime_service import AnimeService
 from utils.http import get_http_session
-from handlers.search_menu.anime_card import send_anime_card
+from handlers.search.anime_card import send_anime_card
 from config import config
 
 logger = logging.getLogger(__name__)
