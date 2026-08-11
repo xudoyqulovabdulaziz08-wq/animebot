@@ -118,7 +118,11 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
     )
 
     if total_comments == 0:
-        await callback.answer("Siz ushbu animega hali izoh qoldirmagansiz.", show_alert=True)
+        await callback.answer(
+        "💬 Bu yerda hali sizning izohingiz yo‘q.\n"
+        "✍️ Birinchi bo‘lib fikringizni qoldiring!",
+            show_alert=True
+        )
         return
 
     # Index chegaradan chiqmasligi uchun
@@ -208,7 +212,10 @@ async def handle_comment_replies(callback: CallbackQuery, session: AsyncSession)
 
     # ⚠️ 1-Talab: Agar javoblar bo'lmasa, Alert beriladi
     if not replies:
-        await callback.answer("🤨 Ushbu izohingizga hali hech kim javob yozmagan.", show_alert=True)
+        await callback.answer(
+            "💬 Hozircha bu izohingizga hech kim javob yozmagan.",
+            show_alert=True
+        )
         return
 
     total_replies = len(replies)
@@ -231,9 +238,8 @@ async def handle_comment_replies(callback: CallbackQuery, session: AsyncSession)
     text_lines = [
         "↩️ <b>Sizning izohingizga javoblar</b>\n",
         f"“<i>{parent_text}</i>”\n",
-        f"👤 <b>{reply_user_name}</b>",
+        f"👤 <b>{reply_user_name}</b>\n",
         f"<blockquote expandable>{reply_text}</blockquote>",
-        "└─────────────────────────┘",
         f"\n💬 <b>Javob {current_index + 1}/{total_replies}</b>"
     ]
 
@@ -281,8 +287,8 @@ async def handle_delete_comment_ask(callback: CallbackQuery):
 
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Ha, o‘chirish", callback_data=f"del_comm_confirm:{comment_id}:{anime_id}", style="danger"),
-            InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"my_comm:{anime_id}:0", style="secondary")
+            InlineKeyboardButton(text="✅ Ha, o‘chirish", callback_data=f"del_comm_confirm:{comment_id}:{anime_id}", style="success"),
+            InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"my_comm:{anime_id}:0", style="danger")
         ]
     ])
 
