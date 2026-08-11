@@ -345,12 +345,13 @@ async def handle_delete_comment_confirm(callback: CallbackQuery, session: AsyncS
 
     # 3. AGI (Agar boshqa izoh qolmagan bo'lsa) -> Anime izohlar bo'limiga qaytaramiz
     if total_comments == 0:
-        await anime_comment_handler(callback, session, anime_id)
+        callback.data = f"anime_comments:{anime_id}"
         return
 
     # 4. Boshqa izohlar bo'lsa -> 0-indeksdagi izohni ko'rsatish uchun qayta chaqiramiz
     # Faqat model_copy qilmasdan data o'zgaruvchisini to'g'rilab beramiz
     callback.data = f"my_comm:{anime_id}:0"
+    await anime_comment_handler(callback, session)
     
     # handle_my_comments ichidagi await callback.answer() xato bermasligi uchun try-except qilamiz
     try:
