@@ -335,17 +335,28 @@ async def handle_delete_comment_confirm(callback: CallbackQuery, session: AsyncS
 
     if not success:
         await callback.answer("❌ Izohni o'chirib bo'lmadi yoki u allaqachon o'chirilgan.", show_alert=True)
-    else:
-        await callback.answer("🗑 Izohingiz muvaffaqiyatli o'chirildi!", show_alert=True)
+        return
 
-    # 2. CallbackQuery nusxasini yaratib, yangi data bilan uzatamiz
-    updated_callback = callback.model_copy(
-        update={"data": f"my_comm:{anime_id}:0"}
-    )
+    # Alert beramiz
+    await callback.answer("🗑 Izohingiz muvaffaqiyatli o'chirildi!", show_alert=True)
+
+    # 2. Qolgan izohlar sonini tekshiramiz
+    total_comments = await comment_service.get_user_comments_count(anime_id, user_id)
+
+    # 3. AGI (Agar boshqa izoh qolmagan bo'lsa) -> Anime izohlar bo'limiga qaytaramiz
+    if total_comments == 0:
+        await anime_comment_handler(callback, session, anime_id)
+        return
+
+    # 4. Boshqa izohlar bo'lsa -> 0-indeksdagi izohni ko'rsatish uchun qayta chaqiramiz
+    # Faqat model_copy qilmasdan data o'zgaruvchisini to'g'rilab beramiz
+    callback.data = f"my_comm:{anime_id}:0"
     
-    await handle_my_comments(updated_callback, session)
-
-
+    # handle_my_comments ichidagi await callback.answer() xato bermasligi uchun try-except qilamiz
+    try:
+        await handle_my_comments(callback, session)
+    except TelegramBadRequest:
+        pass
 
 
 
@@ -357,29 +368,46 @@ async def handle_delete_comment_confirm(callback: CallbackQuery, session: AsyncS
 # =======================================================
 @router.callback_query(F.data.startswith("edit_comm:"))
 async def edit_comment_start_handler(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    await callback.answer()
-    comment_id = int(callback.data.split(":")[1])
-    
+    # 1. ID va ma'lumotlarni xavfsiz ajratib olish
+    try:
+        comment_id = int(callback.data.split(":")[1])
+    except (IndexError, ValueError):
+        await callback.answer("❌ Noto'g'ri so'rov!", show_alert=True)
+        return
+
     comment_service = CommentService(session)
-    comment = await comment_service.get_comment_by_id(comment_id)
     
-    if not comment or comment["user_id"] != callback.from_user.id:
-        return await callback.answer("❌ Izoh topilmadi yoki bu sizning izohingiz emas!", show_alert=True)
+    try:
+        comment = await comment_service.get_comment_by_id(comment_id)
+    except Exception as err:
+        logger.error(f"❌ Bazadan izohni olishda xatolik: {err}")
+        await callback.answer("❌ Tizimda xatolik yuz berdi.", show_alert=True)
+        return
+
+    # 2. Huquq va mavjudlikni tekshirish
+    if not comment or comment.get("user_id") != callback.from_user.id:
+        await callback.answer("❌ Izoh topilmadi yoki bu sizning izohingiz emas!", show_alert=True)
+        return
+
+    # Callback so'roviga birinchi va yagona javob
+    await callback.answer()
 
     anime_id = comment["anime_id"]
+    old_text = comment.get("text", "")
 
-    # Holatni saqlaymiz
+    # 3. FSM holatini o'rnatish
     await state.set_state(EditCommentStates.waiting_for_new_text)
     await state.update_data(
         edit_comment_id=comment_id,
         anime_id=anime_id,
         prompt_message_id=callback.message.message_id,
-        old_text=comment["text"]
+        old_text=old_text
     )
 
+    # 4. Matnni HTML xatolaridan himoyalash (html.escape)
     text = (
         f"✏️ <b>Izohni tahrirlash</b>\n\n"
-        f"📝 <b>Eski izoh:</b>\n<i>{comment['text']}</i>\n\n"
+        f"📝 <b>Eski izoh:</b>\n<i>{html.escape(old_text)}</i>\n\n"
         f"✍️ Yangi izohni yuboring..."
     )
 
@@ -388,13 +416,34 @@ async def edit_comment_start_handler(callback: CallbackQuery, state: FSMContext,
             [
                 InlineKeyboardButton(
                     text="⬅️ Bekor qilish", 
-                    callback_data=f"my_comm:{anime_id}:0"
+                    callback_data=f"my_comm:{anime_id}:0",
+                    style="danger"
                 )
             ]
         ]
     )
 
-    await callback.message.edit_text(text=text, reply_markup=keyboard, parse_mode="HTML")
+    # 5. Telegram API xatolariga qarshi to'liq himoyalangan tahrirlash blok
+    try:
+        if callback.message.photo:
+            await callback.message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            await callback.message.edit_text(text=text, reply_markup=keyboard, parse_mode="HTML")
+            
+    except TelegramBadRequest as e:
+        error_msg = str(e).lower()
+        if "message is not modified" in error_msg:
+            pass  # Xabar o'zgarmagan bo'lsa inkor qilamiz
+        elif "message to edit not found" in error_msg or "message can't be edited" in error_msg:
+            # Agar foydalanuvchi xabarni o'chirib yuborgan bo'lsa, yangi xabar yuboramiz
+            msg = await callback.message.answer(text=text, reply_markup=keyboard, parse_mode="HTML")
+            await state.update_data(prompt_message_id=msg.message_id)
+        else:
+            logger.error(f"❌ TelegramBadRequest yuz berdi: {e}")
+            
+    except Exception as err:
+        logger.error(f"❌ Kutilmagan xatolik: {err}")
+        await callback.message.answer("⚠️ Xabarni tahrirlashda kutilmagan xatolik yuz berdi.")
 
 
 
