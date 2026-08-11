@@ -284,3 +284,37 @@ class CommentService:
             await self.cache.set(cache_namespace, "data", comment, ttl=600)
 
         return comment
+    
+
+
+
+    async def delete_comment(self, comment_id: int, user_id: int, anime_id: int) -> bool:
+        """
+        🗑 Izohni bazadan o'chiradi va tegishli keshni tozalaydi.
+        """
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        # 1. Izohni o'chirishdan oldin parent_id sini bilib olamiz (kesh tozalash uchun)
+        comment = await self.repo.get_by_id(self.session, comment_id)
+        if not comment:
+            return False
+
+        parent_id = comment.get("parent_id")
+
+        # 2. Bazadan o'chiramiz
+        deleted = await self.repo.delete(self.session, comment_id, user_id)
+        if not deleted:
+            await self.session.rollback()
+            return False
+
+        await self.session.commit()
+
+        # 3. Keshni invalidatsiya qilamiz
+        await self._invalidate_comment_caches(
+            anime_id=anime_id, 
+            user_id=user_id, 
+            parent_id=parent_id
+        )
+
+        return True

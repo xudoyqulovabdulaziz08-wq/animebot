@@ -266,3 +266,49 @@ async def handle_comment_replies(callback: CallbackQuery, session: AsyncSession)
             raise e
 
     await callback.answer()
+
+
+
+
+@router.callback_query(F.data.startswith("del_comm:"))
+async def handle_delete_comment(callback: CallbackQuery, session: AsyncSession):
+    parts = callback.data.split(":")
+    comment_id = int(parts[1])
+    anime_id = int(parts[2])
+    user_id = callback.from_user.id
+
+    comment_service = CommentService(session)
+
+    # 1. Izohni o'chiramiz
+    success = await comment_service.delete_comment(
+        comment_id=comment_id, 
+        user_id=user_id, 
+        anime_id=anime_id
+    )
+
+    if not success:
+        await callback.answer("❌ Izohni o'chirib bo'lmadi yoki u allaqachon o'chirilgan.", show_alert=True)
+        return
+
+    await callback.answer("🗑 Izoh muvaffaqiyatli o'chirildi!", show_alert=True)
+
+    # 2. O'chirilgandan so'ng qolgan izohlar sonini tekshiramiz
+    total_comments = await comment_service.get_user_comments_count(anime_id, user_id)
+
+    if total_comments == 0:
+        # Agar boshqa izoh qolmagan bo'lsa, xabarni o'zgartiramiz
+        text = "💬 Sizda ushbu anime uchun boshqa izohlar qolmagan."
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"anime_comment:{anime_id}", style="danger")
+        ]])
+        
+        if callback.message.photo:
+            await callback.message.edit_caption(caption=text, reply_markup=keyboard)
+        else:
+            await callback.message.edit_text(text=text, reply_markup=keyboard)
+        return
+
+    # 3. Boshqa izohlar bo'lsa, birinchi (0-indeksli) izohni ko'rsatamiz
+    new_callback_data = f"my_comm:{anime_id}:0"
+    callback.data = new_callback_data
+    await handle_my_comments(callback, session)
