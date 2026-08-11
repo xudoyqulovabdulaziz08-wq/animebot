@@ -34,11 +34,13 @@ def get_my_comments_keyboard(
     # 1. Sahifalash tugmalari (1, 2, 3...)
     page_buttons = []
     for i in range(total_count):
-        text = f"• {i + 1} •" if i == current_index else str(i + 1)
+        is_active = i == current_index
+        
         page_buttons.append(
             InlineKeyboardButton(
-                text=text,
-                callback_data=f"my_comm:{anime_id}:{i}"
+                text = f"• {i + 1} •" if i == current_index else str(i + 1),
+                callback_data=f"my_comm:{anime_id}:{i}",
+                style="success" if is_active else None
             )
         )
     if page_buttons:
@@ -206,7 +208,7 @@ async def handle_comment_replies(callback: CallbackQuery, session: AsyncSession)
 
     # ⚠️ 1-Talab: Agar javoblar bo'lmasa, Alert beriladi
     if not replies:
-        await callback.answer("Ushbu izohga hali hech kim javob yozmagan.", show_alert=True)
+        await callback.answer("🤨 Ushbu izohingizga hali hech kim javob yozmagan.", show_alert=True)
         return
 
     total_replies = len(replies)
