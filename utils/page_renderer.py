@@ -14,7 +14,7 @@ async def open_page(
     from handlers.search.search import search_menu
     from handlers.menu.qollanma import guide_menu
     from handlers.menu.help import support_menu
-    from handlers.menu.reklama import advertise_menu, advertise_submit
+    from handlers.menu.reklama.reklama_handlers import advertise_menu, advertise_submit
     from handlers.menu.kabinet import open_cabinet_handler
     from handlers.menu.vip.vip_handler import buy_vip_menu, vip_payed, process_vip_checkout
     from handlers.menu.admin_menu import admin_menu
