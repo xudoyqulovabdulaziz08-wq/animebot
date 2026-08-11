@@ -263,3 +263,24 @@ class CommentService:
 
         await self.cache.set(cache_namespace, cache_key, data, ttl=600)
         return data
+    
+
+    async def get_comment_by_id(self, comment_id: int) -> Optional[Dict]:
+        """
+        🚀 ID bo'yicha izohni kesh/repository orqali olish.
+        """
+        cache_namespace = f"comment_detail:{comment_id}"
+        cached_data = await self.cache.get(cache_namespace, "data")
+
+        if cached_data is not None:
+            return cached_data
+
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+    # Repository'dagi real metod nomi: get_by_id
+        comment = await self.repo.get_by_id(self.session, comment_id)
+        if comment:
+            await self.cache.set(cache_namespace, "data", comment, ttl=600)
+
+        return comment
