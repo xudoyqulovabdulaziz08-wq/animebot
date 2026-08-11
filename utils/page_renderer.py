@@ -10,8 +10,8 @@ async def open_page(
     state: Any = None,
     user: dict = None
 ):
-    from handlers.start1 import send_or_edit_start_menu
-    from handlers.search_menu.search import search_menu
+    from handlers.start.helpers import send_or_edit_start_menu
+    from handlers.search.search import search_menu
     from handlers.menu.qollanma import guide_menu
     from handlers.menu.help import support_menu
     from handlers.menu.reklama import advertise_menu, advertise_submit
@@ -19,9 +19,9 @@ async def open_page(
     from handlers.menu.buy_vip import buy_vip_menu, vip_payed, process_vip_checkout
     from handlers.menu.admin_menu import admin_menu
     from handlers.menu.creator_menu import creator_menu
-    from handlers.search_menu.search_genr import search_by_genre
-    from handlers.search_menu.anime_card import send_anime_card
-    from handlers.search_menu.wiev_episode import process_anime_streaming_player
+    from handlers.search.search_genr import search_by_genre
+    from handlers.search.anime_card import send_anime_card
+    from handlers.search.wiev_episode import process_anime_streaming_player
     
     from handlers.animelarim.sevimlilarim import animelarim_menu as show_favorites_menu
     from handlers.animelarim.baholaganlarim import animelarim1_menu as show_ratings_menu 
