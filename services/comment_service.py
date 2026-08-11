@@ -318,3 +318,60 @@ class CommentService:
         )
 
         return True
+    
+
+
+
+    # ================= ✏️ EDIT COMMENT (TRANSACTION SAFE) =================
+    async def update_comment(
+        self,
+        comment_id: int,
+        user_id: int,
+        anime_id: int,
+        new_text: str
+    ) -> bool:
+        """
+        Izohni tahrirlash va keshni tozalash.
+        """
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        try:
+            # 1. Izoh mavjudligini tekshiramiz
+            comment = await self.repo.get_by_id(self.session, comment_id)
+            if not comment:
+                return False
+
+            # 2. Bazada matnni yangilaymiz
+            updated = await self.repo.update_text(
+                self.session, 
+                comment_id=comment_id, 
+                user_id=user_id, 
+                new_text=new_text
+            )
+            
+            if not updated:
+                await self.session.rollback()
+                return False
+
+            if hasattr(self.session, "commit"):
+                await self.session.commit()
+
+            # 3. 🔥 CACHE INVALIDATION
+            # Bitta izoh (detail) keshi, ro'yxat va user keshlarini tozalaymiz
+            parent_id = comment.get("parent_id")
+            await self.cache.invalidate(f"comment_detail:{comment_id}", "data", broadcast=True)
+            await self._invalidate_comment_caches(
+                anime_id=anime_id, 
+                user_id=user_id, 
+                parent_id=parent_id
+            )
+
+            logger.info(f"✏️ Izoh tahrirlandi: ID={comment_id} | User={user_id}")
+            return True
+
+        except Exception as e:
+            if hasattr(self.session, "rollback"):
+                await self.session.rollback()
+            logger.error(f"❌ Izohni tahrirlashda xato yuz berdi: {e}")
+            raise e

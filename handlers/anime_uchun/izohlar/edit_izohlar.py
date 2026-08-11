@@ -1,7 +1,7 @@
 import logging
 import html
 import asyncio
-from aiogram import Router, F
+from aiogram import Router, F, types
 from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramBadRequest
@@ -18,7 +18,8 @@ router = Router()
 CREATOR_ID = config.CREATOR_ID
 
 
-
+class EditCommentStates(StatesGroup):
+    waiting_for_new_text = State()
 
 
 
@@ -335,9 +336,170 @@ async def handle_delete_comment_confirm(callback: CallbackQuery, session: AsyncS
     if not success:
         await callback.answer("❌ Izohni o'chirib bo'lmadi yoki u allaqachon o'chirilgan.", show_alert=True)
     else:
-        await callback.answer("🗑 Izoh muvaffaqiyatli o'chirildi!", show_alert=True)
+        await callback.answer("🗑 Izohingiz muvaffaqiyatli o'chirildi!", show_alert=True)
 
-    # 2. Qolgan barcha ishlarni (sonini tekshirish va xabarni edit qilishni) 
-    # handle_my_comments funksiyasiga topshiramiz
-    callback.data = f"my_comm:{anime_id}:0"
-    await handle_my_comments(callback, session)
+    # 2. CallbackQuery nusxasini yaratib, yangi data bilan uzatamiz
+    updated_callback = callback.model_copy(
+        update={"data": f"my_comm:{anime_id}:0"}
+    )
+    
+    await handle_my_comments(updated_callback, session)
+
+
+
+
+
+
+
+
+# =======================================================
+# 1. ✏️ TAHRIRLASH TUGMASI (Input holatiga o'tkazish)
+# =======================================================
+@router.callback_query(F.data.startswith("edit_comm:"))
+async def edit_comment_start_handler(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    await callback.answer()
+    comment_id = int(callback.data.split(":")[1])
+    
+    comment_service = CommentService(session)
+    comment = await comment_service.get_comment_by_id(comment_id)
+    
+    if not comment or comment["user_id"] != callback.from_user.id:
+        return await callback.answer("❌ Izoh topilmadi yoki bu sizning izohingiz emas!", show_alert=True)
+
+    anime_id = comment["anime_id"]
+
+    # Holatni saqlaymiz
+    await state.set_state(EditCommentStates.waiting_for_new_text)
+    await state.update_data(
+        edit_comment_id=comment_id,
+        anime_id=anime_id,
+        prompt_message_id=callback.message.message_id,
+        old_text=comment["text"]
+    )
+
+    text = (
+        f"✏️ <b>Izohni tahrirlash</b>\n\n"
+        f"📝 <b>Eski izoh:</b>\n<i>{comment['text']}</i>\n\n"
+        f"✍️ Yangi izohni yuboring..."
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⬅️ Bekor qilish", 
+                    callback_data=f"my_comm:{anime_id}:0"
+                )
+            ]
+        ]
+    )
+
+    await callback.message.edit_text(text=text, reply_markup=keyboard, parse_mode="HTML")
+
+
+
+
+# =======================================================
+# 2. 📝 MATN QABUL QILISH VA PREVIEW (Bitta xabar rejimi)
+# =======================================================
+@router.message(EditCommentStates.waiting_for_new_text)
+async def process_new_comment_text(message: types.Message, state: FSMContext, bot):
+    user_text = message.text.strip() if message.text else ""
+    data = await state.get_data()
+    
+    prompt_message_id = data.get("prompt_message_id")
+    anime_id = data.get("anime_id")
+    comment_id = data.get("edit_comment_id")
+
+    # 1. Foydalanuvchi yuborgan xabarni tozalaymiz
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+    # Validator
+    if not user_text or len(user_text) < 2:
+        return
+
+    # FSM xotirada yangi kiritilgan matnni saqlab turamiz
+    await state.update_data(pending_new_text=user_text)
+
+    # 2. Botning tepadagi xabarini tahrirlab, tasdiqlash tugmalarini chiqaramiz
+    preview_text = (
+        f"📝 <b>Yangi izohingizni tasdiqlaysizmi?</b>\n\n"
+        f"💬 <b>Yangi matn:</b>\n{user_text}"
+    )
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="✅ Tasdiqlash", 
+                    callback_data=f"confirm_edit_comm:{comment_id}"
+                ),
+                InlineKeyboardButton(
+                    text="🔄 Qayta kiritish", 
+                    callback_data=f"edit_comm:{comment_id}"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="❌ Bekor qilish", 
+                    callback_data=f"my_comm:{anime_id}:0"
+                )
+            ]
+        ]
+    )
+
+    try:
+        await bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=prompt_message_id,
+            text=preview_text,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    except Exception:
+        pass
+
+
+
+
+
+# =======================================================
+# 3. ✅ TASDIQLASH VA BAZAGA SAQLASH
+# =======================================================
+@router.callback_query(F.data.startswith("confirm_edit_comm:"))
+async def confirm_edit_comment_handler(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    comment_id = int(callback.data.split(":")[1])
+    data = await state.get_data()
+    
+    new_text = data.get("pending_new_text")
+    anime_id = data.get("anime_id")
+    user_id = callback.from_user.id
+
+    if not new_text:
+        await callback.answer("⚠️ Ma'lumot topshiriqda xatolik bo'ldi. Qaytadan urinib ko'ring.", show_alert=True)
+        await state.clear()
+        return
+
+    comment_service = CommentService(session)
+    success = await comment_service.update_comment(
+        comment_id=comment_id,
+        user_id=user_id,
+        anime_id=anime_id,
+        new_text=new_text
+    )
+
+    await state.clear()
+
+    if success:
+        await callback.answer("✅ Izohingiz muvaffaqiyatli yangilandi!", show_alert=True)
+        
+        # Izohlarga qaytarish uchun aiogram 3.x uchun xavfsiz model_copy bilan chaqiramiz
+        updated_callback = callback.model_copy(
+            update={"data": f"my_comm:{anime_id}:0"}
+        )
+        await handle_my_comments(updated_callback, session)
+    else:
+        await callback.answer("❌ Izohni yangilashda xatolik yuz berdi.", show_alert=True)

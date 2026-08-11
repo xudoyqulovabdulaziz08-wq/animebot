@@ -317,3 +317,32 @@ class CommentRepository:
             replies_data.append(r_dict)
 
         return replies_data
+    
+
+
+    # ================= UPDATE COMMENT =================
+    @staticmethod
+    async def update_text(
+        session: Any, 
+        comment_id: int, 
+        user_id: int, 
+        new_text: str
+    ) -> bool:
+        """
+        Izoh matnini yangilash. 
+        Faqat izoh egasi (user_id) oz izohini tahrirlay oladi.
+        """
+        real_session = await CommentRepository._prepare_session(session)
+
+        stmt = (
+            update(Comment)
+            .where(
+                Comment.id == comment_id,
+                Comment.user_id == user_id
+            )
+            .values(text=new_text)
+        )
+
+        result = await real_session.execute(stmt)
+        await real_session.flush()
+        return result.rowcount > 0
