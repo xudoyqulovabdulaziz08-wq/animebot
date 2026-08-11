@@ -319,47 +319,54 @@ async def handle_delete_comment_ask(callback: CallbackQuery):
 
 @router.callback_query(F.data.startswith("del_comm_confirm:"))
 async def handle_delete_comment_confirm(callback: CallbackQuery, session: AsyncSession):
-    parts = callback.data.split(":")
-    comment_id = int(parts[1])
-    anime_id = int(parts[2])
-    user_id = callback.from_user.id
+    try:
+        parts = callback.data.split(":")
+        comment_id = int(parts[1])
+        anime_id = int(parts[2])
+    except (IndexError, ValueError):
+        await callback.answer("❌ Noto'g'ri so'rov!", show_alert=True)
+        return
 
+    user_id = callback.from_user.id
     comment_service = CommentService(session)
 
     # 1. Bazadan va keshdan o'chiramiz
-    success = await comment_service.delete_comment(
-        comment_id=comment_id, 
-        user_id=user_id, 
-        anime_id=anime_id
-    )
+    try:
+        success = await comment_service.delete_comment(
+            comment_id=comment_id, 
+            user_id=user_id, 
+            anime_id=anime_id
+        )
+    except Exception as err:
+        logger.error(f"❌ Izohni o'chirishda xatolik: {err}", exc_info=True)
+        await callback.answer("❌ Tizimda xatolik yuz berdi.", show_alert=True)
+        return
 
     if not success:
         await callback.answer("❌ Izohni o'chirib bo'lmadi yoki u allaqachon o'chirilgan.", show_alert=True)
         return
 
-    # Alert beramiz
+    # 2. Alert chiqarish
     await callback.answer("🗑 Izohingiz muvaffaqiyatli o'chirildi!", show_alert=True)
 
-    # 2. Qolgan izohlar sonini tekshiramiz
+    # 3. Qolgan izohlar sonini tekshirish
     total_comments = await comment_service.get_user_comments_count(anime_id, user_id)
 
-    # 3. AGI (Agar boshqa izoh qolmagan bo'lsa) -> Anime izohlar bo'limiga qaytaramiz
+    # 4. Agar izohlar qolmagan bo'lsa -> Izohlar bosh sahifasiga qaytamiz
     if total_comments == 0:
-        callback.data = f"anime_comments:{anime_id}"
+        new_callback = callback.model_copy(update={"data": f"anime_comments:{anime_id}"})
+        try:
+            await anime_comment_handler(new_callback, session)
+        except Exception as e:
+            logger.error(f"anime_comment_handler chaqirishda xatolik: {e}")
         return
 
-    # 4. Boshqa izohlar bo'lsa -> 0-indeksdagi izohni ko'rsatish uchun qayta chaqiramiz
-    # Faqat model_copy qilmasdan data o'zgaruvchisini to'g'rilab beramiz
-    callback.data = f"my_comm:{anime_id}:0"
-    await anime_comment_handler(callback, session)
-    
-    # handle_my_comments ichidagi await callback.answer() xato bermasligi uchun try-except qilamiz
+    # 5. Boshqa izohlar bo'lsa -> Keyingi/oldingi izohni ko'rsatamiz
+    new_callback = callback.model_copy(update={"data": f"my_comm:{anime_id}:0"})
     try:
-        await handle_my_comments(callback, session)
-    except TelegramBadRequest:
-        pass
-
-
+        await handle_my_comments(new_callback, session)
+    except Exception as e:
+        logger.error(f"handle_my_comments chaqirishda xatolik: {e}")
 
 
 
