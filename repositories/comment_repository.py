@@ -273,3 +273,47 @@ class CommentRepository:
             c_dict["parent"] = None
 
         return c_dict
+    
+    # ================= GET COMMENT WITH REPLIES (OPTIMIZED) =================
+    @staticmethod
+    async def get_comment_replies_count(session: Any, comment_id: int) -> int:
+        """
+        💬 Bitta izohga qancha javob (reply) yozilganini sonini qaytaradi.
+        """
+        real_session = await CommentRepository._prepare_session(session)
+        stmt = select(func.count(Comment.id)).where(Comment.parent_id == comment_id)
+        result = await real_session.execute(stmt)
+        return result.scalar() or 0
+    
+
+    @staticmethod
+    async def get_comment_replies(
+        session: Any, 
+        comment_id: int, 
+        limit: int = 10, 
+        offset: int = 0
+    ) -> List[Dict]:
+        """
+        💬 Izohga yozilgan javoblarni muallifi bilan birga tortib beradi.
+        """
+        real_session = await CommentRepository._prepare_session(session)
+        
+        stmt = (
+            select(Comment)
+            .where(Comment.parent_id == comment_id)
+            .options(selectinload(Comment.user))
+            .order_by(Comment.created_at.asc())
+            .limit(limit)
+            .offset(offset)
+        )
+        result = await real_session.execute(stmt)
+        replies = result.scalars().all()
+
+        replies_data = []
+        for r in replies:
+            r_dict = r.to_dict()
+            if hasattr(r, "user") and r.user:
+                r_dict["user"] = r.user.to_dict()
+            replies_data.append(r_dict)
+
+        return replies_data

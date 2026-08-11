@@ -24,12 +24,14 @@ class CommentService:
     # ==================================================
     # 🧹 CACHE INVALIDATION HELPER
     # ==================================================
-    async def _invalidate_comment_caches(self, anime_id: int, user_id: int) -> None:
+    async def _invalidate_comment_caches(self, anime_id: int, user_id: int, parent_id: Optional[int] = None) -> None:
         """Izoh o'zgarganda tegishli barcha kesh to'plamini tozalash."""
         await self.cache.invalidate("anime_comments_count", anime_id, broadcast=True)
         await self.cache.invalidate("anime_comments_list", anime_id, broadcast=True)
         await self.cache.invalidate(f"user_comments_count:{user_id}", anime_id, broadcast=True)
         await self.cache.invalidate(f"user_comments_list:{user_id}", anime_id, broadcast=True)
+        if parent_id is not None:
+            await self.cache.invalidate(f"comment_replies:{parent_id}", "all", broadcast=True)
 
     # ==================================================
     # ➕ ADD COMMENT / REPLY (TRANSACTION SAFE)
@@ -212,3 +214,52 @@ class CommentService:
             )
 
         return comment_data
+
+    
+    # ==================================================
+    # 💬 GET COMMENT & REPLIES (CACHE-FIRST WITH PAGINATION)
+    # ==================================================
+    async def get_comment_replies_count(self, comment_id: int) -> int:
+        """
+        💬 Izoh javoblari sonini kesh-first yondashuvi bilan olish.
+        """
+        cache_namespace = f"comment_replies_count:{comment_id}"
+        cached_count = await self.cache.get(cache_namespace, "count")
+        
+        if cached_count is not None:
+            return cached_count
+
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        count = await self.repo.get_comment_replies_count(self.session, comment_id)
+        await self.cache.set(cache_namespace, "count", count, ttl=600)
+        return count
+    
+
+
+    async def get_comment_replies(
+        self, 
+        comment_id: int, 
+        limit: int = 10, 
+        offset: int = 0
+    ) -> List[Dict]:
+        """
+        🚀 Izoh javoblarini kesh orqali tezkor oladi.
+        """
+        cache_namespace = f"comment_replies_list:{comment_id}"
+        cache_key = f"limit_{limit}:offset_{offset}"
+
+        cached_data = await self.cache.get(cache_namespace, cache_key)
+        if cached_data is not None:
+            return cached_data
+
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        data = await self.repo.get_comment_replies(
+            self.session, comment_id, limit, offset
+        )
+
+        await self.cache.set(cache_namespace, cache_key, data, ttl=600)
+        return data

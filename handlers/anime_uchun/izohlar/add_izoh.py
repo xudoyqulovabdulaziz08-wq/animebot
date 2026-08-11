@@ -207,7 +207,8 @@ async def confirm_send_comment_handler(callback: CallbackQuery, state: FSMContex
         await comment_service.add_comment(
             anime_id=anime_id,
             user_id=callback.from_user.id,
-            text=comment_text
+            text=comment_text,
+            
         )
 
         # 2. FSM state'ni tozalaymiz
