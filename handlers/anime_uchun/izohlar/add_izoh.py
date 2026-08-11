@@ -143,9 +143,9 @@ async def process_comment_input(message: Message, state: FSMContext, session):
 
     preview_text = (
         f"💬 <b>Izohingiz</b>\n\n"
-        f"<blockquote>{safe_comment_text}</blockquote>\n\n"
+        f"<blockquote expandable>{safe_comment_text}</blockquote>\n\n"
         f"🎬 <b>{safe_anime_title}</b>\n\n"
-        f"Izohni yuborishni tasdiqlaysizmi?"
+        f"Izohingizni yuborasizmi?"
     )
 
     confirm_keyboard = InlineKeyboardMarkup(

@@ -32,8 +32,8 @@ def get_my_comments_keyboard(anime_id: int, total_count: int, current_index: int
         page_buttons.append(
             InlineKeyboardButton(
                 text=text,
-                callback_data=f"my_comm:{anime_id}:{i}",
-                style="primary"
+                callback_data=f"my_comm:{anime_id}:{i}"
+                
             )
         )
     if page_buttons:
@@ -104,10 +104,10 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
         text_lines.append(f"↩️ <i>{parent_author} ning izohiga javob:</i>")
         text_lines.append(f"┗ <i>\"{parent_text}\"</i>\n")
 
-    text_lines.append("┌─────────────────────────┐")
-    text_lines.append(f"│ 💬 <b>Izoh {current_index + 1}/{total_comments}</b>")
-    text_lines.append(f"│ {comment['text']}")
-    text_lines.append("└─────────────────────────┘")
+    
+    text_lines.append(f"💬 <b>Izoh {current_index + 1}/{total_comments}</b>\n")
+    text_lines.append(f"<blockquote expandable>{comment['text']}</blockquote>")
+    
 
     replies_count = comment.get("replies_count", 0)
     if replies_count > 0:
