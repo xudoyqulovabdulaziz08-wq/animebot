@@ -433,7 +433,8 @@ async def edit_comment_start_handler(callback: CallbackQuery, state: FSMContext,
     # 4. Matnni HTML xatolaridan himoyalash (html.escape)
     text = (
         f"✏️ <b>Izohni tahrirlash</b>\n\n"
-        f"📝 <b>Eski izoh:</b>\n<i>{html.escape(old_text)}</i>\n\n"
+        f"📝 <b>Eski izoh:</b>\n"
+        f"<blockquote expandable><i>{html.escape(old_text)}</i></blockquote>\n\n"
         f"✍️ Yangi izohni yuboring..."
     )
 
@@ -502,7 +503,8 @@ async def process_new_comment_text(message: types.Message, state: FSMContext, bo
     # 2. Botning tepadagi xabarini tahrirlab, tasdiqlash tugmalarini chiqaramiz
     preview_text = (
         f"📝 <b>Yangi izohingizni tasdiqlaysizmi?</b>\n\n"
-        f"💬 <b>Yangi matn:</b>\n{user_text}"
+        f"💬 <b>Yangi izohingiz:</b>\n"
+        f"<blockquote expandable><i>{html.escape(user_text)}</i></blockquote>"
     )
 
     keyboard = InlineKeyboardMarkup(
@@ -520,23 +522,40 @@ async def process_new_comment_text(message: types.Message, state: FSMContext, bo
             [
                 InlineKeyboardButton(
                     text="❌ Bekor qilish", 
-                    callback_data=f"my_comm:{anime_id}:0"
+                    callback_data=f"my_comm:{anime_id}:0",
+                    style="danger"
                 )
             ]
         ]
     )
 
+    # 3. Media bor/yo'qligiga qarab edit chaqiramiz
     try:
-        await bot.edit_message_text(
+        await bot.edit_message_caption(
             chat_id=message.chat.id,
             message_id=prompt_message_id,
-            text=preview_text,
+            caption=preview_text,
             reply_markup=keyboard,
             parse_mode="HTML"
         )
-    except Exception:
-        pass
-
+    except TelegramBadRequest as e:
+        error_msg = str(e).lower()
+        # Agar xabarda photo/media bo'lmasa, edit_message_text ga fallback qilamiz
+        if "there is no caption in the message to edit" in error_msg or "message has no caption" in error_msg:
+            try:
+                await bot.edit_message_text(
+                    chat_id=message.chat.id,
+                    message_id=prompt_message_id,
+                    text=preview_text,
+                    reply_markup=keyboard,
+                    parse_mode="HTML"
+                )
+            except Exception as err:
+                logger.error(f"❌ Text edit qilishda xato: {err}")
+        else:
+            logger.error(f"❌ Caption edit qilishda xato: {e}")
+    except Exception as err:
+        logger.error(f"❌ Kutilmagan xatolik: {err}")
 
 
 
@@ -546,35 +565,45 @@ async def process_new_comment_text(message: types.Message, state: FSMContext, bo
 # =======================================================
 @router.callback_query(F.data.startswith("confirm_edit_comm:"))
 async def confirm_edit_comment_handler(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    comment_id = int(callback.data.split(":")[1])
+    try:
+        comment_id = int(callback.data.split(":")[1])
+    except (IndexError, ValueError):
+        await callback.answer("❌ Noto'g'ri so'rov!", show_alert=True)
+        await state.clear()
+        return
+
     data = await state.get_data()
-    
     new_text = data.get("pending_new_text")
     anime_id = data.get("anime_id")
     user_id = callback.from_user.id
 
+    # 1. State va text validatsiyasi
     if not new_text:
-        await callback.answer("⚠️ Ma'lumot topshiriqda xatolik bo'ldi. Qaytadan urinib ko'ring.", show_alert=True)
+        await callback.answer("⚠️ Izoh matni topilmadi. Qaytadan urinib ko'ring.", show_alert=True)
         await state.clear()
         return
 
-    comment_service = CommentService(session)
-    success = await comment_service.update_comment(
-        comment_id=comment_id,
-        user_id=user_id,
-        anime_id=anime_id,
-        new_text=new_text
-    )
-
-    await state.clear()
-
-    if success:
-        await callback.answer("✅ Izohingiz muvaffaqiyatli yangilandi!", show_alert=True)
-        
-        # Izohlarga qaytarish uchun aiogram 3.x uchun xavfsiz model_copy bilan chaqiramiz
-        updated_callback = callback.model_copy(
-            update={"data": f"my_comm:{anime_id}:0"}
+    try:
+        comment_service = CommentService(session=session)
+        success = await comment_service.update_comment(
+            comment_id=comment_id,
+            user_id=user_id,
+            anime_id=anime_id,
+            new_text=new_text
         )
-        await handle_my_comments(updated_callback, session)
-    else:
-        await callback.answer("❌ Izohni yangilashda xatolik yuz berdi.", show_alert=True)
+
+        # 2. FSM state'ni tozalaymiz
+        await state.clear()
+
+        if success:
+            # 3. Yagona va muvaffaqiyatli alert chiqarish
+            await callback.answer("✅ Izohingiz muvaffaqiyatli yangilandi!", show_alert=True)
+
+            # 4. Izohlar bo'limiga qaytamiz
+            await handle_my_comments(callback, session)
+        else:
+            await callback.answer("❌ Izohni yangilashda xatolik yuz berdi.", show_alert=True)
+
+    except Exception as e:
+        logger.error(f"❌ Izohni tahrirlashda xatolik: {e}", exc_info=True)
+        await callback.answer("❌ Izohni saqlashda xatolik yuz berdi.", show_alert=True)
