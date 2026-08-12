@@ -30,9 +30,12 @@ class CommentService:
         await self.cache.invalidate("anime_comments_list", anime_id, broadcast=True)
         await self.cache.invalidate(f"user_comments_count:{user_id}", anime_id, broadcast=True)
         await self.cache.invalidate(f"user_comments_list:{user_id}", anime_id, broadcast=True)
+        
+        # 🟢 QO'SHILDI: Index bo'yicha keshni tozalash
+        await self.cache.invalidate(f"user_comments_list:{user_id}:{anime_id}", broadcast=True)
+        
         if parent_id is not None:
             await self.cache.invalidate(f"comment_replies:{parent_id}", "all", broadcast=True)
-
     # ==================================================
     # ➕ ADD COMMENT / REPLY (TRANSACTION SAFE)
     # ==================================================

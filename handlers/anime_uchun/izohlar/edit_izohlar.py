@@ -578,8 +578,7 @@ async def confirm_edit_comment_handler(callback: CallbackQuery, state: FSMContex
     anime_id = data.get("anime_id")
     user_id = callback.from_user.id
 
-    # 1. State va text validatsiyasi
-    if not new_text:
+    if not new_text or not anime_id:
         await callback.answer("⚠️ Izoh matni topilmadi. Qaytadan urinib ko'ring.", show_alert=True)
         await state.clear()
         return
@@ -593,14 +592,15 @@ async def confirm_edit_comment_handler(callback: CallbackQuery, state: FSMContex
             new_text=new_text
         )
 
-        # 2. FSM state'ni tozalaymiz
         await state.clear()
 
         if success:
-            # 3. Yagona va muvaffaqiyatli alert chiqarish
             await callback.answer("✅ Izohingiz muvaffaqiyatli yangilandi!", show_alert=True)
 
-            # 4. Izohlar bo'limiga qaytamiz
+            # 🟢 MUHIM: handle_my_comments callback.data orqali anime_id va indexni ajratadi
+            callback.data = f"my_comm:{anime_id}:0"
+            
+            # Izohlarga qaytib, xabar matnini/caption'ini yangilaymiz
             await handle_my_comments(callback, session)
         else:
             await callback.answer("❌ Izohni yangilashda xatolik yuz berdi.", show_alert=True)
