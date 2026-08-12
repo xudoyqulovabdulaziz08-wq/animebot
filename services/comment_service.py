@@ -24,19 +24,35 @@ class CommentService:
     # ==================================================
     # 🧹 CACHE INVALIDATION HELPER
     # ==================================================
-    async def _invalidate_comment_caches(self, anime_id: int, user_id: int, parent_id: Optional[int] = None) -> None:
+    async def _invalidate_comment_caches(
+    self, 
+        anime_id: int, 
+        user_id: int, 
+        comment_id: Optional[int] = None,
+        parent_id: Optional[int] = None
+    ) -> None:
         """Izoh o'zgarganda tegishli barcha kesh to'plamini tozalash."""
+    
+        # 1. Aniq komment keshini o'chirish
+        if comment_id:
+            await self.cache.invalidate(f"comment_detail:{comment_id}", broadcast=True)
+
+        # 2. Umumiy ro'yxatlar keshini tozalash
         await self.cache.invalidate("anime_comments_count", anime_id, broadcast=True)
         await self.cache.invalidate(f"anime_comments_list:{anime_id}", broadcast=True)
         await self.cache.invalidate(f"user_comments_count:{user_id}", anime_id, broadcast=True)
-        await self.cache.invalidate(f"user_comments_list:{user_id}", anime_id, broadcast=True)
-        
-        # 🟢 Index bo'yicha va muayyan anime keshi uchun namespace/kalitlarni to'liq tozalaymiz
+    
+        # 🟢 Pattern/Wildcard bo'yicha yoki ushbu kalitga tegishli barcha sub-keshlarni o'chirish
+        await self.cache.invalidate(f"user_comments_list:{user_id}", broadcast=True)
         await self.cache.invalidate(f"user_comments_list:{user_id}:{anime_id}", broadcast=True)
-        await self.cache.invalidate(f"user_comments_list:{user_id}:{anime_id}", "all", broadcast=True)
-        
+    
+        # Agar kesh menderjerda delete_by_pattern bo'lsa (Redis/Valkey):
+        if hasattr(self.cache, "delete_by_pattern"):
+            await self.cache.delete_by_pattern(f"*user_comments_list:{user_id}:*")
+            await self.cache.delete_by_pattern(f"*comment_detail:{comment_id}*")
+
         if parent_id is not None:
-            await self.cache.invalidate(f"comment_replies_count:{parent_id}", "count", broadcast=True)
+            await self.cache.invalidate(f"comment_replies_count:{parent_id}", broadcast=True)
             await self.cache.invalidate(f"comment_replies_list:{parent_id}", broadcast=True)
 
     # ==================================================
@@ -276,17 +292,22 @@ class CommentService:
             await self.session._ensure_session()
 
         try:
+            # 1. Avval izohni topamiz
             comment = await self.repo.get_by_id(self.session, comment_id)
             if not comment:
                 return False
 
+            # Dictionary yoki ORM obyektligiga qarab parent_id olish
+            parent_id = comment.get("parent_id") if isinstance(comment, dict) else getattr(comment, "parent_id", None)
+
+            # 2. Bazada matnni yangilash
             updated = await self.repo.update_text(
                 self.session, 
                 comment_id=comment_id, 
                 user_id=user_id, 
                 new_text=new_text
             )
-            
+        
             if not updated:
                 await self.session.rollback()
                 return False
@@ -294,12 +315,16 @@ class CommentService:
             if hasattr(self.session, "commit"):
                 await self.session.commit()
 
+            # 🟢 MUHIM: ORM Sessiya xotirasini (Identity Map) majburiy tozalash
+            # Bu get_user_comment_by_index chaqirilganda bazadan YANGI ma'lumotni o'qishga majbur qiladi
+            if hasattr(self.session, "expire_all"):
+                await self.session.expire_all()
+
             # 🔥 CACHE INVALIDATION
-            parent_id = comment.get("parent_id")
-            await self.cache.invalidate(f"comment_detail:{comment_id}", "data", broadcast=True)
             await self._invalidate_comment_caches(
                 anime_id=anime_id, 
                 user_id=user_id, 
+                comment_id=comment_id,
                 parent_id=parent_id
             )
 
