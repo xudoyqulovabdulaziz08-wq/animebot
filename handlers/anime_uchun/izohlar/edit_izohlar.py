@@ -393,7 +393,6 @@ async def handle_delete_comment_confirm(callback: CallbackQuery, session: AsyncS
 # =======================================================
 @router.callback_query(F.data.startswith("edit_comm:"))
 async def edit_comment_start_handler(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    # 1. ID va ma'lumotlarni xavfsiz ajratib olish
     try:
         comment_id = int(callback.data.split(":")[1])
     except (IndexError, ValueError):
@@ -409,18 +408,15 @@ async def edit_comment_start_handler(callback: CallbackQuery, state: FSMContext,
         await callback.answer("❌ Tizimda xatolik yuz berdi.", show_alert=True)
         return
 
-    # 2. Huquq va mavjudlikni tekshirish
     if not comment or comment.get("user_id") != callback.from_user.id:
         await callback.answer("❌ Izoh topilmadi yoki bu sizning izohingiz emas!", show_alert=True)
         return
 
-    # Callback so'roviga birinchi va yagona javob
     await callback.answer()
 
     anime_id = comment["anime_id"]
     old_text = comment.get("text", "")
 
-    # 3. FSM holatini o'rnatish
     await state.set_state(EditCommentStates.waiting_for_new_text)
     await state.update_data(
         edit_comment_id=comment_id,
@@ -429,7 +425,6 @@ async def edit_comment_start_handler(callback: CallbackQuery, state: FSMContext,
         old_text=old_text
     )
 
-    # 4. Matnni HTML xatolaridan himoyalash (html.escape)
     text = (
         f"✏️ <b>Izohni tahrirlash</b>\n\n"
         f"📝 <b>Eski izoh:</b>\n"
@@ -449,7 +444,6 @@ async def edit_comment_start_handler(callback: CallbackQuery, state: FSMContext,
         ]
     )
 
-    # 5. Telegram API xatolariga qarshi to'liq himoyalangan tahrirlash blok
     try:
         if callback.message.photo:
             await callback.message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
@@ -459,9 +453,8 @@ async def edit_comment_start_handler(callback: CallbackQuery, state: FSMContext,
     except TelegramBadRequest as e:
         error_msg = str(e).lower()
         if "message is not modified" in error_msg:
-            pass  # Xabar o'zgarmagan bo'lsa inkor qilamiz
+            pass
         elif "message to edit not found" in error_msg or "message can't be edited" in error_msg:
-            # Agar foydalanuvchi xabarni o'chirib yuborgan bo'lsa, yangi xabar yuboramiz
             msg = await callback.message.answer(text=text, reply_markup=keyboard, parse_mode="HTML")
             await state.update_data(prompt_message_id=msg.message_id)
         else:
@@ -469,9 +462,6 @@ async def edit_comment_start_handler(callback: CallbackQuery, state: FSMContext,
             
     except Exception as err:
         logger.error(f"❌ Kutilmagan xatolik: {err}")
-        await callback.message.answer("⚠️ Xabarni tahrirlashda kutilmagan xatolik yuz berdi.")
-
-
 
 
 # =======================================================
@@ -486,20 +476,16 @@ async def process_new_comment_text(message: types.Message, state: FSMContext, bo
     anime_id = data.get("anime_id")
     comment_id = data.get("edit_comment_id")
 
-    # 1. Foydalanuvchi yuborgan xabarni tozalaymiz
     try:
         await message.delete()
     except Exception:
         pass
 
-    # Validator
     if not user_text or len(user_text) < 2:
         return
 
-    # FSM xotirada yangi kiritilgan matnni saqlab turamiz
     await state.update_data(pending_new_text=user_text)
 
-    # 2. Botning tepadagi xabarini tahrirlab, tasdiqlash tugmalarini chiqaramiz
     preview_text = (
         f"📝 <b>Yangi izohingizni tasdiqlaysizmi?</b>\n\n"
         f"💬 <b>Yangi izohingiz:</b>\n"
@@ -530,7 +516,6 @@ async def process_new_comment_text(message: types.Message, state: FSMContext, bo
         ]
     )
 
-    # 3. Media bor/yo'qligiga qarab edit chaqiramiz
     try:
         await bot.edit_message_caption(
             chat_id=message.chat.id,
@@ -541,7 +526,6 @@ async def process_new_comment_text(message: types.Message, state: FSMContext, bo
         )
     except TelegramBadRequest as e:
         error_msg = str(e).lower()
-        # Agar xabarda photo/media bo'lmasa, edit_message_text ga fallback qilamiz
         if "there is no caption in the message to edit" in error_msg or "message has no caption" in error_msg:
             try:
                 await bot.edit_message_text(
@@ -557,8 +541,6 @@ async def process_new_comment_text(message: types.Message, state: FSMContext, bo
             logger.error(f"❌ Caption edit qilishda xato: {e}")
     except Exception as err:
         logger.error(f"❌ Kutilmagan xatolik: {err}")
-
-
 
 
 # =======================================================
@@ -592,17 +574,18 @@ async def confirm_edit_comment_handler(callback: CallbackQuery, state: FSMContex
             new_text=new_text
         )
 
+        # FSM holatni tozalaymiz
         await state.clear()
 
         if success:
             await callback.answer("✅ Izohingiz muvaffaqiyatli yangilandi!", show_alert=True)
 
-            # 🟢 Pydantic V2/Aiogram 3 xavfsiz obyekt nusxalash:
+            # Aiogram 3 xavfsiz model nusxasi
             new_callback = callback.model_copy(
                 update={"data": f"my_comm:{anime_id}:0"}
             )
             
-            # Yangilangan callback nusxasini uzatamiz
+            # Kesh tozalangach, yangi ro'yxatni yuklaymiz
             await handle_my_comments(new_callback, session)
         else:
             await callback.answer("❌ Izohni yangilashda xatolik yuz berdi.", show_alert=True)
