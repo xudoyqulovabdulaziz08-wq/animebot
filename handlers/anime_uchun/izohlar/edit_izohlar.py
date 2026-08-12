@@ -102,7 +102,7 @@ def get_comment_replies_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
-@router.callback_query(lambda c: c.data.startswith(("my_comm:", "my_comments:")))
+@router.callback_query(F.data.startswith("my_comm:") | F.data.startswith("my_comments:"))
 async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
     parts = callback.data.split(":")
     anime_id = int(parts[1])
@@ -112,64 +112,61 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
     comment_service = CommentService(session)
     anime_service = AnimeService(session=session)
     
-    # 1. Parallel ravishda anime ma'lumoti va foydalanuvchi izohlari sonini olamiz
-    # ✅ TO'G'RI USLUB (ketma-ket ijro etish):
+    # 1. Ma'lumotlarni olamiz
     anime = await anime_service.get_anime(anime_id)
     total_comments = await comment_service.get_user_comments_count(anime_id, user_id)
 
     if total_comments == 0:
         await callback.answer(
-        "💬 Bu yerda hali sizning izohingiz yo‘q.\n"
-        "✍️ Birinchi bo‘lib fikringizni qoldiring!",
+            "💬 Bu yerda hali sizning izohingiz yo‘q.\n"
+            "✍️ Birinchi bo‘lib fikringizni qoldiring!",
             show_alert=True
         )
         return
 
-    # Index chegaradan chiqmasligi uchun
+    # Index chegarasini to'g'rilash
     if current_index >= total_comments:
         current_index = total_comments - 1
     elif current_index < 0:
         current_index = 0
 
-    # Index bo'yicha joriy izohni olamiz
+    # Bazadan/keshdan joriy izohni olish
     comment = await comment_service.get_user_comment_by_index(anime_id, user_id, current_index)
     if not comment:
         await callback.answer("Izoh topilmadi.", show_alert=True)
         return
 
-    # 🟢 SHU YERGA QO'SHILADI: Ushbu izohga yozilgan javoblar sonini await qilib olamiz
     replies_count = await comment_service.get_comment_replies_count(comment["id"])
-
     anime_title = anime.get("title", "Anime") if isinstance(anime, dict) else getattr(anime, "title", "Anime")
 
-    # Matnni shakllantirish
+    # 2. HTML escaping bilan matn tayyorlash
     text_lines = [
         "💬 <b>Izohlarim</b>\n",
-        f"🎬 <b>{anime_title}</b>\n"
+        f"🎬 <b>{html.escape(str(anime_title))}</b>\n"
     ]
 
     if comment.get("parent"):
-        parent_author = comment["parent"]["author_name"]
-        parent_text = comment["parent"]["text"]
+        parent_author = html.escape(str(comment["parent"]["author_name"]))
+        parent_text = html.escape(str(comment["parent"]["text"]))
         text_lines.append(f"↩️ <i>{parent_author} ning izohiga javob:</i>")
         text_lines.append(f"┗<blockquote expandable><i>\"{parent_text}\"</i></blockquote>\n")
 
     text_lines.append(f"💬 <b>Izoh {current_index + 1}/{total_comments}</b>\n")
-    text_lines.append(f"<blockquote expandable>{comment['text']}</blockquote>")
+    text_lines.append(f"<blockquote expandable>{html.escape(str(comment['text']))}</blockquote>")
 
     caption = "\n".join(text_lines)
 
-    # 🟢 replies_count parametringiz get_my_comments_keyboard ichiga beriladi
     keyboard = get_my_comments_keyboard(
         anime_id=anime_id,
         total_count=total_comments,
         current_index=current_index,
         comment_id=comment["id"],
-        replies_count=replies_count  # <--- Shu yerda uzatiladi
+        replies_count=replies_count
     )
 
+    # 3. Xabarni xavfsiz va kafolatli yangilash
     try:
-        if callback.message.photo:
+        if callback.message.photo or callback.message.document:
             await callback.message.edit_caption(
                 caption=caption,
                 reply_markup=keyboard,
@@ -182,10 +179,23 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
                 parse_mode="HTML"
             )
     except TelegramBadRequest as e:
-        if "message is not modified" not in e.message.lower():
-            raise e
+        err_msg = str(e).lower()
+        if "message is not modified" in err_msg:
+            pass
+        elif "there is no caption" in err_msg or "message has no caption" in err_msg:
+            # Agar xabarda caption bo'lmasa, edit_text ga o'tamiz
+            await callback.message.edit_text(
+                text=caption,
+                reply_markup=keyboard,
+                parse_mode="HTML"
+            )
+        else:
+            logger.error(f"❌ handle_my_comments edit xatosi: {e}")
 
-    await callback.answer()
+    try:
+        await callback.answer()
+    except Exception:
+        pass
 
 
 
@@ -580,12 +590,10 @@ async def confirm_edit_comment_handler(callback: CallbackQuery, state: FSMContex
         if success:
             await callback.answer("✅ Izohingiz muvaffaqiyatli yangilandi!", show_alert=True)
 
-            # Aiogram 3 xavfsiz model nusxasi
+            # Callback data'ni almashtirib yangi nusxa uzatamiz
             new_callback = callback.model_copy(
                 update={"data": f"my_comm:{anime_id}:0"}
             )
-            
-            # Kesh tozalangach, yangi ro'yxatni yuklaymiz
             await handle_my_comments(new_callback, session)
         else:
             await callback.answer("❌ Izohni yangilashda xatolik yuz berdi.", show_alert=True)
