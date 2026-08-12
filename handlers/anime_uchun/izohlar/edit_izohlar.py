@@ -597,11 +597,13 @@ async def confirm_edit_comment_handler(callback: CallbackQuery, state: FSMContex
         if success:
             await callback.answer("✅ Izohingiz muvaffaqiyatli yangilandi!", show_alert=True)
 
-            # 🟢 MUHIM: handle_my_comments callback.data orqali anime_id va indexni ajratadi
-            callback.data = f"my_comm:{anime_id}:0"
+            # 🟢 Pydantic V2/Aiogram 3 xavfsiz obyekt nusxalash:
+            new_callback = callback.model_copy(
+                update={"data": f"my_comm:{anime_id}:0"}
+            )
             
-            # Izohlarga qaytib, xabar matnini/caption'ini yangilaymiz
-            await handle_my_comments(callback, session)
+            # Yangilangan callback nusxasini uzatamiz
+            await handle_my_comments(new_callback, session)
         else:
             await callback.answer("❌ Izohni yangilashda xatolik yuz berdi.", show_alert=True)
 
