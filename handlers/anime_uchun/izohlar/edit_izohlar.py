@@ -113,10 +113,9 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
     anime_service = AnimeService(session=session)
     
     # 1. Parallel ravishda anime ma'lumoti va foydalanuvchi izohlari sonini olamiz
-    anime, total_comments = await asyncio.gather(
-        anime_service.get_anime(anime_id),
-        comment_service.get_user_comments_count(anime_id, user_id)
-    )
+    # ✅ TO'G'RI USLUB (ketma-ket ijro etish):
+    anime = await anime_service.get_anime(anime_id)
+    total_comments = await comment_service.get_user_comments_count(anime_id, user_id)
 
     if total_comments == 0:
         await callback.answer(
@@ -512,11 +511,13 @@ async def process_new_comment_text(message: types.Message, state: FSMContext, bo
             [
                 InlineKeyboardButton(
                     text="✅ Tasdiqlash", 
-                    callback_data=f"confirm_edit_comm:{comment_id}"
+                    callback_data=f"confirm_edit_comm:{comment_id}",
+                    style="success"
                 ),
                 InlineKeyboardButton(
                     text="🔄 Qayta kiritish", 
-                    callback_data=f"edit_comm:{comment_id}"
+                    callback_data=f"edit_comm:{comment_id}",
+                    style="primary"
                 )
             ],
             [
