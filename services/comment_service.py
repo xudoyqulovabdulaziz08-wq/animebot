@@ -318,7 +318,7 @@ class CommentService:
             # 🟢 MUHIM: ORM Sessiya xotirasini (Identity Map) majburiy tozalash
             # Bu get_user_comment_by_index chaqirilganda bazadan YANGI ma'lumotni o'qishga majbur qiladi
             if hasattr(self.session, "expire_all"):
-                await self.session.expire_all()
+                self.session.expire_all()
 
             # 🔥 CACHE INVALIDATION
             await self._invalidate_comment_caches(
