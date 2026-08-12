@@ -25,31 +25,35 @@ class CommentService:
     # 🧹 CACHE INVALIDATION HELPER
     # ==================================================
     async def _invalidate_comment_caches(
-    self, 
-        anime_id: int, 
-        user_id: int, 
+        self,
+        anime_id: int,
+        user_id: int,
         comment_id: Optional[int] = None,
         parent_id: Optional[int] = None
     ) -> None:
         """Izoh o'zgarganda tegishli barcha kesh to'plamini tozalash."""
-    
-        # 1. Aniq komment keshini o'chirish
+
+        # 1. Aniq komment keshini va uning o'z javoblari keshini o'chirish
+        #    (komment o'chirilganda yoki tahrirlanganda uning replies keshi ham eskiradi)
         if comment_id:
             await self.cache.invalidate(f"comment_detail:{comment_id}", broadcast=True)
+            await self.cache.invalidate(f"comment_replies_count:{comment_id}", broadcast=True)
+            await self.cache.invalidate(f"comment_replies_list:{comment_id}", broadcast=True)
 
         # 2. Umumiy ro'yxatlar keshini tozalash
         await self.cache.invalidate("anime_comments_count", anime_id, broadcast=True)
         await self.cache.invalidate(f"anime_comments_list:{anime_id}", broadcast=True)
         await self.cache.invalidate(f"user_comments_count:{user_id}", anime_id, broadcast=True)
-    
+
         # 🟢 Pattern/Wildcard bo'yicha yoki ushbu kalitga tegishli barcha sub-keshlarni o'chirish
         await self.cache.invalidate(f"user_comments_list:{user_id}", broadcast=True)
         await self.cache.invalidate(f"user_comments_list:{user_id}:{anime_id}", broadcast=True)
-    
+
         # Agar kesh menderjerda delete_by_pattern bo'lsa (Redis/Valkey):
         if hasattr(self.cache, "delete_by_pattern"):
             await self.cache.delete_by_pattern(f"*user_comments_list:{user_id}:*")
-            await self.cache.delete_by_pattern(f"*comment_detail:{comment_id}*")
+            if comment_id:
+                await self.cache.delete_by_pattern(f"*comment_detail:{comment_id}*")
 
         if parent_id is not None:
             await self.cache.invalidate(f"comment_replies_count:{parent_id}", broadcast=True)
@@ -98,9 +102,9 @@ class CommentService:
     # 📋 GET ANIME COMMENTS (CACHE-FIRST)
     # ==================================================
     async def get_anime_comments(
-        self, 
-        anime_id: int, 
-        limit: int = 20, 
+        self,
+        anime_id: int,
+        limit: int = 20,
         offset: int = 0
     ) -> List[Dict]:
         cache_key = f"{limit}:{offset}"
@@ -170,7 +174,7 @@ class CommentService:
     ) -> Optional[Dict[str, Any]]:
         cache_key = f"user_comment_idx:{index}"
         namespace = f"user_comments_list:{user_id}:{anime_id}"
-        
+
         cached = await self.cache.get(namespace, cache_key)
         if cached is not None:
             return cached
@@ -195,9 +199,9 @@ class CommentService:
     async def get_comment_replies_count(self, comment_id: int) -> int:
         cache_namespace = f"comment_replies_count:{comment_id}"
         cached_count = await self.cache.get(cache_namespace, "count")
-        
+
         if cached_count is not None:
-            return cached_count
+            return int(cached_count)
 
         if hasattr(self.session, "_ensure_session"):
             await self.session._ensure_session()
@@ -207,9 +211,9 @@ class CommentService:
         return count
 
     async def get_comment_replies(
-        self, 
-        comment_id: int, 
-        limit: int = 10, 
+        self,
+        comment_id: int,
+        limit: int = 10,
         offset: int = 0
     ) -> List[Dict]:
         cache_namespace = f"comment_replies_list:{comment_id}"
@@ -252,31 +256,42 @@ class CommentService:
         if hasattr(self.session, "_ensure_session"):
             await self.session._ensure_session()
 
-        comment = await self.repo.get_by_id(self.session, comment_id)
-        if not comment:
-            return False
+        try:
+            comment = await self.repo.get_by_id(self.session, comment_id)
+            if not comment:
+                return False
 
-        parent_id = comment.get("parent_id")
-        actual_anime_id = anime_id or comment.get("anime_id", 0)
-        actual_user_id = user_id or comment.get("user_id")
+            parent_id = comment.get("parent_id")
+            actual_anime_id = anime_id or comment.get("anime_id", 0)
+            actual_user_id = user_id or comment.get("user_id")
 
-        deleted = await self.repo.delete(self.session, comment_id, user_id)
-        if not deleted:
-            await self.session.rollback()
-            return False
+            deleted = await self.repo.delete(self.session, comment_id, user_id)
+            if not deleted:
+                if hasattr(self.session, "rollback"):
+                    await self.session.rollback()
+                return False
 
-        if hasattr(self.session, "commit"):
-            await self.session.commit()
+            if hasattr(self.session, "commit"):
+                await self.session.commit()
 
-        # Keshni invalidatsiya qilamiz
-        await self.cache.invalidate(f"comment_detail:{comment_id}", "data", broadcast=True)
-        await self._invalidate_comment_caches(
-            anime_id=actual_anime_id, 
-            user_id=actual_user_id, 
-            parent_id=parent_id
-        )
+            # 🔥 CACHE INVALIDATION
+            # comment_id beriladi — shu orqali comment_detail HAMDA shu kommentning
+            # o'z javoblari (comment_replies_count/list) keshi ham tozalanadi.
+            await self._invalidate_comment_caches(
+                anime_id=actual_anime_id,
+                user_id=actual_user_id,
+                comment_id=comment_id,
+                parent_id=parent_id
+            )
 
-        return True
+            logger.info(f"🗑 Izoh o'chirildi: ID={comment_id} | User={actual_user_id}")
+            return True
+
+        except Exception as e:
+            if hasattr(self.session, "rollback"):
+                await self.session.rollback()
+            logger.error(f"❌ Izohni o'chirishda xato yuz berdi: {e}")
+            raise e
 
     # ==================================================
     # ✏️ EDIT COMMENT (TRANSACTION SAFE)
@@ -302,14 +317,15 @@ class CommentService:
 
             # 2. Bazada matnni yangilash
             updated = await self.repo.update_text(
-                self.session, 
-                comment_id=comment_id, 
-                user_id=user_id, 
+                self.session,
+                comment_id=comment_id,
+                user_id=user_id,
                 new_text=new_text
             )
-        
+
             if not updated:
-                await self.session.rollback()
+                if hasattr(self.session, "rollback"):
+                    await self.session.rollback()
                 return False
 
             if hasattr(self.session, "commit"):
@@ -322,8 +338,8 @@ class CommentService:
 
             # 🔥 CACHE INVALIDATION
             await self._invalidate_comment_caches(
-                anime_id=anime_id, 
-                user_id=user_id, 
+                anime_id=anime_id,
+                user_id=user_id,
                 comment_id=comment_id,
                 parent_id=parent_id
             )

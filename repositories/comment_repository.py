@@ -247,8 +247,13 @@ class CommentRepository:
                 Comment.anime_id == anime_id,
                 Comment.user_id == user_id
             )
-            .group_by(Comment.id, ParentComment.id, ParentUser.user_id)  # <-- ParentUser.id -> ParentUser.user_id
-            .order_by(Comment.created_at.desc())
+            .group_by(
+                Comment.id,
+                Comment.created_at,
+                ParentComment.id,
+                ParentUser.user_id
+            )  # 🟢 barcha non-aggregate ustunlar GROUP BY'ga kiritildi (SQL standarti)
+            .order_by(Comment.created_at.desc(), Comment.id.desc())  # 🟢 teng created_at holatida determinizm
             .limit(1)
             .offset(index)
         )
