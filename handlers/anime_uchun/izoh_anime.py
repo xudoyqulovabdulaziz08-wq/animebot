@@ -36,6 +36,7 @@ async def anime_comment_handler(callback: CallbackQuery, session):
         comment_count = await comment_service.get_comments_count(anime_id)
         user_comments = await comment_service.get_user_comments_count(anime_id, user_id) or 0
         btn_text = f"📝 Izohlarim ({user_comments} ta)" if user_comments > 0 else "🗨️ Izohlarim"
+        edit_text_btn = f"💬 Izohlar ({comment_count} ta)" if comment_count > 0 else "💬 Izohlar"
         anime_title = anime.get("title", "Anime") if isinstance(anime, dict) else getattr(anime, "title", "Anime")
 
         text = (
@@ -48,7 +49,7 @@ async def anime_comment_handler(callback: CallbackQuery, session):
             inline_keyboard=[
                 [
                     InlineKeyboardButton(text="✍️ Izoh yozish", callback_data=f"add_comment:{anime_id}", style="success"),
-                    InlineKeyboardButton(text="💬 Izohlar", callback_data=f"view_comments:{anime_id}:1", style="primary")
+                    InlineKeyboardButton(text=edit_text_btn, callback_data=f"view_comments:{anime_id}:1", style="primary")
                 ],
                 [
                     InlineKeyboardButton(text=btn_text, callback_data=f"my_comments:{anime_id}", style="primary")
