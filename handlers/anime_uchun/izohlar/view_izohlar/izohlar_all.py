@@ -97,7 +97,7 @@ def get_view_comments_keyboard(
     keyboard.append([
         InlineKeyboardButton(
             text="↩️ Javob yozish",
-            callback_data=f"add_comment:{anime_id}:{comment_id}",
+            callback_data=f"add_reply_comment:{anime_id}:{comment_id}",
             style="primary"
         ),
         InlineKeyboardButton(
@@ -174,7 +174,7 @@ async def view_comments_handler(callback: CallbackQuery, session) -> None:
             f"🎬 {html.escape(str(anime_title))}\n"
             f"📃 {total_comments} ta izoh\n\n"
             f"👤 {html.escape(str(user_name))}\n"
-            f"⌊ <blockquote expandable>{html.escape(str(comment.get('text', '')))}</blockquote>\n"
+            f"<blockquote expandable>{html.escape(str(comment.get('text', '')))}</blockquote>\n"
         )
 
         keyboard = get_view_comments_keyboard(

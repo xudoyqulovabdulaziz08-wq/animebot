@@ -148,10 +148,15 @@ def get_comment_replies_keyboard(
         page_buttons = []
         for i in range(total_count):
             text = f"• {i + 1} •" if i == current_index else str(i + 1)
+        
+            # 🟢 Faqat aktiv bo'lgan tugmaga style="success" beriladi
+            btn_style = "success" if i == current_index else None
+        
             page_buttons.append(
                 InlineKeyboardButton(
                     text=text,
-                    callback_data=f"rep_page:{comment_id}:{anime_id}:{i}"
+                    callback_data=f"rep_page:{comment_id}:{anime_id}:{i}",
+                    style=btn_style  # <-- Mana shu yerga qo'yiladi!
                 )
             )
         keyboard.append(page_buttons)

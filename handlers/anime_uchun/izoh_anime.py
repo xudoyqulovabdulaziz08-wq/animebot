@@ -49,7 +49,7 @@ async def anime_comment_handler(callback: CallbackQuery, session):
             inline_keyboard=[
                 [
                     InlineKeyboardButton(text="✍️ Izoh yozish", callback_data=f"add_comment:{anime_id}", style="success"),
-                    InlineKeyboardButton(text=edit_text_btn, callback_data=f"view_comments:{anime_id}:1", style="primary")
+                    InlineKeyboardButton(text=edit_text_btn, callback_data=f"view_comments:{anime_id}:0", style="primary")
                 ],
                 [
                     InlineKeyboardButton(text=btn_text, callback_data=f"my_comments:{anime_id}", style="primary")
