@@ -102,7 +102,7 @@ def get_view_comments_keyboard(
         ),
         InlineKeyboardButton(
             text=f"💬 {replies_count} ta javob",
-            callback_data=f"reply_comm:{comment_id}:{anime_id}",
+            callback_data=f"reply_all_commend:{comment_id}:{anime_id}",
             style="primary"
         )
     ])
