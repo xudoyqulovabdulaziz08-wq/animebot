@@ -5,10 +5,15 @@ from handlers.search import (
 from handlers.anime_uchun import (
     baholash_anime, izoh_anime, obuna_anime, sevimli_anime
 )
-from handlers.anime_uchun.izohlar import (
-    add_izoh, edit_izohlar
-)
 
+from handlers.anime_uchun.izohlar.add_izohlar import (
+    add_izoh,
+    add_edit
+)
+from handlers.anime_uchun.izohlar.izohlarim import (
+    edit_izohlarim,
+    del_izohlarim
+)
 anime_router = Router()
 
 anime_router.include_routers(
@@ -24,5 +29,7 @@ anime_router.include_routers(
     obuna_anime.router,
     sevimli_anime.router,
     add_izoh.router,
-    edit_izohlar.router,
+    add_edit.router,
+    edit_izohlarim,
+    del_izohlarim
 )
