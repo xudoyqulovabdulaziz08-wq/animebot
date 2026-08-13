@@ -1,5 +1,6 @@
 
 import html
+import math
 import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery
@@ -47,65 +48,88 @@ async def safe_answer(callback: CallbackQuery, text: Optional[str] = None, show_
 
 
 
+
+
 def get_reply_all_comments_keyboard(
     comment_id: int,
     anime_id: int,
-    total_count: int,
-    current_index: int,
+    page_replies_count: int,  # Shu sahifadagi javoblar soni (max 10)
+    current_select_index: int, # Sahifa ichidagi tanlangan index (0-9)
+    current_page: int,        # Hozirgi sahifa (0, 1, 2...)
+    total_pages: int,         # Jami sahifalar soni
     current_reply_id: int,
     reply_to_reply_count: int = 0
 ) -> InlineKeyboardMarkup:
-    """
-    💬 Izohning barcha javoblarini (replies) ko'rish uchun maxsus klaviaturasi
-    """
     keyboard: list[list[InlineKeyboardButton]] = []
 
-    # 1. ↩️ Javob yozish | 💬 X ta javob
-    row1 = [
+    # ==================================================
+    # 1-QATOR: Raqamli tugmalar (1 | 2 | 3 ... max 10 ta)
+    # ==================================================
+    if page_replies_count > 0:
+        num_buttons = []
+        
+        for i in range(page_replies_count):
+            is_active = i == current_select_index
+            btn_text = f"• {i + 1} •" if i == current_select_index else f"{i + 1}"
+            
+            # Raqam bosilganda: shu sahifadagi (current_page) i-indexdagi reply tanlanadi
+            cb_data = "noop" if i == current_select_index else f"rep_sel:{comment_id}:{anime_id}:{current_page}:{i}"
+            num_buttons.append(
+                InlineKeyboardButton(
+                    text=btn_text, 
+                    callback_data=cb_data, 
+                    style="success" if is_active else None
+                )
+            )
+        
+        # 5 tadan qilib 2 qatorga bo'lamiz
+        for i in range(0, len(num_buttons), 5):
+            keyboard.append(num_buttons[i:i + 5])
+
+    # ==================================================
+    # 2-QATOR: Sahifalash (◀️ Oldingi | 📄 X/Y | Keyingi ▶️)
+    # Faqat total_pages > 1 bo'lgandagina ko'rinadi!
+    # ==================================================
+    if total_pages > 1:
+        prev_page = current_page - 1
+        next_page = current_page + 1
+
+        prev_cb = f"rep_page:{comment_id}:{anime_id}:{prev_page}:0" if prev_page >= 0 else "noop"
+        next_cb = f"rep_page:{comment_id}:{anime_id}:{next_page}:0" if next_page < total_pages else "noop"
+
+        row_nav = []
+        if prev_page >= 0:
+            row_nav.append(InlineKeyboardButton(text="◀️ Oldingi", callback_data=prev_cb, style="primary"))
+        
+        row_nav.append(InlineKeyboardButton(text=f"📄 {current_page + 1}/{total_pages}", callback_data="noop", style="primary"))
+        
+        if next_page < total_pages:
+            row_nav.append(InlineKeyboardButton(text="Keyingi ▶️", callback_data=next_cb, style="primary"))
+
+        keyboard.append(row_nav)
+
+    # ==================================================
+    # 3-QATOR: ↩️ Javob | 💬 X ta javob
+    # ==================================================
+    row_actions = [
         InlineKeyboardButton(
             text="↩️ Javob yozish",
             callback_data=f"reply_to:{current_reply_id}:{anime_id}",
-
+            style="primary"
         ),
         InlineKeyboardButton(
             text=f"💬 {reply_to_reply_count} ta javob",
-            callback_data=f"reply_all_commend:{current_reply_id}:{anime_id}" if reply_to_reply_count > 0 else "noop"
+            callback_data=f"reply_all_commend:{current_reply_id}:{anime_id}" if reply_to_reply_count > 0 else "noop",
+            style="primary"
         )
     ]
-    keyboard.append(row1)
+    keyboard.append(row_actions)
 
-    # 2. Raqamli tugmalar (1 | 2 | 3) - har bir javob uchun
-    if total_count > 1:
-        num_buttons = []
-        for i in range(total_count):
-            # Joriy tanlangan sahifani alohida ajratib ko'rsatamiz: [ 1 ]
-            btn_text = f"[{i + 1}]" if i == current_index else f"{i + 1}"
-            cb_data = "noop" if i == current_index else f"rep_all_page:{comment_id}:{anime_id}:{i}"
-            num_buttons.append(InlineKeyboardButton(text=btn_text, callback_data=cb_data))
-        
-        # Agar raqamlar ko'p bo'lsa (masalan 5 tadan ortiq), qatorlarga bo'lamiz
-        chunk_size = 5
-        for i in range(0, len(num_buttons), chunk_size):
-            keyboard.append(num_buttons[i:i + chunk_size])
-
-    # 3. ◀️ Oldingi | 📄 Page | Keyingi ▶️
-    if total_count > 1:
-        prev_index = current_index - 1
-        next_index = current_index + 1
-
-        prev_cb = f"rep_all_page:{comment_id}:{anime_id}:{prev_index}" if prev_index >= 0 else "noop"
-        next_cb = f"rep_all_page:{comment_id}:{anime_id}:{next_index}" if next_index < total_count else "noop"
-
-        row_nav = [
-            InlineKeyboardButton(text="◀️ Oldingi", callback_data=prev_cb),
-            InlineKeyboardButton(text=f"📄 {current_index + 1}/{total_count}", callback_data="noop"),
-            InlineKeyboardButton(text="Keyingi ▶️", callback_data=next_cb)
-        ]
-        keyboard.append(row_nav)
-
-    # 4. ⬅️ Orqaga
+    # ==================================================
+    # 4-QATOR: ⬅️ Orqaga
+    # ==================================================
     keyboard.append([
-        InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"view_comments:{anime_id}:0")
+        InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"view_comments:{anime_id}:0", style="danger")
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -117,20 +141,18 @@ def get_reply_all_comments_keyboard(
 
 
 
-
 # from utils.helpers import safe_answer  # o'zingizning safe_answer funksiyangiz
 
-logger = logging.getLogger(__name__)
-router = Router()
 
-@router.callback_query(F.data.startswith(("reply_all_commend:", "rep_all_page:")))
+
+@router.callback_query(F.data.startswith(("reply_all_commend:", "rep_page:", "rep_sel:")))
 async def handle_reply_all_comments(callback: CallbackQuery, session: AsyncSession):
-    # 1. callback_data xavfsiz parse qilish
     try:
         parts = callback.data.split(":")
         comment_id = int(parts[1])
         anime_id = int(parts[2])
-        current_index = int(parts[3]) if len(parts) > 3 and parts[3] else 0
+        page = int(parts[3]) if len(parts) > 3 and parts[3] else 0
+        select_index = int(parts[4]) if len(parts) > 4 and parts[4] else 0
     except (IndexError, ValueError):
         await safe_answer(callback, "❌ Noto'g'ri so'rov!", show_alert=True)
         return
@@ -138,109 +160,91 @@ async def handle_reply_all_comments(callback: CallbackQuery, session: AsyncSessi
     comment_service = CommentService(session)
 
     try:
-        # 2. Ota-izoh (Parent Comment) ma'lumotlarini kesh/bazadan olish
+        # 1. Asosiy comment (Parent comment) ma'lumotlarini olish
         parent_comment = await comment_service.get_comment_by_id(comment_id)
         if not parent_comment:
-            await safe_answer(callback, "❌ Ota-izoh topilmadi yoki o'chirilgan.", show_alert=True)
+            await safe_answer(callback, "❌ Asosiy izoh topilmadi.", show_alert=True)
             return
 
-        # 3. Shu ota-izohga yozilgan BARCHA javoblarni olish
-        replies = await comment_service.get_comment_replies(comment_id, limit=50, offset=0)
-
-        # Javoblar yo'qligini tekshirish
-        if not replies:
-            await safe_answer(
-                callback,
-                "💬 Hozircha bu izohga hech kim javob yozmagan.",
-                show_alert=True
-            )
+        # 2. Jami javoblar sonini olish va Sahifani (Pagination) hisoblash
+        total_replies_count = await comment_service.get_comment_replies_count(comment_id)
+        if total_replies_count == 0:
+            await safe_answer(callback, "💬 Bu izohga hali javob yozilmagan.", show_alert=True)
             return
 
-        total_replies = len(replies)
+        PAGE_SIZE = 10
+        total_pages = math.ceil(total_replies_count / PAGE_SIZE)
 
-        # Index chegarasini to'g'rilash
-        if current_index >= total_replies:
-            current_index = total_replies - 1
-        elif current_index < 0:
-            current_index = 0
+        # Chegaralarni to'g'rilash
+        if page >= total_pages:
+            page = total_pages - 1
+        if page < 0:
+            page = 0
 
-        # Joriy tanlangan javob obyekti
-        current_reply = replies[current_index]
-        current_reply_id = current_reply.get("id")
-
-        # Ushbu javobning o'ziga ham javob berilganmi (nested reply count)
-        reply_to_reply_count = await comment_service.get_comment_replies_count(current_reply_id)
-
-        # Foydalanuvchi ma'lumotlarini tayyorlash
-        parent_author = parent_comment.get("user") or {}
-        parent_author_name = (
-            parent_author.get("username")
-            or parent_author.get("full_name")
-            or "Foydalanuvchi"
+        # 3. Shu sahifadagi (PAGE_SIZE = 10) javoblarni olish
+        offset = page * PAGE_SIZE
+        page_replies = await comment_service.get_comment_replies(
+            comment_id=comment_id, 
+            limit=PAGE_SIZE, 
+            offset=offset
         )
+
+        page_replies_count = len(page_replies)
+        if select_index >= page_replies_count:
+            select_index = page_replies_count - 1
+        if select_index < 0:
+            select_index = 0
+
+        # 4. Tanlangan 1 ta reply
+        selected_reply = page_replies[select_index]
+        selected_reply_id = selected_reply.get("id")
+
+        # Tanlangan reply'ning o'ziga yozilgan replylar soni
+        reply_to_reply_count = await comment_service.get_comment_replies_count(selected_reply_id)
+
+        # Mualliflar ma'lumotlari
         parent_text = parent_comment.get("text", "")
-
-        reply_author = current_reply.get("user") or {}
-        reply_author_name = (
-            reply_author.get("username")
-            or reply_author.get("full_name")
+        
+        reply_user = selected_reply.get("user") or {}
+        reply_user_name = (
+            reply_user.get("username")
+            or reply_user.get("full_name")
             or "Foydalanuvchi"
         )
-        reply_text = current_reply.get("text", "")
+        reply_text = selected_reply.get("text", "")
 
-        # 4. UI uchun matn shakllantirish (HTML escape bilan)
-        text_lines = [
-            f"↩️ <b>{html.escape(parent_author_name)} ga javoblar</b>\n",
-            f"<i>{html.escape(reply_text)}</i>\n",
-            f"<blockquote expandable>┌─────────────────────────┐\n"
-            f"│ 👤 {html.escape(parent_author_name)}\n"
-            f"│ {html.escape(parent_text)}\n"
-            f"└─────────────────────────┘</blockquote>\n",
-            f"💬 <b>Javob {current_index + 1}/{total_replies}</b>"
-        ]
+        # 5. Siz so'ragan ANIQ UI MATN DIZAYNI
+        caption = (
+            f"↩️ <b>{html.escape(parent_text)}</b> (asosiy comment)\n\n"
+            f"<blockquote expandable>"
+            f"⌊👤 {html.escape(reply_user_name)} │\n"
+            f"    ⌊ {html.escape(reply_text)} │"
+            f"</blockquote>"
+        )
 
-        caption = "\n".join(text_lines)
-
-        # 5. Klaviaturani tayyorlash
+        # 6. Klaviaturani yaratish
         keyboard = get_reply_all_comments_keyboard(
             comment_id=comment_id,
             anime_id=anime_id,
-            total_count=total_replies,
-            current_index=current_index,
-            current_reply_id=current_reply_id,
+            page_replies_count=page_replies_count,
+            current_select_index=select_index,
+            current_page=page,
+            total_pages=total_pages,
+            current_reply_id=selected_reply_id,
             reply_to_reply_count=reply_to_reply_count
         )
 
         await safe_answer(callback)
 
-        # 6. Xabarni xavfsiz tahrirlash / yangilash
-        try:
-            if callback.message.photo:
-                await callback.message.edit_caption(
-                    caption=caption,
-                    reply_markup=keyboard,
-                    parse_mode="HTML"
-                )
-            else:
-                await callback.message.edit_text(
-                    text=caption,
-                    reply_markup=keyboard,
-                    parse_mode="HTML"
-                )
-        except TelegramBadRequest as e:
-            error_msg = str(e).lower()
-            if "message is not modified" in error_msg:
-                pass  # Xabar o'zgarmagan bo'lsa inkor qilamiz
-            elif "message to edit not found" in error_msg or "message can't be edited" in error_msg:
-                try:
-                    await callback.message.answer(text=caption, reply_markup=keyboard, parse_mode="HTML")
-                except (TelegramBadRequest, TelegramForbiddenError) as e2:
-                    logger.warning(f"handle_reply_all_comments: yangi xabar yuborilmadi: {e2}")
-            else:
-                logger.error(f"❌ TelegramBadRequest yuz berdi: {e}")
-        except TelegramForbiddenError:
-            pass
+        # Xabarni yangilash
+        if callback.message.photo:
+            await callback.message.edit_caption(caption=caption, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            await callback.message.edit_text(text=caption, reply_markup=keyboard, parse_mode="HTML")
 
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e).lower():
+            logger.error(f"TelegramBadRequest: {e}")
     except Exception as err:
-        logger.error(f"❌ Javoblarni olishda xatolik: {err}", exc_info=True)
+        logger.error(f"❌ Javoblarni chiqarishda xatolik: {err}", exc_info=True)
         await safe_answer(callback, "❌ Tizimda xatolik yuz berdi.", show_alert=True)
