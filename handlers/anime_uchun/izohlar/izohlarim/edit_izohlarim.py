@@ -86,6 +86,8 @@ async def safe_delete(message: Message) -> None:
 
 
 
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
 def get_my_comments_keyboard(
     anime_id: int,
     total_count: int,
@@ -98,26 +100,36 @@ def get_my_comments_keyboard(
     # 1. Sahifalash tugmalari (1, 2, 3...)
     page_buttons = []
     for i in range(total_count):
-        is_active = i == current_index
-
         page_buttons.append(
             InlineKeyboardButton(
                 text=f"• {i + 1} •" if i == current_index else str(i + 1),
-                callback_data=f"my_comm:{anime_id}:{i}",
-                style="success" if is_active else None
+                callback_data=f"my_comm:{anime_id}:{i}"
             )
         )
     if page_buttons:
         keyboard.append(page_buttons)
 
-    # 2. Amal tugmalari (Javoblar, O'chirish )
-    keyboard.append(
-        [InlineKeyboardButton(text=f"💬 {replies_count} ta javob", callback_data=f"reply_comm:{comment_id}:{anime_id}", style="primary")],
-        [InlineKeyboardButton(text="🗑️ O‘chirish", callback_data=f"del_comm:{comment_id}:{anime_id}", style="danger")]
-    )
+    # 2. Amal tugmalari: "💬 Javoblar" va "🗑️ O'chirish" YONMA-YON (bitta qatorda)
+    keyboard.append([
+        InlineKeyboardButton(
+            text=f"💬 {replies_count} ta javob", 
+            callback_data=f"reply_comm:{comment_id}:{anime_id}",
+            style="primary"
+        ),
+        InlineKeyboardButton(
+            text="🗑️ O‘chirish", 
+            callback_data=f"del_comm:{comment_id}:{anime_id}",
+            style="danger"
+        )
+    ])
+
     # 3. Orqaga tugmasi
     keyboard.append([
-        InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"anime_comment:{anime_id}", style="danger")
+        InlineKeyboardButton(
+            text="⬅️ Orqaga", 
+            callback_data=f"anime_comment:{anime_id}",
+            style="danger"
+        )
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
