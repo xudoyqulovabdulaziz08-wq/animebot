@@ -119,8 +119,7 @@ def get_my_comments_keyboard(
         )
     ])
     keyboard.append([
-        InlineKeyboardButton(text="🗑️ O‘chirish", callback_data=f"del_comm:{comment_id}:{anime_id}", style="danger"),
-        InlineKeyboardButton(text="✏️ Tahrirlash", callback_data=f"edit_comm:{comment_id}", style="success")
+        InlineKeyboardButton(text="🗑️ O‘chirish", callback_data=f"del_comm:{comment_id}:{anime_id}", style="danger")
     ])
 
     # 3. Orqaga tugmasi
