@@ -34,32 +34,32 @@ class CommentService:
         """Izoh o'zgarganda tegishli barcha kesh to'plamini tozalash."""
 
         # 1. Aniq komment keshini va uning o'z javoblari keshini o'chirish
-        #    (komment o'chirilganda yoki tahrirlanganda uning replies keshi ham eskiradi)
         if comment_id:
             await self.cache.invalidate(f"comment_detail:{comment_id}", broadcast=True)
             await self.cache.invalidate(f"comment_replies_count:{comment_id}", broadcast=True)
             await self.cache.invalidate(f"comment_replies_list:{comment_id}", broadcast=True)
 
-        # 2. Umumiy ro'yxatlar keshini tozalash
+        # 2. Umumiy ro'yxatlar va Soni keshini tozalash
         await self.cache.invalidate("anime_comments_count", anime_id, broadcast=True)
         await self.cache.invalidate("anime_top_comments_count", anime_id, broadcast=True)
-        await self.cache.invalidate(f"anime_comments_list:{anime_id}", broadcast=True)
         await self.cache.invalidate(f"user_comments_count:{user_id}", anime_id, broadcast=True)
 
-        # 🟢 Pattern/Wildcard bo'yicha yoki ushbu kalitga tegishli barcha sub-keshlarni o'chirish
-        await self.cache.invalidate(f"user_comments_list:{user_id}", broadcast=True)
-        await self.cache.invalidate(f"user_comments_list:{user_id}:{anime_id}", broadcast=True)
-
-        # Agar kesh menderjerda delete_by_pattern bo'lsa (Redis/Valkey):
+        # 🟢 3. INDEX BO'YICHA KESHLARNI TO'LIQ TOZALASH (Pattern orqali)
+        # Barcha idx:* kalitlarini o'chirish kerak, chunki 1 ta yangi izoh tushsa, barcha indexlar suriladi!
         if hasattr(self.cache, "delete_by_pattern"):
-            await self.cache.delete_by_pattern(f"*user_comments_list:{user_id}:*")
+            await self.cache.delete_by_pattern(f"*anime_comments_list:{anime_id}*")
+            await self.cache.delete_by_pattern(f"*user_comments_list:{user_id}*")
             if comment_id:
                 await self.cache.delete_by_pattern(f"*comment_detail:{comment_id}*")
+        else:
+            # Gar delete_by_pattern bo'lmasa, kamida asosiy namespace'larni invalidatsiyalash
+            await self.cache.invalidate(f"anime_comments_list:{anime_id}", broadcast=True)
+            await self.cache.invalidate(f"user_comments_list:{user_id}", broadcast=True)
+            await self.cache.invalidate(f"user_comments_list:{user_id}:{anime_id}", broadcast=True)
 
         if parent_id is not None:
             await self.cache.invalidate(f"comment_replies_count:{parent_id}", broadcast=True)
             await self.cache.invalidate(f"comment_replies_list:{parent_id}", broadcast=True)
-
     # ==================================================
     # ➕ ADD COMMENT / REPLY (TRANSACTION SAFE)
     # ==================================================
@@ -200,7 +200,7 @@ class CommentService:
         )
 
         if comment_data:
-            await self.cache.set(namespace, cache_key, comment_data, ttl=600)
+            await self.cache.set(namespace, cache_key, comment_data, ttl=60)
 
         return comment_data
 
