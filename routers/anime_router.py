@@ -30,6 +30,6 @@ anime_router.include_routers(
     sevimli_anime.router,
     add_izoh.router,
     add_edit.router,
-    edit_izohlarim,
-    del_izohlarim
+    edit_izohlarim.router,
+    del_izohlarim.router
 )
