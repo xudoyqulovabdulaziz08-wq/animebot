@@ -154,6 +154,67 @@ class CommentRepository:
         result = await real_session.execute(stmt)
         return result.scalar() or 0
 
+    # ================= TOP-LEVEL COMMENTS COUNT (javoblarsiz) =================
+    @staticmethod
+    async def get_top_level_comments_count_by_anime_id(session: Any, anime_id: int) -> int:
+        """
+        Animening FAQAT asosiy izohlari soni (javoblar hisobga olinmaydi).
+        get_comments_count_by_anime_id farqli, bu yerda Comment.parent_id.is_(None) filtri bor —
+        index bo'yicha sahifalash (view_comm:...) faqat shu ro'yxat bo'ylab yuradi.
+        """
+        real_session = await CommentRepository._prepare_session(session)
+        stmt = select(func.count(Comment.id)).where(
+            Comment.anime_id == anime_id,
+            Comment.parent_id.is_(None)
+        )
+        result = await real_session.execute(stmt)
+        return result.scalar() or 0
+
+    # ================= GET ANIME COMMENT BY INDEX (barcha userlar) =================
+    @staticmethod
+    async def get_anime_comment_by_index(
+        session: Any, anime_id: int, index: int = 0
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Animening BARCHA foydalanuvchilari yozgan asosiy izohlaridan index-inchisini,
+        muallifi va javoblar soni bilan birga oladi. "Izohlarni ko'rish" (view_comments)
+        ekranidagi index bo'yicha sahifalash shu metodga tayanadi.
+        """
+        real_session = await CommentRepository._prepare_session(session)
+
+        ReplyComment = aliased(Comment)
+
+        stmt = (
+            select(
+                Comment,
+                DBUser,
+                func.count(ReplyComment.id).label("replies_count")
+            )
+            .outerjoin(DBUser, Comment.user_id == DBUser.user_id)
+            .outerjoin(ReplyComment, ReplyComment.parent_id == Comment.id)
+            .where(
+                Comment.anime_id == anime_id,
+                Comment.parent_id.is_(None)
+            )
+            .group_by(Comment.id, DBUser.user_id)
+            .order_by(Comment.created_at.desc(), Comment.id.desc())
+            .limit(1)
+            .offset(index)
+        )
+
+        result = await real_session.execute(stmt)
+        row = result.first()
+
+        if not row:
+            return None
+
+        comment, author, replies_count = row
+        c_dict = comment.to_dict()
+        c_dict["replies_count"] = replies_count
+        c_dict["user"] = author.to_dict() if author else None
+
+        return c_dict
+
     # ================= DELETE COMMENT =================
     @staticmethod
     async def delete(session: Any, comment_id: int, user_id: Optional[int] = None) -> bool:

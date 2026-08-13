@@ -42,6 +42,7 @@ class CommentService:
 
         # 2. Umumiy ro'yxatlar keshini tozalash
         await self.cache.invalidate("anime_comments_count", anime_id, broadcast=True)
+        await self.cache.invalidate("anime_top_comments_count", anime_id, broadcast=True)
         await self.cache.invalidate(f"anime_comments_list:{anime_id}", broadcast=True)
         await self.cache.invalidate(f"user_comments_count:{user_id}", anime_id, broadcast=True)
 
@@ -165,6 +166,43 @@ class CommentService:
 
         await self.cache.set(cache_key, anime_id, comments, ttl=600)
         return comments
+
+    # ==================================================
+    # 📃 GET TOP-LEVEL COMMENTS COUNT (javoblarsiz — index pagination uchun)
+    # ==================================================
+    async def get_top_level_comments_count(self, anime_id: int) -> int:
+        cache_namespace = "anime_top_comments_count"
+        cached_count = await self.cache.get(cache_namespace, anime_id)
+        if cached_count is not None:
+            return int(cached_count)
+
+        count = await self.repo.get_top_level_comments_count_by_anime_id(self.session, anime_id)
+        await self.cache.set(cache_namespace, anime_id, count, ttl=3600)
+        return count
+
+    # ==================================================
+    # 📌 GET ANIME COMMENT BY INDEX (barcha foydalanuvchilar, "Izohlarni ko'rish" uchun)
+    # ==================================================
+    async def get_anime_comment_by_index(
+        self, anime_id: int, index: int = 0
+    ) -> Optional[Dict[str, Any]]:
+        cache_key = f"idx:{index}"
+        # e'tibor: anime_comments_list namespace'i _invalidate_comment_caches ichida
+        # allaqachon tozalanadi — alohida invalidation qo'shish shart emas
+        namespace = f"anime_comments_list:{anime_id}"
+
+        cached = await self.cache.get(namespace, cache_key)
+        if cached is not None:
+            return cached
+
+        comment_data = await self.repo.get_anime_comment_by_index(
+            self.session, anime_id, index
+        )
+
+        if comment_data:
+            await self.cache.set(namespace, cache_key, comment_data, ttl=600)
+
+        return comment_data
 
     # ==================================================
     # 📌 GET USER COMMENT BY INDEX

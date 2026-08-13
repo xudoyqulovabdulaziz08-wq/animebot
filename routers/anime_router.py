@@ -14,6 +14,9 @@ from handlers.anime_uchun.izohlar.izohlarim import (
     edit_izohlarim,
     del_izohlarim
 )
+from handlers.anime_uchun.izohlar.view_izohlar import (
+    izohlar_all
+)
 anime_router = Router()
 
 anime_router.include_routers(
@@ -28,6 +31,7 @@ anime_router.include_routers(
     izoh_anime.router,
     obuna_anime.router,
     sevimli_anime.router,
+    izohlar_all.router,
     add_izoh.router,
     add_edit.router,
     edit_izohlarim.router,
