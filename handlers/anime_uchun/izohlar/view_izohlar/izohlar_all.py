@@ -140,8 +140,9 @@ async def view_comments_handler(callback: CallbackQuery, session) -> None:
     anime_service = AnimeService(session=session)
 
     try:
-        anime = await anime_service.get_anime(anime_id)
-        total_comments = await comment_service.get_top_level_comments_count(anime_id)
+        # 1. Animening BARCHA izohlari ID ro'yxatini olamiz (Kesh / DB)
+        comment_ids = await comment_service.get_anime_comment_ids(anime_id)
+        total_comments = len(comment_ids)
 
         if total_comments == 0:
             await safe_answer(
@@ -152,17 +153,22 @@ async def view_comments_handler(callback: CallbackQuery, session) -> None:
             )
             return
 
-        # Index chegarasini to'g'irlash
+        # 2. Index chegarasini to'g'rilash (chegaradan chiqib ketmasligi uchun)
         if current_index >= total_comments:
             current_index = total_comments - 1
         elif current_index < 0:
             current_index = 0
 
-        comment = await comment_service.get_anime_comment_by_index(anime_id, current_index)
+        # 3. Hozirgi index'dagi izohning ANIQ ID'sini olamiz va tafsilotini yuklaymiz
+        target_comment_id = comment_ids[current_index]
+        comment = await comment_service.get_comment_by_id(target_comment_id)
+
         if not comment:
-            await safe_answer(callback, "Izoh topilmadi.", show_alert=True)
+            await safe_answer(callback, "Izoh topilmadi yoki o'chirilgan.", show_alert=True)
             return
 
+        # 4. Ma'lumotlarni tayyorlash
+        anime = await anime_service.get_anime(anime_id)
         replies_count = comment.get("replies_count", 0)
         anime_title = anime.get("title", "Anime") if isinstance(anime, dict) else getattr(anime, "title", "Anime")
 
@@ -170,12 +176,14 @@ async def view_comments_handler(callback: CallbackQuery, session) -> None:
         user_name = author.get("username") or author.get("full_name") or "Foydalanuvchi"
 
         text = (
-            f"💬<b>Izohlar ko'rish</b>\n\n"
+            f"💬 <b>Izohlar ko'rish ({current_index + 1}/{total_comments})</b>\n\n"
             f"🎬 {html.escape(str(anime_title))}\n"
-            f"📃 {total_comments} ta izoh\n\n"
+            f"📃 Jami: {total_comments} ta izoh\n\n"
             f"👤 {html.escape(str(user_name))}\n"
             f"<blockquote expandable>{html.escape(str(comment.get('text', '')))}</blockquote>\n"
         )
+        
+        # Bu yerda klaviaturani chaqirib message'ni edit qilasiz...
 
         keyboard = get_view_comments_keyboard(
             anime_id=anime_id,

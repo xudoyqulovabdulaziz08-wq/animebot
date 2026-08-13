@@ -33,26 +33,33 @@ class CommentService:
     ) -> None:
         """Izoh o'zgarganda tegishli barcha kesh to'plamini tozalash."""
 
-        # 1. Aniq komment keshini o'chirish
+        # 1. Aniq komment keshini va uning o'z javoblari keshini o'chirish
+        #    (komment o'chirilganda yoki tahrirlanganda uning replies keshi ham eskiradi)
         if comment_id:
-            await self.cache.invalidate("comment_detail", comment_id, broadcast=True)
-            await self.cache.invalidate("comment_replies_count", comment_id, broadcast=True)
-            await self.cache.invalidate("comment_replies_list", comment_id, broadcast=True)
+            await self.cache.invalidate(f"comment_detail:{comment_id}", broadcast=True)
+            await self.cache.invalidate(f"comment_replies_count:{comment_id}", broadcast=True)
+            await self.cache.invalidate(f"comment_replies_list:{comment_id}", broadcast=True)
 
-    # 2. Umumiy ro'yxatlar va Soni keshini tozalash
+        # 2. Umumiy ro'yxatlar keshini tozalash
         await self.cache.invalidate("anime_comments_count", anime_id, broadcast=True)
-        await self.cache.invalidate("anime_top_comments_count", anime_id, broadcast=True)
+        await self.cache.invalidate(f"anime_comments_list:{anime_id}", "ids", broadcast=True)
+        await self.cache.invalidate(f"user_comments_list:{user_id}:{anime_id}", "ids", broadcast=True)
         await self.cache.invalidate(f"user_comments_count:{user_id}", anime_id, broadcast=True)
-        await self.cache.invalidate(f"user_comments_list:{user_id}", anime_id, broadcast=True)
 
-        # 🟢 3. INDEX KESHINI TOZALASH (Asosiy sahifani/indexni tozalash)
-        # CacheManager pattern bo'yicha o'chira olmagani sababli, birinchi va eng ko'p ko'riladigan indexlarni bosqichma-bosqich invalidate qilamiz:
-        for idx in range(10):  # Dastlabki 10 ta index keshini majburiy tozalab yuboramiz
-            await self.cache.invalidate(f"anime_comment_idx:{anime_id}", f"idx_{idx}", broadcast=True)
+        # 🟢 Pattern/Wildcard bo'yicha yoki ushbu kalitga tegishli barcha sub-keshlarni o'chirish
+        await self.cache.invalidate(f"user_comments_list:{user_id}", broadcast=True)
+        await self.cache.invalidate(f"user_comments_list:{user_id}:{anime_id}", broadcast=True)
+
+        # Agar kesh menderjerda delete_by_pattern bo'lsa (Redis/Valkey):
+        if hasattr(self.cache, "delete_by_pattern"):
+            await self.cache.delete_by_pattern(f"*user_comments_list:{user_id}:*")
+            if comment_id:
+                await self.cache.delete_by_pattern(f"*comment_detail:{comment_id}*")
 
         if parent_id is not None:
-            await self.cache.invalidate("comment_replies_count", parent_id, broadcast=True)
-            await self.cache.invalidate("comment_replies_list", parent_id, broadcast=True)
+            await self.cache.invalidate(f"comment_replies_count:{parent_id}", broadcast=True)
+            await self.cache.invalidate(f"comment_replies_list:{parent_id}", broadcast=True)
+
     # ==================================================
     # ➕ ADD COMMENT / REPLY (TRANSACTION SAFE)
     # ==================================================
@@ -161,68 +168,36 @@ class CommentService:
         return comments
 
     # ==================================================
-    # 📃 GET TOP-LEVEL COMMENTS COUNT (javoblarsiz — index pagination uchun)
+    # 🆔 GET ANIME COMMENT IDs (index o'rniga — navigatsiya shu ID ro'yxati bo'yicha yuradi)
     # ==================================================
-    async def get_top_level_comments_count(self, anime_id: int) -> int:
-        cache_namespace = "anime_top_comments_count"
-        cached_count = await self.cache.get(cache_namespace, anime_id)
-        if cached_count is not None:
-            return int(cached_count)
+    async def get_anime_comment_ids(self, anime_id: int) -> List[int]:
+        cache_key = "ids"
+        # anime_comments_list namespace'i izoh qo'shilganda/o'chirilganda
+        # _invalidate_comment_caches ichida allaqachon tozalanadi
+        namespace = f"anime_comments_list:{anime_id}"
 
-        count = await self.repo.get_top_level_comments_count_by_anime_id(self.session, anime_id)
-        await self.cache.set(cache_namespace, anime_id, count, ttl=3600)
-        return count
-
-    # ==================================================
-    # 📌 GET ANIME COMMENT BY INDEX (barcha foydalanuvchilar, "Izohlarni ko'rish" uchun)
-    # ==================================================
-    async def get_anime_comment_by_index(
-    self, anime_id: int, index: int = 0
-    ) -> Optional[Dict[str, Any]]:
-        # Table name va Obj_ID larni CacheManager._key() ga mos qilib o'tkazamiz
-        table_name = f"anime_comment_idx:{anime_id}"
-        obj_id = f"idx_{index}"
-
-        cached = await self.cache.get(table_name, obj_id)
+        cached = await self.cache.get(namespace, cache_key)
         if cached is not None:
             return cached
 
-        comment_data = await self.repo.get_anime_comment_by_index(
-            self.session, anime_id, index
-        )
-
-        if comment_data:
-            # Index keshlari tez-tez o'zgargani uchun TTL ni 60 yoki 120 soniya qilgan ma'qul
-            await self.cache.set(table_name, obj_id, comment_data, ttl=60)
-
-        return comment_data
+        ids = await self.repo.get_anime_comment_ids(self.session, anime_id)
+        await self.cache.set(namespace, cache_key, ids, ttl=600)
+        return ids
 
     # ==================================================
-    # 📌 GET USER COMMENT BY INDEX
+    # 🆔 GET USER COMMENT IDs (index o'rniga)
     # ==================================================
-    async def get_user_comment_by_index(
-        self, anime_id: int, user_id: int, index: int = 0
-    ) -> Optional[Dict[str, Any]]:
-        cache_key = f"user_comment_idx:{index}"
+    async def get_user_comment_ids(self, anime_id: int, user_id: int) -> List[int]:
+        cache_key = "ids"
         namespace = f"user_comments_list:{user_id}:{anime_id}"
 
         cached = await self.cache.get(namespace, cache_key)
         if cached is not None:
             return cached
 
-        comment_data = await self.repo.get_user_comment_by_index(
-            self.session, anime_id, user_id, index
-        )
-
-        if comment_data:
-            await self.cache.set(
-                namespace,
-                cache_key,
-                comment_data,
-                ttl=600
-            )
-
-        return comment_data
+        ids = await self.repo.get_user_comment_ids(self.session, anime_id, user_id)
+        await self.cache.set(namespace, cache_key, ids, ttl=600)
+        return ids
 
     # ==================================================
     # 💬 GET COMMENT & REPLIES

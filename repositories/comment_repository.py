@@ -58,30 +58,60 @@ class CommentRepository:
         return data
 
     # ================= GET BY ID =================
+    # ================= 💬 3. GET BY ID (UPDATED) =================
     @staticmethod
     async def get_by_id(session: Any, comment_id: int) -> Optional[Dict]:
-        """Izohni ID bo'yicha olish (muallif va javoblar bilan birga)."""
+        """
+        🚀 Izohni ID bo'yicha olish.
+        Javob (Reply) bo'lsa: Parent ma'lumotlari bilan qaytadi.
+        Ota-izoh bo'lsa: Unga yozilgan javoblar (replies) soni bilan qaytadi.
+        """
         real_session = await CommentRepository._prepare_session(session)
 
+        # Parent izoh va uning muallifi uchun aliaslar
+        ParentComment = aliased(Comment)
+        ParentUser = aliased(DBUser)
+
         stmt = (
-            select(Comment)
+            select(Comment, ParentComment, ParentUser)
+            .outerjoin(DBUser, Comment.user_id == DBUser.user_id)
+            .outerjoin(ParentComment, Comment.parent_id == ParentComment.id)
+            .outerjoin(ParentUser, ParentComment.user_id == ParentUser.user_id)
             .where(Comment.id == comment_id)
             .options(
                 selectinload(Comment.user),
                 selectinload(Comment.replies)
             )
         )
+        
         result = await real_session.execute(stmt)
-        comment = result.scalar_one_or_none()
+        row = result.first()
 
-        if not comment:
+        if not row:
             return None
 
-        data = comment.to_dict()
+        comment, parent, parent_author = row
+        c_dict = comment.to_dict()
+
+        # Muallif ma'lumotlari
         if hasattr(comment, "user") and comment.user:
-            data["user"] = comment.user.to_dict()
-        data["replies_count"] = len(comment.replies) if hasattr(comment, "replies") else 0
-        return data
+            c_dict["user"] = comment.user.to_dict()
+
+        # Nechta javob yozilgani (Replies count)
+        c_dict["replies_count"] = len(comment.replies) if hasattr(comment, "replies") else 0
+
+        # Agar bu javob (Reply) bo'lsa — ota izohini ham biriktiramiz
+        if parent:
+            c_dict["parent"] = {
+                "id": parent.id,
+                "text": parent.text,
+                "author_id": parent.user_id,
+                "author_name": parent_author.username if (parent_author and parent_author.username) else "Noma'lum"
+            }
+        else:
+            c_dict["parent"] = None
+
+        return c_dict
 
     # ================= LIST ANIME COMMENTS (PAGINATED) =================
     @staticmethod
@@ -171,50 +201,47 @@ class CommentRepository:
         return result.scalar() or 0
 
     # ================= GET ANIME COMMENT BY INDEX (barcha userlar) =================
+    
+    # ================= 🆔 1. GET ANIME COMMENT IDs =================
     @staticmethod
-    async def get_anime_comment_by_index(
-        session: Any, anime_id: int, index: int = 0
-    ) -> Optional[Dict[str, Any]]:
+    async def get_anime_comment_ids(session: Any, anime_id: int) -> List[int]:
         """
-        Animening BARCHA foydalanuvchilari yozgan asosiy izohlaridan index-inchisini,
-        muallifi va javoblar soni bilan birga oladi. "Izohlarni ko'rish" (view_comments)
-        ekranidagi index bo'yicha sahifalash shu metodga tayanadi.
+        🚀 Animening BARCHA asosiy (parent_id IS NULL) izohlari ID ro'yxatini olish.
+        Endi og'ir JOIN va OFFSET o'rniga faqat ID'lar olinadi.
         """
         real_session = await CommentRepository._prepare_session(session)
-
-        ReplyComment = aliased(Comment)
-
+        
         stmt = (
-            select(
-                Comment,
-                DBUser,
-                func.count(ReplyComment.id).label("replies_count")
-            )
-            .outerjoin(DBUser, Comment.user_id == DBUser.user_id)
-            .outerjoin(ReplyComment, ReplyComment.parent_id == Comment.id)
+            select(Comment.id)
             .where(
                 Comment.anime_id == anime_id,
                 Comment.parent_id.is_(None)
             )
-            .group_by(Comment.id, DBUser.user_id)
             .order_by(Comment.created_at.desc(), Comment.id.desc())
-            .limit(1)
-            .offset(index)
+        )
+        
+        result = await real_session.execute(stmt)
+        return list(result.scalars().all())
+
+    # ================= 🆔 2. GET USER COMMENT IDs =================
+    @staticmethod
+    async def get_user_comment_ids(session: Any, anime_id: int, user_id: int) -> List[int]:
+        """
+        🚀 Foydalanuvchi yozgan izohlar ID ro'yxatini olish.
+        """
+        real_session = await CommentRepository._prepare_session(session)
+
+        stmt = (
+            select(Comment.id)
+            .where(
+                Comment.anime_id == anime_id,
+                Comment.user_id == user_id
+            )
+            .order_by(Comment.created_at.desc(), Comment.id.desc())
         )
 
         result = await real_session.execute(stmt)
-        row = result.first()
-
-        if not row:
-            return None
-
-        comment, author, replies_count = row
-        c_dict = comment.to_dict()
-        c_dict["replies_count"] = replies_count
-        c_dict["user"] = author.to_dict() if author else None
-
-        return c_dict
-
+        return list(result.scalars().all())
     # ================= DELETE COMMENT =================
     @staticmethod
     async def delete(session: Any, comment_id: int, user_id: Optional[int] = None) -> bool:
@@ -279,66 +306,7 @@ class CommentRepository:
         return comments
     
 
-    @staticmethod
-    async def get_user_comment_by_index(
-        session: Any, anime_id: int, user_id: int, index: int = 0
-    ) -> Optional[Dict[str, Any]]:
-        """
-        Foydalanuvchining ma'lum bir animega yozgan izohlaridan index-inchisini olish.
-        Unda ota-izoh (agar bu reply bo'lsa) va unga kelgan javoblar soni ham hisoblanadi.
-        """
-        real_session = await CommentRepository._prepare_session(session)
-
-        ParentComment = aliased(Comment)
-        ParentUser = aliased(DBUser)
-        ReplyComment = aliased(Comment)
-
-        # 1. Asosiy so'rov: Izoh, uning Parent'i va Parent muallifi
-        stmt = (
-            select(
-                Comment,
-                ParentComment,
-                ParentUser,
-                func.count(ReplyComment.id).label("replies_count")
-            )
-            .outerjoin(ParentComment, Comment.parent_id == ParentComment.id)
-            .outerjoin(ParentUser, ParentComment.user_id == ParentUser.user_id)  # <-- ParentUser.id -> ParentUser.user_id
-            .outerjoin(ReplyComment, ReplyComment.parent_id == Comment.id)
-            .where(
-                Comment.anime_id == anime_id,
-                Comment.user_id == user_id
-            )
-            .group_by(
-                Comment.id,
-                Comment.created_at,
-                ParentComment.id,
-                ParentUser.user_id
-            )  # 🟢 barcha non-aggregate ustunlar GROUP BY'ga kiritildi (SQL standarti)
-            .order_by(Comment.created_at.desc(), Comment.id.desc())  # 🟢 teng created_at holatida determinizm
-            .limit(1)
-            .offset(index)
-        )
-
-        result = await real_session.execute(stmt)
-        row = result.first()
-
-        if not row:
-            return None
-
-        comment, parent, parent_author, replies_count = row
-        c_dict = comment.to_dict()
-        c_dict["replies_count"] = replies_count
-
-        if parent:
-            c_dict["parent"] = {
-                "id": parent.id,
-                "text": parent.text,
-                "author_name": parent_author.username if parent_author and parent_author.username else "Noma'lum"  # <-- first_name -> username
-            }
-        else:
-            c_dict["parent"] = None
-
-        return c_dict
+    
     
     # ================= GET COMMENT WITH REPLIES (OPTIMIZED) =================
     @staticmethod

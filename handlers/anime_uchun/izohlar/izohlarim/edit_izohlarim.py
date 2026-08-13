@@ -206,15 +206,30 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
             return
 
         # Index chegarasini to'g'rilash
+        # 1. Animening barcha izohlari ID ro'yxatini olamiz (Keshdan yoki Bazadan)
+        comment_ids = await comment_service.get_anime_comment_ids(anime_id)
+        
+        if not comment_ids:
+            await safe_answer(callback, "Bu animeda hali izohlar yo'q.", show_alert=True)
+            return
+
+        total_comments = len(comment_ids)
+
+        # 2. Index chegarasini to'g'rilash (chegaradan chiqib ketmasligi uchun)
         if current_index >= total_comments:
             current_index = total_comments - 1
         elif current_index < 0:
             current_index = 0
 
-        # Bazadan/keshdan joriy izohni olish
-        comment = await comment_service.get_user_comment_by_index(anime_id, user_id, current_index)
+        # 3. Hozirgi index'dagi izohning ANIQ ID'sini ajratib olamiz
+        target_comment_id = comment_ids[current_index]
+
+        # 4. Izohni ID bo'yicha olamiz (bu keshdan juda tez keladi)
+        comment = await comment_service.get_comment_by_id(target_comment_id)
+        
         if not comment:
-            await safe_answer(callback, "Izoh topilmadi.", show_alert=True)
+            # Agar tasodifan ushbu izoh shu soniyada o'chirilgan bo'lsa
+            await safe_answer(callback, "Izoh topilmadi yoki o'chirilgan.", show_alert=True)
             return
 
         replies_count = await comment_service.get_comment_replies_count(comment["id"])
