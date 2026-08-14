@@ -275,7 +275,7 @@ async def confirm_send_reply_handler(callback: CallbackQuery, state: FSMContext,
 
 
 # =======================================================
-# 4. ✏️ TAHRIRLASH TUGMASI
+# 4. ✏️ TAHRIRLASH TUGMASI (Mavjud xabarni saqlagan holda tahrirlash)
 # =======================================================
 @router.callback_query(F.data.startswith("edit_reply_input:"))
 async def edit_reply_input_handler(callback: CallbackQuery, state: FSMContext, session):
@@ -288,8 +288,9 @@ async def edit_reply_input_handler(callback: CallbackQuery, state: FSMContext, s
     except (IndexError, ValueError):
         return
 
-    if callback.message:
-        await safe_delete(callback.message)
+    message = callback.message
+    if not message:
+        return
 
     try:
         comment_service = CommentService(session=session)
@@ -318,20 +319,34 @@ async def edit_reply_input_handler(callback: CallbackQuery, state: FSMContext, s
             [
                 InlineKeyboardButton(
                     text="⬅️ Bekor qilish",
-                    callback_data=f"cancel_reply_input:{comment_id}:{anime_id}"
+                    callback_data=f"cancel_reply_input:{comment_id}:{anime_id}",
+                    style="danger"
                 )
             ]
         ]
     )
 
+    # 1. State holatini o'rnatamiz
+    await state.set_state(ReplyStates.waiting_for_reply)
+
+    # 2. Xabarni o'chirmasdan, bor xabarni edit qilamiz (Rasm bo'lsa edit_caption, matn bo'lsa edit_text)
     try:
-        prompt_msg = await callback.message.answer(text=text, reply_markup=keyboard, parse_mode="HTML")
-    except (TelegramBadRequest, TelegramForbiddenError) as e:
-        logger.warning(f"edit_reply_input_handler: prompt error: {e}")
+        if message.photo or message.video or message.animation or message.document:
+            prompt_msg = await message.edit_caption(caption=text, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            prompt_msg = await message.edit_text(text=text, reply_markup=keyboard, parse_mode="HTML")
+    except TelegramBadRequest as e:
+        err = str(e).lower()
+        if "message is not modified" in err:
+            prompt_msg = message
+        elif "message to edit not found" in err or "message can't be edited" in err:
+            prompt_msg = await message.answer(text=text, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            raise
+    except TelegramForbiddenError:
         await state.clear()
         return
 
-    await state.set_state(ReplyStates.waiting_for_reply)
     await state.update_data(
         comment_id=comment_id,
         anime_id=anime_id,
