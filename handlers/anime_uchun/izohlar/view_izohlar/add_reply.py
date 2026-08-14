@@ -12,7 +12,7 @@ from handlers.anime_uchun.izohlar.add_izohlar.add_izoh import (
     safe_delete,
     safe_call,
 )
-from handlers.anime_uchun.izoh_anime import anime_comment_handler
+from handlers.anime_uchun.izohlar.view_izohlar.izoh_reply import handle_reply_all_comments
 from services.comment_service import CommentService
 
 logger = logging.getLogger("izohlarim_javob")
@@ -284,11 +284,11 @@ async def confirm_send_reply_handler(callback: CallbackQuery, state: FSMContext,
         await safe_answer(callback, "✅ Javobingiz muvaffaqiyatli yuborildi!", show_alert=True)
 
         # 3. Izohlar bo'limiga qaytamiz.
-        #    anime_comment_handler ichida yana callback.answer() bo'lishi mumkin —
+        #    handle_reply_all_comments ichida yana callback.answer() bo'lishi mumkin —
         #    safe_call shu holatdagi "already answered" xatosini yutib yuboradi.
         await safe_call(
-            anime_comment_handler(callback, session),
-            context="confirm_send_reply -> anime_comment_handler"
+            handle_reply_all_comments(callback, session),
+            context="confirm_send_reply -> handle_reply_all_comments"
         )
 
     except Exception as e:
@@ -385,8 +385,8 @@ async def cancel_reply_input_handler(callback: CallbackQuery, state: FSMContext,
                 pass
 
         await safe_call(
-            anime_comment_handler(callback, session),
-            context="cancel_reply_input -> anime_comment_handler"
+            handle_reply_all_comments(callback, session),
+            context="cancel_reply_input -> handle_reply_all_comments"
         )
 
     except Exception as e:
