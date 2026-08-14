@@ -219,18 +219,18 @@ def get_comment_replies_keyboard(
 
             # Chap tugma
             if current_page > 0:
-                left_btn = InlineKeyboardButton(text="⬅️", callback_data=f"rep_my_page:{comment_id}:{anime_id}:{prev_page_idx}")
+                left_btn = InlineKeyboardButton(text="⬅️", callback_data=f"rep_my_page:{comment_id}:{anime_id}:{prev_page_idx}", style="primary")
             else:
-                left_btn = InlineKeyboardButton(text="⏹️", callback_data="noop")
+                left_btn = InlineKeyboardButton(text="⏹️", callback_data="noop", style="primary")
 
             # O'rta tugma
-            center_btn = InlineKeyboardButton(text=f"📄 {current_page + 1}/{total_pages}", callback_data="noop")
+            center_btn = InlineKeyboardButton(text=f"📄 {current_page + 1}/{total_pages}", callback_data="noop", style="primary")
 
             # O'ng tugma
             if current_page < total_pages - 1:
-                right_btn = InlineKeyboardButton(text="➡️", callback_data=f"rep_my_page:{comment_id}:{anime_id}:{next_page_idx}")
+                right_btn = InlineKeyboardButton(text="➡️", callback_data=f"rep_my_page:{comment_id}:{anime_id}:{next_page_idx}", style="primary")
             else:
-                right_btn = InlineKeyboardButton(text="⏹️", callback_data="noop")
+                right_btn = InlineKeyboardButton(text="⏹️", callback_data="noop", style="primary")
 
             keyboard.append([left_btn, center_btn, right_btn])
 
