@@ -1,5 +1,6 @@
 import logging
 import html
+import math
 from typing import Optional
 
 from aiogram.exceptions import (
@@ -93,25 +94,62 @@ def get_my_comments_keyboard(
     total_count: int,
     current_index: int,
     comment_id: int,
-    replies_count: int = 0
+    replies_count: int = 0,
+    page_size: int = 10
 ) -> InlineKeyboardMarkup:
     keyboard = []
 
-    # 1. Sahifalash tugmalari (1, 2, 3...)
-    page_buttons = []
-    for i in range(total_count):
-        is_active = i == current_index
-        page_buttons.append(
-            InlineKeyboardButton(
-                text=f"• {i + 1} •" if i == current_index else str(i + 1),
-                callback_data=f"my_comm:{anime_id}:{i}",
-                style="success" if is_active else None
-            )
-        )
-    if page_buttons:
-        keyboard.append(page_buttons)
+    if total_count > 0:
+        total_pages = math.ceil(total_count / page_size)
+        current_page = current_index // page_size
 
-    # 2. Amal tugmalari: "💬 Javoblar" va "🗑️ O'chirish" YONMA-YON (bitta qatorda)
+        # Shu sahifaga tegishli izohlar chegarasi
+        start_idx = current_page * page_size
+        end_idx = min(start_idx + page_size, total_count)
+
+        # 1. RAQAMLI TUGMALAR (5 tadan qilib 2 qatorga bo'linadi, max 10 ta)
+        page_buttons = []
+        for i in range(start_idx, end_idx):
+            is_active = (i == current_index)
+            btn_text = f"• {i + 1} •" if is_active else str(i + 1)
+            cb_data = "noop" if is_active else f"my_comm:{anime_id}:{i}"
+
+            page_buttons.append(
+                InlineKeyboardButton(
+                    text=btn_text,
+                    callback_data=cb_data,
+                    style="success" if is_active else None
+                )
+            )
+
+        # 5 tadan qilib qatorlarga ajratish
+        for i in range(0, len(page_buttons), 5):
+            keyboard.append(page_buttons[i:i + 5])
+
+        # 2. SAHIFALASH TUGMALARI (⬅️ / ⏹️ | 📄 1/3 | ➡️ / ⏹️)
+        # Faqat jami izohlar 10 tadan ko'p (sahifalar 1 dan ortiq) bo'lganda ko'rinadi
+        if total_pages > 1:
+            prev_page_idx = (current_page - 1) * page_size
+            next_page_idx = (current_page + 1) * page_size
+
+            # Chap tugma
+            if current_page > 0:
+                left_btn = InlineKeyboardButton(text="⬅️", callback_data=f"my_comm:{anime_id}:{prev_page_idx}", style="primary")
+            else:
+                left_btn = InlineKeyboardButton(text="⏹️", callback_data="noop", style="primary")
+
+            # O'rta tugma (Info)
+            center_btn = InlineKeyboardButton(text=f"📄 {current_page + 1}/{total_pages}", callback_data="noop", style="primary")
+
+            # O'ng tugma
+            if current_page < total_pages - 1:
+                right_btn = InlineKeyboardButton(text="➡️", callback_data=f"my_comm:{anime_id}:{next_page_idx}", style="primary")
+            else:
+                right_btn = InlineKeyboardButton(text="⏹️", callback_data="noop", style="primary")
+
+            keyboard.append([left_btn, center_btn, right_btn])
+
+    # 3. AMAL TUGMALARI (Javoblar va O'chirish)
     keyboard.append([
         InlineKeyboardButton(
             text=f"💬 {replies_count} ta javob", 
@@ -125,7 +163,7 @@ def get_my_comments_keyboard(
         )
     ])
 
-    # 3. Orqaga tugmasi
+    # 4. ORQAGA TUGMASI
     keyboard.append([
         InlineKeyboardButton(
             text="⬅️ Orqaga", 
@@ -137,33 +175,66 @@ def get_my_comments_keyboard(
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
+
+
+
 def get_comment_replies_keyboard(
     anime_id: int,
     comment_id: int,
     total_count: int,
-    current_index: int
+    current_index: int,
+    page_size: int = 10
 ) -> InlineKeyboardMarkup:
     keyboard = []
 
-    # 1. Sahifalash tugmalari (1, 2, 3...)
-    if total_count > 1:
+    if total_count > 0:
+        total_pages = math.ceil(total_count / page_size)
+        current_page = current_index // page_size
+
+        start_idx = current_page * page_size
+        end_idx = min(start_idx + page_size, total_count)
+
+        # 1. RAQAMLI TUGMALAR (5 tadan qilib 2 qatorga bo'linadi)
         page_buttons = []
-        for i in range(total_count):
-            text = f"• {i + 1} •" if i == current_index else str(i + 1)
-        
-            # 🟢 Faqat aktiv bo'lgan tugmaga style="success" beriladi
-            btn_style = "success" if i == current_index else None
-        
+        for i in range(start_idx, end_idx):
+            is_active = (i == current_index)
+            btn_text = f"• {i + 1} •" if is_active else str(i + 1)
+            cb_data = "noop" if is_active else f"rep_page:{comment_id}:{anime_id}:{i}"
+
             page_buttons.append(
                 InlineKeyboardButton(
-                    text=text,
-                    callback_data=f"rep_page:{comment_id}:{anime_id}:{i}",
-                    style=btn_style  # <-- Mana shu yerga qo'yiladi!
+                    text=btn_text,
+                    callback_data=cb_data,
+                    style="success" if is_active else None
                 )
             )
-        keyboard.append(page_buttons)
 
-    # 2. Orqaga tugmasi (Asosiy izohga qaytaradi)
+        for i in range(0, len(page_buttons), 5):
+            keyboard.append(page_buttons[i:i + 5])
+
+        # 2. SAHIFALASH TUGMALARI (⬅️ / ⏹️ | 📄 1/3 | ➡️ / ⏹️)
+        if total_pages > 1:
+            prev_page_idx = (current_page - 1) * page_size
+            next_page_idx = (current_page + 1) * page_size
+
+            # Chap tugma
+            if current_page > 0:
+                left_btn = InlineKeyboardButton(text="⬅️", callback_data=f"rep_page:{comment_id}:{anime_id}:{prev_page_idx}")
+            else:
+                left_btn = InlineKeyboardButton(text="⏹️", callback_data="noop")
+
+            # O'rta tugma
+            center_btn = InlineKeyboardButton(text=f"📄 {current_page + 1}/{total_pages}", callback_data="noop")
+
+            # O'ng tugma
+            if current_page < total_pages - 1:
+                right_btn = InlineKeyboardButton(text="➡️", callback_data=f"rep_page:{comment_id}:{anime_id}:{next_page_idx}")
+            else:
+                right_btn = InlineKeyboardButton(text="⏹️", callback_data="noop")
+
+            keyboard.append([left_btn, center_btn, right_btn])
+
+    # 3. ORQAGA TUGMASI
     keyboard.append([
         InlineKeyboardButton(
             text="⬅️ Orqaga",
@@ -173,6 +244,7 @@ def get_comment_replies_keyboard(
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
 
 
 
