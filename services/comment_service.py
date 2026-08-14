@@ -20,9 +20,11 @@ class CommentService:
     def __init__(self, session: Any):
         self.session = session
         self.repo = CommentRepository()
-
-    # ==================================================
+# ==================================================
     # ➕ ADD COMMENT / REPLY (TRANSACTION SAFE)
+    # ==================================================
+    # ==================================================
+    # ➕ ADD COMMENT / REPLY (TRANSACTION SAFE & MAX 2-LEVEL)
     # ==================================================
     async def add_comment(
         self,
@@ -35,20 +37,32 @@ class CommentService:
             await self.session._ensure_session()
 
         try:
+            target_parent_id = parent_id
+
             if parent_id:
                 parent_comment = await self.repo.get_by_id(self.session, parent_id)
                 if not parent_comment or parent_comment["anime_id"] != anime_id:
                     logger.warning(f"⚠️ Noto'g'ri parent_id={parent_id} berildi.")
                     return None
 
+                # 🚀 2-DARAJA CHEKLOVI (FLATTENING LOGIC):
+                # Agar javob yozilayotgan izohning O'ZI HAM javob bo'lsa (parent'i bo'lsa)
+                if parent_comment.get("parent") and parent_comment["parent"].get("id"):
+                    # Javobni ichma-ich kiritmaymiz, asosiy (root) izoh ID'siga bog'laymiz!
+                    target_parent_id = parent_comment["parent"]["id"]
+                    
+                    # Foydalanuvchi kimga javob yozganini bildirib qo'yish uchun (opsional)
+                    author_name = parent_comment.get("user", {}).get("username") or "Foydalanuvchi"
+                    text = f"<b>{author_name}</b>, {text}"
+
             comment = await self.repo.create(
-                self.session, anime_id, user_id, text, parent_id
+                self.session, anime_id, user_id, text, target_parent_id
             )
 
             if hasattr(self.session, "commit"):
                 await self.session.commit()
 
-            logger.info(f"💬 Izoh qo'shildi: ID={comment['id']} | Anime={anime_id} | User={user_id}")
+            logger.info(f"💬 Izoh qo'shildi: ID={comment['id']} | Anime={anime_id} | User={user_id} | Parent={target_parent_id}")
             return comment
 
         except Exception as e:
@@ -56,7 +70,6 @@ class CommentService:
                 await self.session.rollback()
             logger.error(f"❌ Izoh qo'shishda xato yuz berdi: {e}")
             raise e
-
     # ==================================================
     # 📋 GET ANIME COMMENTS
     # ==================================================
