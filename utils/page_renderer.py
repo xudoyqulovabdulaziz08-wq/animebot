@@ -25,6 +25,7 @@ async def open_page(
     
     from handlers.animelarim.sevimlilarim import animelarim_menu as show_favorites_menu
     from handlers.animelarim.baholaganlarim import animelarim1_menu as show_ratings_menu 
+    from handlers.animelarim.shahrlaganim import  my_comments_menu as show_comment_menu
     from services.anime_service import AnimeService
 
     """
@@ -124,6 +125,15 @@ async def open_page(
         page_num = params.get("page", 1)
         if isinstance(event, CallbackQuery):
             await show_ratings_menu(
+                callback=event, 
+                session=session, 
+                state=state, 
+                page_override=page_num
+            )
+    elif page == "my_comments":
+        page_num = params.get("page", 1)
+        if isinstance(event, CallbackQuery):
+            await show_comment_menu(
                 callback=event, 
                 session=session, 
                 state=state, 

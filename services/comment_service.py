@@ -53,7 +53,7 @@ class CommentService:
                     
                     # Foydalanuvchi kimga javob yozganini bildirib qo'yish uchun (opsional)
                     author_name = parent_comment.get("user", {}).get("username") or "Foydalanuvchi"
-                    text = f"@{author_name}, {text}"
+                    text = f"{author_name}, {text}"
 
             comment = await self.repo.create(
                 self.session, anime_id, user_id, text, target_parent_id
@@ -241,3 +241,23 @@ class CommentService:
                 await self.session.rollback()
             logger.error(f"❌ Izohni tahrirlashda xato yuz berdi: {e}")
             raise e
+        
+
+
+    # ==================================================
+    # 📚 GET USER COMMENTED ANIMES
+    # ==================================================
+    async def get_user_commented_anime_count(self, user_id: int) -> int:
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        return await self.repo.get_user_commented_anime_count(self.session, user_id)
+
+    async def get_user_commented_anime_list(self, user_id: int, page: int = 1, per_page: int = 5) -> List[Dict]:
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        offset = (page - 1) * per_page
+        return await self.repo.get_user_commented_anime_list(
+            self.session, user_id, limit=per_page, offset=offset
+        )

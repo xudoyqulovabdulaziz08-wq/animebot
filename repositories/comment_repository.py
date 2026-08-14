@@ -4,7 +4,7 @@ import logging
 from typing import Any, Optional, Dict, List
 from sqlalchemy import select, func, delete, update
 from sqlalchemy.orm import selectinload
-from database.models import Comment, DBUser
+from database.models import Comment, DBUser, Anime
 from sqlalchemy.orm import aliased
 
 logger = logging.getLogger("CommentRepository")
@@ -380,3 +380,42 @@ class CommentRepository:
         result = await real_session.execute(stmt)
         await real_session.flush()
         return result.rowcount > 0
+
+
+
+# ================= USER COMMENTED ANIMES =================
+    @staticmethod
+    async def get_user_commented_anime_count(session: Any, user_id: int) -> int:
+        """Foydalanuvchi izoh qoldirgan noyob animelar sonini qaytaradi (Paginatsiya uchun)"""
+        real_session = await CommentRepository._prepare_session(session)
+        
+        stmt = select(func.count(func.distinct(Comment.anime_id))).where(Comment.user_id == user_id)
+        result = await real_session.execute(stmt)
+        return result.scalar() or 0
+
+    @staticmethod
+    async def get_user_commented_anime_list(session: Any, user_id: int, limit: int = 5, offset: int = 0) -> List[Dict]:
+        """Foydalanuvchi izoh qoldirgan animelarni ro'yxat tarzida qaytaradi"""
+        real_session = await CommentRepository._prepare_session(session)
+        
+        # Foydalanuvchi izoh qoldirgan animelarni DISTINCT qilib Anime bazasiga ulash
+        stmt = (
+            select(Anime.id, Anime.title, Anime.year)
+            .join(Comment, Comment.anime_id == Anime.id)
+            .where(Comment.user_id == user_id)
+            .group_by(Anime.id)  # Bir xil animeni 2 marta chiqarmaslik uchun
+            .order_by(Anime.id.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        
+        result = await real_session.execute(stmt)
+        animes = result.all()
+        
+        return [
+            {
+                "anime_id": row.id,
+                "title": row.title,
+                "year": row.year
+            } for row in animes
+        ]
