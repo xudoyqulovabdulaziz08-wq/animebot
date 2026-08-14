@@ -260,10 +260,12 @@ async def confirm_send_reply_handler(callback: CallbackQuery, state: FSMContext,
 
         # Callback formatsiya: reply_all_commend:<root_comment_id>:<anime_id>:<page>:<index>
         # 9999:9999 berilsa, izohlar ro'yxati avtomatik ravishda eng oxirgi sahifa va eng yangi javobga o'tadi
-        callback.data = f"reply_all_commend:{target_root_id}:{anime_id}:9999:9999"
+        new_callback = callback.model_copy(
+            update={"data": f"reply_all_commend:{target_root_id}:{anime_id}:9999:9999"}
+        )
 
         await safe_call(
-            handle_reply_all_comments(callback, session),
+            handle_reply_all_comments(new_callback, session),
             context="confirm_send_reply -> handle_reply_all_comments"
         )
 
@@ -376,9 +378,15 @@ async def cancel_reply_input_handler(callback: CallbackQuery, state: FSMContext,
             if comm and comm.get("parent_id"):
                 root_id = comm["parent_id"]
 
-            callback.data = f"reply_all_commend:{root_id}:{anime_id}:0:0"
+            # ❌ XATO: callback.data = f"reply_all_commend:{root_id}:{anime_id}:0:0"
+
+            # ✅ TO'G'RI:
+            new_callback = callback.model_copy(
+                update={"data": f"reply_all_commend:{root_id}:{anime_id}:0:0"}
+            )
+
             await safe_call(
-                handle_reply_all_comments(callback, session),
+                handle_reply_all_comments(new_callback, session),
                 context="cancel_reply_input -> handle_reply_all_comments"
             )
 
