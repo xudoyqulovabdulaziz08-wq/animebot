@@ -166,7 +166,7 @@ async def handle_reply_all_comments(callback: CallbackQuery, session: AsyncSessi
             await safe_answer(callback, "❌ Asosiy izoh topilmadi.", show_alert=True)
             return
 
-        # 2. Jami javoblar sonini olish va Sahifani (Pagination) hisoblash
+        # 2. Jami javoblar sonini olish va Sahifalarni (Pagination) hisoblash
         total_replies_count = await comment_service.get_comment_replies_count(comment_id)
         if total_replies_count == 0:
             await safe_answer(callback, "💬 Bu izohga hali javob yozilmagan.", show_alert=True)
@@ -175,7 +175,7 @@ async def handle_reply_all_comments(callback: CallbackQuery, session: AsyncSessi
         PAGE_SIZE = 10
         total_pages = math.ceil(total_replies_count / PAGE_SIZE)
 
-        # Chegaralarni to'g'rilash
+        # Sahifa chegaralarini to'g'rilash
         if page >= total_pages:
             page = total_pages - 1
         if page < 0:
@@ -195,31 +195,40 @@ async def handle_reply_all_comments(callback: CallbackQuery, session: AsyncSessi
         if select_index < 0:
             select_index = 0
 
-        # 4. Tanlangan 1 ta reply
+        # 4. Tanlangan 1 ta reply va uning tafsilotlarini olish
         selected_reply = page_replies[select_index]
         selected_reply_id = selected_reply.get("id")
 
         # Tanlangan reply'ning o'ziga yozilgan replylar soni
         reply_to_reply_count = await comment_service.get_comment_replies_count(selected_reply_id)
 
-        # Mualliflar ma'lumotlari
+        # --- MUALLIFLAR VA MATNLARNI TAYYORLASH ---
+        # Parent (ota-izoh) muallifi
+        parent_author = parent_comment.get("user") or {}
+        parent_user_name = (
+            parent_author.get("username")
+            or parent_author.get("full_name")
+            or "Noma'lum"
+        )
         parent_text = parent_comment.get("text", "")
-        
-        reply_user = selected_reply.get("user") or {}
+
+        # Tanlangan reply (javob) muallifi
+        reply_author = selected_reply.get("user") or {}
         reply_user_name = (
-            reply_user.get("username")
-            or reply_user.get("full_name")
+            reply_author.get("username")
+            or reply_author.get("full_name")
             or "Foydalanuvchi"
         )
         reply_text = selected_reply.get("text", "")
 
-        # 5. Siz so'ragan ANIQ UI MATN DIZAYNI
+        # 5. UI MATN DIZAYNI
         caption = (
-            f"↩️ <b>{html.escape(parent_text)}</b> (asosiy comment)\n\n"
-            f"<blockquote expandable>"
-            f"⌊👤 {html.escape(reply_user_name)} │\n"
-            f"    ⌊ {html.escape(reply_text)} │"
-            f"</blockquote>"
+            f"↩️ <b>JAVOBLAR BO'LIMI</b>\n\n"
+            f"📌 <b>{html.escape(parent_user_name)}</b> ning izohiga javob:\n"
+            f"<blockquote expandable>{html.escape(parent_text)}</blockquote>\n\n"
+            f"💬 <b>{html.escape(reply_user_name)}</b> yozdi:\n"
+            f"<blockquote expandable>{html.escape(reply_text)}</blockquote>\n"
+            f"📄 <b>Javob {select_index + 1}/{page_replies_count}</b> <i>(Jami: {total_replies_count} ta)</i>"
         )
 
         # 6. Klaviaturani yaratish
