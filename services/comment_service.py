@@ -53,7 +53,7 @@ class CommentService:
                     
                     # Foydalanuvchi kimga javob yozganini bildirib qo'yish uchun (opsional)
                     author_name = parent_comment.get("user", {}).get("username") or "Foydalanuvchi"
-                    text = f"<b>{author_name}</b>, {text}"
+                    text = f"{author_name}, {text}"
 
             comment = await self.repo.create(
                 self.session, anime_id, user_id, text, target_parent_id
