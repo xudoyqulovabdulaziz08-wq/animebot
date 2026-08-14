@@ -97,7 +97,7 @@ async def animelarim_menu(
                     style="primary"
                 ),
                 InlineKeyboardButton(
-                    text="🔔 Obunalarim ({sub_count})",
+                    text=f"🔔 Obunalarim ({sub_count})",
                     callback_data="cabinet_subscriptions",
                     style="primary"
                 )
