@@ -38,7 +38,7 @@ class FavoriteService:
             return cached_ids
 
         fav_ids = await self.repo.get_user_favorite_ids(self.session, user_id)
-        await self.cache.set("user_fav_ids", user_id, fav_ids, ttl=3600)
+        await self.cache.set("user_fav_ids", user_id, fav_ids, ttl=30)
         return fav_ids
 
     # ==================================================
@@ -103,7 +103,7 @@ class FavoriteService:
             return int(cached_count)
 
         count = await self.repo.get_user_favorites_count(self.session, user_id)
-        await self.cache.set("user_fav_count", user_id, count, ttl=3600)
+        await self.cache.set("user_fav_count", user_id, count, ttl=30)
 
         return count
 
@@ -136,6 +136,6 @@ class FavoriteService:
         )
 
         # 3. Keshga yozamiz (TTL: 1 soat)
-        await self.cache.set("user_fav_page", cache_sub_key, anime_list, ttl=3600)
+        await self.cache.set("user_fav_page", cache_sub_key, anime_list, ttl=30)
 
         return anime_list

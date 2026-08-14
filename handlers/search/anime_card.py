@@ -110,6 +110,16 @@ async def send_anime_card(
         is_favorite = await fav_service.check_is_favorite(actual_user_id, anime_id)
         fav_text = "❤️ Sevimlida ✓" if is_favorite else "🤍 Sevimli"
 
+    sub_text = "🔔 Obuna"
+    if anime_id:
+        try:
+            from services.subscription_service import SubscriptionService
+            sub_service = SubscriptionService(session=session)
+            is_subscribed = await sub_service.is_subscribed(actual_user_id, anime_id)
+            sub_text = "🔔 Obunadasiz ✓" if is_subscribed else "🔔 Obuna"
+        except Exception as sub_err:
+            logger.error(f"❌ Obunani tekshirishda xato: {sub_err}")
+
     # Baholash holati va ballini olish
     user_rating = None
     rat_text = "⭐ Baholash"
@@ -152,7 +162,7 @@ async def send_anime_card(
         ],
         [
             InlineKeyboardButton(
-                text="🔔 Obuna", 
+                text="sub_text", 
                 callback_data=f"anime_subscription:{anime_id}",
                 style="primary"
             ),
