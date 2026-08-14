@@ -400,11 +400,11 @@ class CommentRepository:
         
         # Foydalanuvchi izoh qoldirgan animelarni DISTINCT qilib Anime bazasiga ulash
         stmt = (
-            select(Anime.id, Anime.title, Anime.year)
-            .join(Comment, Comment.anime_id == Anime.id)
+            select(Anime.anime_id, Anime.title, Anime.year)
+            .join(Comment, Comment.anime_id == Anime.anime_id)
             .where(Comment.user_id == user_id)
-            .group_by(Anime.id)  # Bir xil animeni 2 marta chiqarmaslik uchun
-            .order_by(Anime.id.desc())
+            .group_by(Anime.anime_id)  # Bir xil animeni 2 marta chiqarmaslik uchun
+            .order_by(Anime.anime_id.desc())
             .limit(limit)
             .offset(offset)
         )
@@ -414,7 +414,7 @@ class CommentRepository:
         
         return [
             {
-                "anime_id": row.id,
+                "anime_id": row.anime_id,
                 "title": row.title,
                 "year": row.year
             } for row in animes

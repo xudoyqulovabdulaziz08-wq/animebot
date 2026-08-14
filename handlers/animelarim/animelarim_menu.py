@@ -11,6 +11,7 @@ from aiogram.exceptions import TelegramBadRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 from services.favorite_service import FavoriteService
 from services.rating_service import RatingService
+from services.comment_service import CommentService
 from services.navigation import NavigationManager
 from aiogram.fsm.context import FSMContext
 from config import config
@@ -47,15 +48,18 @@ async def animelarim_menu(
     user_id = callback.from_user.id
     rat_count = 0
     fav_count = 0
+    com_count = 0
 
     try:
         rat_service = RatingService(session=session)
         fav_service = FavoriteService(session=session)
+        com_service = CommentService(session=session)
 
         # Ikkala keshlangan query'ni bir vaqtda parallel bajarish
-        rat_count, fav_count = await asyncio.gather(
+        rat_count, fav_count, com_count = await asyncio.gather(
             rat_service.get_user_ratings_count(user_id),
             fav_service.get_user_favorites_count(user_id),
+            com_service.get_user_commented_anime_count(user_id),
             return_exceptions=False
         )
     except Exception as err:
@@ -84,7 +88,7 @@ async def animelarim_menu(
             ],
             [
                 InlineKeyboardButton(
-                    text="💬 Izohlarim",
+                    text=f"💬 Izohlarim ({com_count})",
                     callback_data="cabinet_comments",
                     style="primary"
                 ),
