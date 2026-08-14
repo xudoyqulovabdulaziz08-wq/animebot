@@ -199,7 +199,7 @@ def get_comment_replies_keyboard(
         for i in range(start_idx, end_idx):
             is_active = (i == current_index)
             btn_text = f"• {i + 1} •" if is_active else str(i + 1)
-            cb_data = "noop" if is_active else f"rep_page:{comment_id}:{anime_id}:{i}"
+            cb_data = "noop" if is_active else f"rep_my_page:{comment_id}:{anime_id}:{i}"
 
             page_buttons.append(
                 InlineKeyboardButton(
@@ -219,7 +219,7 @@ def get_comment_replies_keyboard(
 
             # Chap tugma
             if current_page > 0:
-                left_btn = InlineKeyboardButton(text="⬅️", callback_data=f"rep_page:{comment_id}:{anime_id}:{prev_page_idx}")
+                left_btn = InlineKeyboardButton(text="⬅️", callback_data=f"rep_my_page:{comment_id}:{anime_id}:{prev_page_idx}")
             else:
                 left_btn = InlineKeyboardButton(text="⏹️", callback_data="noop")
 
@@ -228,7 +228,7 @@ def get_comment_replies_keyboard(
 
             # O'ng tugma
             if current_page < total_pages - 1:
-                right_btn = InlineKeyboardButton(text="➡️", callback_data=f"rep_page:{comment_id}:{anime_id}:{next_page_idx}")
+                right_btn = InlineKeyboardButton(text="➡️", callback_data=f"rep_my_page:{comment_id}:{anime_id}:{next_page_idx}")
             else:
                 right_btn = InlineKeyboardButton(text="⏹️", callback_data="noop")
 
@@ -381,7 +381,7 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
 
 
 
-@router.callback_query(F.data.startswith(("reply_comm:", "rep_page:")))
+@router.callback_query(F.data.startswith(("reply_comm:", "rep_my_page:")))
 async def handle_comment_replies(callback: CallbackQuery, session: AsyncSession):
     # 1. callback_data xavfsiz parse qilish
     try:
