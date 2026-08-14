@@ -16,7 +16,8 @@ from handlers.anime_uchun.izohlar.izohlarim import (
 )
 from handlers.anime_uchun.izohlar.view_izohlar import (
     izohlar_all,
-    izoh_reply
+    izoh_reply,
+    add_reply
 )
 anime_router = Router()
 
@@ -34,6 +35,7 @@ anime_router.include_routers(
     sevimli_anime.router,
     izohlar_all.router,
     izoh_reply.router,
+    add_reply.router,
 
     add_izoh.router,
     add_edit.router,
