@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from services.favorite_service import FavoriteService
 from services.rating_service import RatingService
 from services.comment_service import CommentService
+from services.subscription_service import SubscriptionService
 from services.navigation import NavigationManager
 from aiogram.fsm.context import FSMContext
 from config import config
@@ -49,17 +50,20 @@ async def animelarim_menu(
     rat_count = 0
     fav_count = 0
     com_count = 0
+    sub_count = 0
 
     try:
         rat_service = RatingService(session=session)
         fav_service = FavoriteService(session=session)
         com_service = CommentService(session=session)
+        sub_service = SubscriptionService(session=session)
 
         # Ikkala keshlangan query'ni bir vaqtda parallel bajarish
-        rat_count, fav_count, com_count = await asyncio.gather(
+        rat_count, fav_count, com_count, sub_count = await asyncio.gather(
             rat_service.get_user_ratings_count(user_id),
             fav_service.get_user_favorites_count(user_id),
             com_service.get_user_commented_anime_count(user_id),
+            sub_service.get_user_subscription_anime_count(user_id),
             return_exceptions=False
         )
     except Exception as err:
@@ -93,7 +97,7 @@ async def animelarim_menu(
                     style="primary"
                 ),
                 InlineKeyboardButton(
-                    text="🔔 Obunalarim",
+                    text="🔔 Obunalarim ({sub_count})",
                     callback_data="cabinet_subscriptions",
                     style="primary"
                 )

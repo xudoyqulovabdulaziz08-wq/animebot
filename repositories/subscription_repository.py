@@ -87,3 +87,13 @@ class SubscriptionRepository:
             real_session.add(new_sub)
             await real_session.flush()
             return True
+        
+    # 🔢 Foydalanuvchining jami obuna bo'lgan animelari sonini olish
+    @staticmethod
+    async def get_user_subscription_anime_count(session: Any, user_id: int) -> int:
+        real_session = await SubscriptionRepository._prepare_session(session)
+        stmt = select(func.count(AnimeSubscription.id)).where(
+            AnimeSubscription.user_id == user_id
+        )
+        result = await real_session.execute(stmt)
+        return result.scalar() or 0

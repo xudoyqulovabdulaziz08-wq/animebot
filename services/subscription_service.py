@@ -107,3 +107,14 @@ class SubscriptionService:
                 await self.session.rollback()
             self._clear_cache(user_id, anime_id)
             raise e
+
+    async def get_user_subscription_anime_count(self, user_id: int) -> int:
+        """Foydalanuvchi jami nechta animega obuna bo'lganini qaytaradi"""
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        try:
+            return await self.repo.get_user_subscription_anime_count(self.session, user_id)
+        except Exception as e:
+            logger.error(f"❌ User obunalari sonini olishda xatolik (user_id={user_id}): {e}")
+            return 0
