@@ -279,7 +279,7 @@ async def handle_my_comments(callback: CallbackQuery, session: AsyncSession):
 
         # Index chegarasini to'g'rilash
         # 1. Animening barcha izohlari ID ro'yxatini olamiz (Keshdan yoki Bazadan)
-        comment_ids = await comment_service.get_anime_comment_ids(anime_id)
+        comment_ids = await comment_service.get_user_comment_ids(anime_id, user_id)
         
         if not comment_ids:
             await safe_answer(callback, "Bu animeda hali izohlar yo'q.", show_alert=True)
