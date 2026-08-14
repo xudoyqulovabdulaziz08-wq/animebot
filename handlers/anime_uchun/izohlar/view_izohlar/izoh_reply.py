@@ -116,11 +116,6 @@ def get_reply_all_comments_keyboard(
             text="↩️ Javob yozish",
             callback_data=f"reply_to:{current_reply_id}:{anime_id}",
             style="primary"
-        ),
-        InlineKeyboardButton(
-            text=f"💬 {reply_to_reply_count} ta javob",
-            callback_data=f"reply_all_commend:{current_reply_id}:{anime_id}" if reply_to_reply_count > 0 else "noop",
-            style="primary"
         )
     ]
     keyboard.append(row_actions)

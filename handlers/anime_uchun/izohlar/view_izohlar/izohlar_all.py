@@ -97,7 +97,7 @@ def get_view_comments_keyboard(
     keyboard.append([
         InlineKeyboardButton(
             text="↩️ Javob yozish",
-            callback_data=f"add_reply_comment:{anime_id}:{comment_id}",
+            callback_data=f"reply_to:{anime_id}:{comment_id}",
             style="primary"
         ),
         InlineKeyboardButton(
