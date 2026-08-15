@@ -395,15 +395,23 @@ class CommentRepository:
 
     @staticmethod
     async def get_user_commented_anime_list(session: Any, user_id: int, limit: int = 5, offset: int = 0) -> List[Dict]:
-        """Foydalanuvchi izoh qoldirgan animelarni ro'yxat tarzida qaytaradi"""
+        """Foydalanuvchi izoh qoldirgan animelarni ro'yxat tarzida qaytaradi (Yangi AnimeTitle strukturasida)."""
+        from database.models import Anime, Comment, AnimeTitle
+        from sqlalchemy import func
+
         real_session = await CommentRepository._prepare_session(session)
         
-        # Foydalanuvchi izoh qoldirgan animelarni DISTINCT qilib Anime bazasiga ulash
+        # Foydalanuvchi izoh qoldirgan animelarni DISTINCT/GROUP_BY qilib Anime va AnimeTitle ga ulash
         stmt = (
-            select(Anime.anime_id, Anime.title, Anime.year)
+            select(
+                Anime.anime_id, 
+                func.coalesce(AnimeTitle.title_uz, AnimeTitle.title_en, "Nomsiz anime").label("title"),
+                Anime.year
+            )
             .join(Comment, Comment.anime_id == Anime.anime_id)
+            .outerjoin(AnimeTitle, AnimeTitle.anime_id == Anime.anime_id)
             .where(Comment.user_id == user_id)
-            .group_by(Anime.anime_id)  # Bir xil animeni 2 marta chiqarmaslik uchun
+            .group_by(Anime.anime_id, AnimeTitle.id)
             .order_by(Anime.anime_id.desc())
             .limit(limit)
             .offset(offset)

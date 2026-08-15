@@ -107,19 +107,24 @@ class SubscriptionRepository:
     ) -> List[Dict[str, Any]]:
         """
         Foydalanuvchining obuna bo'lgan animelarini JOIN orqali 
-        BITTA SQL so'rovida olib keladi.
+        BITTA SQL so'rovida olib keladi (Yangi AnimeTitle strukturasi bo'yicha).
         """
+        from database.models import Anime, AnimeSubscription, AnimeTitle
+        from sqlalchemy import func
+
         session = await SubscriptionRepository._prepare_session(session)
 
         stmt = (
             select(
-                Anime.anime_id,       # 👈 Modelga mos ravishda Anime.anime_id
-                Anime.title,
+                Anime.anime_id,
+                func.coalesce(AnimeTitle.title_uz, AnimeTitle.title_en, "Nomsiz anime").label("title"),
                 Anime.year,
-                Anime.poster_id       # 👈 Modelga mos ravishda poster_id
+                Anime.poster_id
             )
             .join(AnimeSubscription, AnimeSubscription.anime_id == Anime.anime_id)
+            .outerjoin(AnimeTitle, AnimeTitle.anime_id == Anime.anime_id)
             .where(AnimeSubscription.user_id == user_id)
+            .group_by(Anime.anime_id, AnimeTitle.id, AnimeSubscription.id)
             .order_by(AnimeSubscription.id.desc())
             .offset(offset)
             .limit(limit)
