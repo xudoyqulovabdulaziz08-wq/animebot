@@ -162,7 +162,7 @@ async def send_anime_card(
         ],
         [
             InlineKeyboardButton(
-                text="sub_text", 
+                text=sub_text, 
                 callback_data=f"anime_subscription:{anime_id}",
                 style="primary"
             ),

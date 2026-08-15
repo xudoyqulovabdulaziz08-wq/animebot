@@ -23,17 +23,12 @@ class SubscriptionService:
         if cached_status is not None:
             return cached_status
 
-        if hasattr(self.session, "_ensure_session"):
-            await self.session._ensure_session()
-
+        # Repo o'zi sessiyani tayyorlaydi
         status = await self.repo.is_subscribed(self.session, user_id, anime_id)
         await self.cache.set("user_subscription", cache_key, status, ttl=30)
         return status
 
     async def toggle_subscription(self, user_id: int, anime_id: int) -> bool:
-        if hasattr(self.session, "_ensure_session"):
-            await self.session._ensure_session()
-
         try:
             new_status = await self.repo.toggle_subscription(self.session, user_id, anime_id)
             
@@ -55,9 +50,6 @@ class SubscriptionService:
             raise e
 
     async def add_subscription(self, user_id: int, anime_id: int) -> bool:
-        if hasattr(self.session, "_ensure_session"):
-            await self.session._ensure_session()
-
         try:
             res = await self.repo.add_subscription(self.session, user_id, anime_id)
             if hasattr(self.session, "commit"):
@@ -74,9 +66,6 @@ class SubscriptionService:
             raise e
 
     async def remove_subscription(self, user_id: int, anime_id: int) -> bool:
-        if hasattr(self.session, "_ensure_session"):
-            await self.session._ensure_session()
-
         try:
             res = await self.repo.remove_subscription(self.session, user_id, anime_id)
             if hasattr(self.session, "commit"):
@@ -93,9 +82,6 @@ class SubscriptionService:
             raise e
 
     async def get_user_subscription_anime_count(self, user_id: int) -> int:
-        if hasattr(self.session, "_ensure_session"):
-            await self.session._ensure_session()
-
         try:
             return await self.repo.get_user_subscription_anime_count(self.session, user_id)
         except Exception as e:
