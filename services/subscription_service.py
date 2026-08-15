@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Dict, Tuple, List
 from repositories.subscription_repository import SubscriptionRepository
-from database.cache import cache_manager  # 👈 Kesh menejerini chaqiramiz
+from database.cache import cache_manager
 
 logger = logging.getLogger("SubscriptionService")
 
@@ -12,9 +12,7 @@ class SubscriptionService:
     def __init__(self, session: Any):
         self.session = session
         self.repo = SubscriptionRepository()
-        self.cache = cache_manager  # 👈 self.cache ga biriktiramiz
-
-    # ================= PUBLIC METHODS =================
+        self.cache = cache_manager
 
     async def is_subscribed(self, user_id: int, anime_id: int) -> bool:
         cache_key = f"{user_id}:{anime_id}"
@@ -23,7 +21,6 @@ class SubscriptionService:
         if cached_status is not None:
             return cached_status
 
-        # Repo o'zi sessiyani tayyorlaydi
         status = await self.repo.is_subscribed(self.session, user_id, anime_id)
         await self.cache.set("user_subscription", cache_key, status, ttl=30)
         return status
@@ -59,6 +56,7 @@ class SubscriptionService:
             cache_key = f"{user_id}:{anime_id}"
             await self.cache.set("user_subscription", cache_key, True, ttl=30)
             await self.cache.invalidate("user_sub_page", f"{user_id}:*", broadcast=True)
+            await self.cache.invalidate("user_sub_count", user_id, broadcast=True) # 👈 Yangi
             
             return res
         except Exception as e:
@@ -75,6 +73,7 @@ class SubscriptionService:
             cache_key = f"{user_id}:{anime_id}"
             await self.cache.set("user_subscription", cache_key, False, ttl=30)
             await self.cache.invalidate("user_sub_page", f"{user_id}:*", broadcast=True)
+            await self.cache.invalidate("user_sub_count", user_id, broadcast=True) # 👈 Yangi
             
             return res
         except Exception as e:
@@ -83,8 +82,15 @@ class SubscriptionService:
             raise e
 
     async def get_user_subscription_anime_count(self, user_id: int) -> int:
+        # 🔥 COUNT UCHUN HAM KESH QO'SHILDI (DB ni ortiqcha zo'riqtirmaydi)
+        cached_count = await self.cache.get("user_sub_count", user_id)
+        if cached_count is not None:
+            return int(cached_count)
+
         try:
-            return await self.repo.get_user_subscription_anime_count(self.session, user_id)
+            count = await self.repo.get_user_subscription_anime_count(self.session, user_id)
+            await self.cache.set("user_sub_count", user_id, count, ttl=30)
+            return count
         except Exception as e:
             logger.error(f"❌ User obunalari sonini olishda xatolik (user_id={user_id}): {e}")
             return 0
