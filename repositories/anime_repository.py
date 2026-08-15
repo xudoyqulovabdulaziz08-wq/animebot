@@ -21,7 +21,7 @@ class AnimeRepository:
             await session._ensure_session()
         return AnimeRepository._get_real_session(session)
 
-    # ================= GET BY ID =================
+# ================= GET BY ID =================
     @staticmethod
     async def get_by_id(session: Any, anime_id: int) -> Optional[Dict]:
         session = await AnimeRepository._prepare_session(session)
@@ -30,9 +30,10 @@ class AnimeRepository:
             select(Anime)
             .where(Anime.anime_id == anime_id)
             .options(
-                selectinload(Anime.genres),  
-                selectinload(Anime.episodes),
-                selectinload(Anime.dubbers)  # 🎙 1. Dubberlarni ham yuklab olishni qo'shamiz
+                selectinload(Anime.genres),
+                # 1. Epizodlarni yuklash bilan birga uning streams munosabatini ham nested yuklaymiz
+                selectinload(Anime.episodes).selectinload(Episode.streams),
+                selectinload(Anime.dubbers)
             )
         )
 
@@ -45,14 +46,34 @@ class AnimeRepository:
         # Ustunlarni dict qilamiz va munosabatlarni qo'lda xavfsiz qo'shamiz
         data = anime.to_dict()
         data["genres"] = [g.id for g in anime.genres] if hasattr(anime, "genres") else []
-        
-        # 🎙 2. Yuklangan dubberlarning ID-larini ro'yxat qilib qo'shamiz
         data["dubbers"] = [d.id for d in anime.dubbers] if hasattr(anime, "dubbers") else []
         
-        data["episodes"] = [
-            {"id": ep.id, "episode": ep.episode, "file_id": ep.file_id} 
-            for ep in anime.episodes
-        ] if hasattr(anime, "episodes") else []
+        # 2. Epizodlar ro'yxatini yangi streams strukturasiga moslab shakllantiramiz
+        episodes_list = []
+        if hasattr(anime, "episodes"):
+            for ep in anime.episodes:
+                # Epizodga tegishli barcha video manbalarini (streams) olamiz
+                streams_data = [
+                    {
+                        "id": st.id,
+                        "file_id": st.file_id,
+                        "dub_group": st.dub_group,
+                        "is_vip": st.is_vip
+                    }
+                    for st in ep.streams
+                ] if hasattr(ep, "streams") else []
+
+                episodes_list.append({
+                    "id": ep.id,
+                    "episode": ep.episode,
+                    "is_filler": ep.is_filler,
+                    "episode_title": ep.episode_title,
+                    "streams": streams_data,
+                    # Eskicha kodlar buzilmasligi uchun birinchi/asosiy stream fayl ID sini ham qo'shib qo'yamiz:
+                    "file_id": streams_data[0]["file_id"] if streams_data else None
+                })
+
+        data["episodes"] = episodes_list
         
         return data
     
