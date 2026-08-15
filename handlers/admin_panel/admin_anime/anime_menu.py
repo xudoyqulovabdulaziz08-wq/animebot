@@ -65,7 +65,7 @@ async def list_type_menu_handler(callback: CallbackQuery, state: FSMContext):
         f"📚 {html.bold('Anime ro‘yxati turi ')}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"Animelarni holatiga ko‘ra ko‘rish uchun "
-        f"kerakli bo‘limni tanlang.\n"
+        f"kerakli bo‘limni tanlang.\n\n"
         f"⚠️ Eslatib otamiz bu yerdagi harakatlarni orqaga qayatarib bo'lmaydi \n\n"
         f"👇 Bo‘limni tanlang:"
     )
@@ -75,7 +75,7 @@ async def list_type_menu_handler(callback: CallbackQuery, state: FSMContext):
                 InlineKeyboardButton(text="📚 Barcha animelar", callback_data="list_anime_page:1", style="primary")
             ],
             [
-                InlineKeyboardButton(text="🟢 tugallangan", callback_data="list_anime_end_page:1", style="primary"),
+                InlineKeyboardButton(text="🟢 Tugallangan", callback_data="list_anime_end_page:1", style="primary"),
                 InlineKeyboardButton(text="🟡 Davom etmoqda", callback_data="list_anime_contine_page:1", style="primary")
             ], # Paginatsiya 1-sahifadan boshlanadi
             [

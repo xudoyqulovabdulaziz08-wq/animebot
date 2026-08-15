@@ -484,3 +484,46 @@ class AnimeRepository:
         # 💡 TAVSIYA: Obyektga bazadan darhol ID biriktirilishi uchun flush qilamiz
         await session.flush() 
         return new_dubber
+
+    # ================= GET COMPLETED ANIMES =================
+    @staticmethod
+    async def get_completed_animes(
+        session: Any, 
+        offset: int = 0, 
+        limit: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Tugallangan (is_completed = True) animelar ro'yxatini va ularning umumiy sonini qaytaradi.
+        """
+        from sqlalchemy import func
+        session = await AnimeRepository._prepare_session(session)
+
+        # 1. Tugallangan animelarning umumiy sonini hisoblash (Count query)
+        count_stmt = (
+            select(func.count(Anime.anime_id))
+            .where(Anime.is_completed == True)
+        )
+        total_count = (await session.execute(count_stmt)).scalar() or 0
+
+        # 2. Tugallangan animelar ro'yxatini yuklash (Data query)
+        stmt = (
+            select(Anime)
+            .where(Anime.is_completed == True)
+            .options(
+                selectinload(Anime.titles),
+                selectinload(Anime.genres),
+                selectinload(Anime.episodes).selectinload(Episode.streams),
+                selectinload(Anime.dubbers)
+            )
+            .order_by(desc(Anime.anime_id))
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = await session.execute(stmt)
+        animes = result.scalars().all()
+
+        return {
+            "total_count": total_count,
+            "animes": [AnimeRepository._serialize_anime(anime) for anime in animes]
+        }
