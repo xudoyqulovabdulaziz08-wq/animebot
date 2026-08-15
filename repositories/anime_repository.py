@@ -115,14 +115,35 @@ class AnimeRepository:
         stmt = (
             select(Episode)
             .where(Episode.anime_id == anime_id)
-            .order_by(Episode.episode)  # Qismlar ketma-ketligi (1, 2, 3...) bu buzilmasligi shart!
+            .options(selectinload(Episode.streams))  # 1. Video manbalarini (streams) yuklaymiz
+            .order_by(Episode.episode)
         )
 
         result = await real_session.execute(stmt)
         episodes_list = result.scalars().all()
 
-        # Har bir epizod obyektini to_dict() orqali dict formatiga o'giramiz
-        return [ep.to_dict() for ep in episodes_list]
+        formatted_episodes = []
+        for ep in episodes_list:
+            ep_dict = ep.to_dict()
+
+            # 2. Streams ma'lumotlarini lug'at shaklida yig'amiz
+            streams = [
+                {
+                    "id": st.id,
+                    "file_id": st.file_id,
+                    "dub_group": st.dub_group,
+                    "is_vip": st.is_vip
+                }
+                for st in ep.streams
+            ] if hasattr(ep, "streams") else []
+
+            ep_dict["streams"] = streams
+            # Eskicha kodlar buzilmasligi uchun birinchi/asosiy file_id ni qaytaramiz
+            ep_dict["file_id"] = streams[0]["file_id"] if streams else None
+
+            formatted_episodes.append(ep_dict)
+
+        return formatted_episodes
 
     # ================= LIST =================
     @staticmethod
