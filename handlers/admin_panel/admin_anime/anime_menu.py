@@ -62,11 +62,11 @@ async def list_type_menu_handler(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
     text = (
-        f"📚 {html.bold('Anime royxat turi')}\n"
+        f"📚 {html.bold('Anime ro‘yxati')}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"Ushbu bo‘lim orqali bazadagi animelar turi boyicha royxat orqali chiqara olasiz, "
-        f"yangi kontent qo‘shishingiz yoki o‘chirishingiz mumkin.\n\n"
-        f"👇 Kerakli amalni tanlang:"
+        f"Animelarni holatiga ko‘ra ko‘rish uchun "
+        f"kerakli bo‘limni tanlang.\n\n"
+        f"👇 Bo‘limni tanlang:"
     )
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
@@ -75,7 +75,7 @@ async def list_type_menu_handler(callback: CallbackQuery, state: FSMContext):
             ],
             [
                 InlineKeyboardButton(text="🟢 tugallangan", callback_data="list_anime_end_page:1", style="primary"),
-                InlineKeyboardButton(text="🟡 davometmoqda", callback_data="list_anime_contine_page:1", style="primary")
+                InlineKeyboardButton(text="🟡 Davom etmoqda", callback_data="list_anime_contine_page:1", style="primary")
             ], # Paginatsiya 1-sahifadan boshlanadi
             [
                 InlineKeyboardButton(text="⬅️ Orqaga", callback_data="admin_anime", style="danger")
