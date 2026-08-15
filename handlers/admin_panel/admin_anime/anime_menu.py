@@ -62,10 +62,11 @@ async def list_type_menu_handler(callback: CallbackQuery, state: FSMContext):
     await callback.answer()
     await state.clear()
     text = (
-        f"📚 {html.bold('Anime ro‘yxati')}\n"
+        f"📚 {html.bold('Anime ro‘yxati turi ')}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"Animelarni holatiga ko‘ra ko‘rish uchun "
-        f"kerakli bo‘limni tanlang.\n\n"
+        f"kerakli bo‘limni tanlang.\n"
+        f"⚠️ Eslatib otamiz bu yerdagi harakatlarni orqaga qayatarib bo'lmaydi \n\n"
         f"👇 Bo‘limni tanlang:"
     )
     kb = InlineKeyboardMarkup(
