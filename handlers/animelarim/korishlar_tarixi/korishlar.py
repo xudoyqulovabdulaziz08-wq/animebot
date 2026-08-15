@@ -12,20 +12,23 @@ def get_history_keyboard() -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton(
-                text="▶️ Tugatilgan animelar",
-                callback_data="history_completed"
+                text="⏺️ Tugatilgan",
+                callback_data="history_completed",
+                style="primary"
             )
         ],
         [
             InlineKeyboardButton(
-                text="⏯️ Ko‘rilayotgan animelar",
-                callback_data="history_watching"
+                text="🕣 Ko‘rilmoqda",
+                callback_data="history_watching",
+                style="primary"
             )
         ],
         [
             InlineKeyboardButton(
                 text="⬅️ Orqaga",
-                callback_data="cabinet_back"
+                callback_data="animelarim_cabinet",
+                style="danger"
             )
         ]
     ]
