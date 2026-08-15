@@ -15,7 +15,7 @@ from handlers.admin_panel.admin_vip import (
     admin_vip_menu, add_vip, list_vip
 )
 from handlers.admin_panel.admin_anime.list_anime import (
-    list_all_anime
+    list_all_anime, list_end_anime, list_contine_anime
 )
 admin_router = Router()
 
@@ -28,6 +28,7 @@ admin_router.include_routers(
     admin_stastika.router,
     add_anime.router,
     list_all_anime.router,
+    list_end_anime.router,
     list_anime1.router,
     janr.router,
     dubber.router,
