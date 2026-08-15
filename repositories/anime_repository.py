@@ -21,38 +21,39 @@ class AnimeRepository:
             await session._ensure_session()
         return AnimeRepository._get_real_session(session)
 
-# ================= GET BY ID =================
+    # ================= 🏷 SERIALIZER (foydalanuvchiga ko'rsatiladigan dict) =================
     @staticmethod
-    async def get_by_id(session: Any, anime_id: int) -> Optional[Dict]:
-        session = await AnimeRepository._prepare_session(session)
-
-        stmt = (
-            select(Anime)
-            .where(Anime.anime_id == anime_id)
-            .options(
-                selectinload(Anime.genres),
-                # 1. Epizodlarni yuklash bilan birga uning streams munosabatini ham nested yuklaymiz
-                selectinload(Anime.episodes).selectinload(Episode.streams),
-                selectinload(Anime.dubbers)
-            )
-        )
-
-        result = await session.execute(stmt)
-        anime = result.scalar_one_or_none()
-
-        if not anime:
-            return None
-
-        # Ustunlarni dict qilamiz va munosabatlarni qo'lda xavfsiz qo'shamiz
+    def _serialize_anime(anime: Anime) -> Dict:
+        """
+        🚀 Anime obyektini foydalanuvchiga ko'rsatish uchun xavfsiz dict shakliga o'tkazadi.
+        - Sarlavha endi alohida AnimeTitle jadvalida — ASOSIY nom sifatida title_uz olinadi
+          (data["title"] = title_uz, eski kodlar buzilmasligi uchun).
+        - Epizodlar endi ularning barcha stream (dublyaj/VIP) variantlari bilan birga qaytadi.
+        """
         data = anime.to_dict()
+
+        # 🏷 Sarlavha: Anime.title ustuni endi yo'q — AnimeTitle jadvalidan olinadi.
+        # Bitta animening bir nechta AnimeTitle qatori bo'lishi mumkin (masalan alternativ nomlar),
+        # shuning uchun BIRINCHISINI asosiy deb olamiz, undan title_uz asosiy nom bo'ladi.
+        titles = anime.titles if hasattr(anime, "titles") and anime.titles else []
+        primary_title = titles[0] if titles else None
+
+        data["title"] = (primary_title.title_uz if primary_title else None) or "Nomsiz anime"
+        data["titles"] = {
+            "uz": primary_title.title_uz if primary_title else None,
+            "en": primary_title.title_en if primary_title else None,
+            "jp": primary_title.title_jp if primary_title else None,
+            "jp_romaji": primary_title.title_jp_romaji if primary_title else None,
+            "ru": primary_title.title_ru if primary_title else None,
+        }
+
         data["genres"] = [g.id for g in anime.genres] if hasattr(anime, "genres") else []
         data["dubbers"] = [d.id for d in anime.dubbers] if hasattr(anime, "dubbers") else []
-        
-        # 2. Epizodlar ro'yxatini yangi streams strukturasiga moslab shakllantiramiz
+
+        # 🎬 Epizodlar — endi har biri o'zining stream (fayl) variantlari bilan
         episodes_list = []
         if hasattr(anime, "episodes"):
             for ep in anime.episodes:
-                # Epizodga tegishli barcha video manbalarini (streams) olamiz
                 streams_data = [
                     {
                         "id": st.id,
@@ -69,14 +70,40 @@ class AnimeRepository:
                     "is_filler": ep.is_filler,
                     "episode_title": ep.episode_title,
                     "streams": streams_data,
-                    # Eskicha kodlar buzilmasligi uchun birinchi/asosiy stream fayl ID sini ham qo'shib qo'yamiz:
+                    # Eskicha kodlar buzilmasligi uchun birinchi/asosiy stream fayl ID sini ham qo'shamiz
                     "file_id": streams_data[0]["file_id"] if streams_data else None
                 })
 
         data["episodes"] = episodes_list
-        
+        data["episodes_count"] = len(episodes_list)
+
         return data
-    
+
+    # ================= GET BY ID =================
+    @staticmethod
+    async def get_by_id(session: Any, anime_id: int) -> Optional[Dict]:
+        session = await AnimeRepository._prepare_session(session)
+
+        stmt = (
+            select(Anime)
+            .where(Anime.anime_id == anime_id)
+            .options(
+                selectinload(Anime.titles),
+                selectinload(Anime.genres),
+                # Epizodlarni yuklash bilan birga uning streams munosabatini ham nested yuklaymiz
+                selectinload(Anime.episodes).selectinload(Episode.streams),
+                selectinload(Anime.dubbers)
+            )
+        )
+
+        result = await session.execute(stmt)
+        anime = result.scalar_one_or_none()
+
+        if not anime:
+            return None
+
+        return AnimeRepository._serialize_anime(anime)
+
     #================= INCREMENT VIEWS =================
     @staticmethod
     async def increment_views(session: Any, anime_id: int) -> bool:
@@ -103,6 +130,7 @@ class AnimeRepository:
         except Exception as e:
             logger.error(f"❌ AnimeRepository.increment_views da xato: {e}")
             return False
+
     # ================= GET EPISODES BY ANIME ID =================
     @staticmethod
     async def get_episodes_by_anime_id(session: Any, anime_id: int) -> List[Dict]:
@@ -115,7 +143,7 @@ class AnimeRepository:
         stmt = (
             select(Episode)
             .where(Episode.anime_id == anime_id)
-            .options(selectinload(Episode.streams))  # 1. Video manbalarini (streams) yuklaymiz
+            .options(selectinload(Episode.streams))  # Video manbalarini (streams) yuklaymiz
             .order_by(Episode.episode)
         )
 
@@ -126,7 +154,7 @@ class AnimeRepository:
         for ep in episodes_list:
             ep_dict = ep.to_dict()
 
-            # 2. Streams ma'lumotlarini lug'at shaklida yig'amiz
+            # Streams ma'lumotlarini lug'at shaklida yig'amiz
             streams = [
                 {
                     "id": st.id,
@@ -152,24 +180,85 @@ class AnimeRepository:
 
         stmt = (
             select(Anime)
-            .options(selectinload(Anime.genres), selectinload(Anime.episodes), selectinload(Anime.dubbers))
+            .options(
+                selectinload(Anime.titles),
+                selectinload(Anime.genres),
+                selectinload(Anime.episodes).selectinload(Episode.streams),
+                selectinload(Anime.dubbers)
+            )
             .order_by(desc(Anime.anime_id))
         )
 
         result = await session.execute(stmt)
-        anime_list = []
-        
-        for anime in result.scalars().all():
-            data = anime.to_dict()
-            data["genres"] = [g.id for g in anime.genres] if hasattr(anime, "genres") else []
-            data["dubbers"] = [d.id for d in anime.dubbers] if hasattr(anime, "dubbers") else []
-            data["episodes"] = [
-                {"id": ep.id, "episode": ep.episode, "file_id": ep.file_id} 
-                for ep in anime.episodes
-            ] if hasattr(anime, "episodes") else []
-            anime_list.append(data)
-            
-        return anime_list
+        return [AnimeRepository._serialize_anime(anime) for anime in result.scalars().all()]
+
+    # ================= MULTI-GENRE SEARCH (OPTIMIZED) =================
+    @staticmethod
+    async def get_by_genres(session: Any, genre_ids: List[int]) -> List[Dict]:
+        from database.models import anime_genres  # Many-to-Many o'rtadagi jadval
+        from sqlalchemy import func
+
+        session = await AnimeRepository._prepare_session(session)
+
+        # SQL mantiqi: Tanlangan janrlar ichidan qidir, anime bo'yicha guruhla
+        # va faqat guruhdagi janrlar soni biz yuborgan janrlar soniga teng bo'lganlarini ol!
+        stmt = (
+            select(Anime)
+            .join(anime_genres)
+            .where(anime_genres.c.genre_id.in_(genre_ids))
+            .group_by(Anime.anime_id)
+            .having(func.count(anime_genres.c.genre_id) == len(genre_ids))
+            .options(
+                selectinload(Anime.titles),
+                selectinload(Anime.genres),
+                selectinload(Anime.episodes).selectinload(Episode.streams),
+                selectinload(Anime.dubbers)
+            )
+            .order_by(desc(Anime.anime_id))
+        )
+
+        result = await session.execute(stmt)
+        return [AnimeRepository._serialize_anime(anime) for anime in result.scalars().all()]
+    
+    @staticmethod
+    async def get_by_dubbers(session: Any, dubber_ids: List[int]) -> List[Dict]:
+        """Tanlangan barcha dubberlar ishtirok etgan animelarni bazadan eng tezkor usulda filtrlab beradi."""
+        # Many-to-Many o'rtadagi jadval va modellarni kechikib import qilamiz
+        from database.models import anime_dubbers  # O'rtadagi jadval nomi (models.py dagi nomga qarab o'zgartiring)
+        from sqlalchemy import func
+
+        if not dubber_ids:
+            return []
+
+        session = await AnimeRepository._prepare_session(session)
+
+        # SQL mantiqi: Tanlangan dubberlar ichidan qidir, anime bo'yicha guruhla
+        # va faqat guruhdagi dubberlar soni biz yuborgan dubberlar soniga teng bo'lganlarini ol!
+        stmt = (
+            select(Anime)
+            .join(anime_dubbers)
+            .where(anime_dubbers.c.dubber_id.in_(dubber_ids))
+            .group_by(Anime.anime_id)
+            .having(func.count(anime_dubbers.c.dubber_id) == len(dubber_ids))
+            .options(
+                selectinload(Anime.titles),
+                selectinload(Anime.genres),
+                selectinload(Anime.episodes).selectinload(Episode.streams),
+                selectinload(Anime.dubbers)  # 🎙 Dubberlarni ham yuklab olamiz
+            )
+            .order_by(desc(Anime.anime_id))
+        )
+
+        result = await session.execute(stmt)
+        return [AnimeRepository._serialize_anime(anime) for anime in result.scalars().all()]
+
+    # =========================================================================
+    # ⬇️⬇️⬇️  ADMIN METODLARI — QASDDAN TEGILMADI (alohida qayta yoziladi)  ⬇️⬇️⬇️
+    # Diqqat: create() va add_episode()/update_episode_file() hozircha eski
+    # sxemaga (Anime.title, Episode.file_id) tayanadi — bu ustunlar endi
+    # mavjud emas, shuning uchun ular hozirgi holida chaqirilsa xato beradi.
+    # Bu metodlarni admin panel qayta yozilganda yangilaysiz.
+    # =========================================================================
 
     # ================= CREATE ANIME =================
     @staticmethod
@@ -291,85 +380,7 @@ class AnimeRepository:
         await real_session.flush()
         
         return result.rowcount > 0
-    
 
-
-    # ================= MULTI-GENRE SEARCH (OPTIMIZED) =================
-    @staticmethod
-    async def get_by_genres(session: Any, genre_ids: List[int]) -> List[Dict]:
-        from database.models import anime_genres  # Many-to-Many o'rtadagi jadval
-        from sqlalchemy import func
-
-        session = await AnimeRepository._prepare_session(session)
-
-        # SQL mantiqi: Tanlangan janrlar ichidan qidir, anime bo'yicha guruhla
-        # va faqat guruhdagi janrlar soni biz yuborgan janrlar soniga teng bo'lganlarini ol!
-        stmt = (
-            select(Anime)
-            .join(anime_genres)
-            .where(anime_genres.c.genre_id.in_(genre_ids))
-            .group_by(Anime.anime_id)
-            .having(func.count(anime_genres.c.genre_id) == len(genre_ids))
-            .options(selectinload(Anime.genres), selectinload(Anime.episodes))
-            .order_by(desc(Anime.anime_id))
-        )
-
-        result = await session.execute(stmt)
-        anime_list = []
-        
-        for anime in result.scalars().all():
-            data = anime.to_dict()
-            data["genres"] = [g.id for g in anime.genres] if hasattr(anime, "genres") else []
-            data["episodes"] = [
-                {"id": ep.id, "episode": ep.episode, "file_id": ep.file_id} 
-                for ep in anime.episodes
-            ] if hasattr(anime, "episodes") else []
-            anime_list.append(data)
-            
-        return anime_list
-    
-    @staticmethod
-    async def get_by_dubbers(session: Any, dubber_ids: List[int]) -> List[Dict]:
-        """Tanlangan barcha dubberlar ishtirok etgan animelarni bazadan eng tezkor usulda filtrlab beradi."""
-        # Many-to-Many o'rtadagi jadval va modellarni kechikib import qilamiz
-        from database.models import anime_dubbers  # O'rtadagi jadval nomi (models.py dagi nomga qarab o'zgartiring)
-        from sqlalchemy import func
-
-        if not dubber_ids:
-            return []
-
-        session = await AnimeRepository._prepare_session(session)
-
-        # SQL mantiqi: Tanlangan dubberlar ichidan qidir, anime bo'yicha guruhla
-        # va faqat guruhdagi dubberlar soni biz yuborgan dubberlar soniga teng bo'lganlarini ol!
-        stmt = (
-            select(Anime)
-            .join(anime_dubbers)
-            .where(anime_dubbers.c.dubber_id.in_(dubber_ids))
-            .group_by(Anime.anime_id)
-            .having(func.count(anime_dubbers.c.dubber_id) == len(dubber_ids))
-            .options(
-                selectinload(Anime.genres), 
-                selectinload(Anime.episodes),
-                selectinload(Anime.dubbers)  # 🎙 Dubberlarni ham yuklab olamiz
-            )
-            .order_by(desc(Anime.anime_id))
-        )
-
-        result = await session.execute(stmt)
-        anime_list = []
-        
-        for anime in result.scalars().all():
-            data = anime.to_dict()
-            data["genres"] = [g.id for g in anime.genres] if hasattr(anime, "genres") else []
-            data["dubbers"] = [d.id for d in anime.dubbers] if hasattr(anime, "dubbers") else [] # 🎙 Dubber ID ro'yxati
-            data["episodes"] = [
-                {"id": ep.id, "episode": ep.episode, "file_id": ep.file_id} 
-                for ep in anime.episodes
-            ] if hasattr(anime, "episodes") else []
-            anime_list.append(data)
-            
-        return anime_list
     # ================= UNIVERSAL UPDATE ANIME =================
     @staticmethod
     async def update(session: Any, anime_id: int, update_data: Dict[str, Any]) -> bool:
