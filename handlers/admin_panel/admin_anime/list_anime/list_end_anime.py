@@ -31,7 +31,7 @@ async def process__end_anime_list_page(callback: CallbackQuery, session: Any):
     page = int(callback.data.split(":")[1])
     
     # Ma'lumotlarni bazadan/keshdan yuklaymiz
-    markup, total_count = await get_anime_list_markup(session, page=page)
+    markup, total_count = await get_anime_end_list_markup(session, page=page)
     
     text = (
         f"📋 {html.bold('Bazadagi tugallangan animelar ro‘yxati')}\n"
@@ -63,43 +63,48 @@ async def process__end_anime_list_page(callback: CallbackQuery, session: Any):
 
 
 
-async def get_anime_list_markup(session, page: int = 1, per_page: int = 10) -> tuple[InlineKeyboardMarkup, int]:
+async def get_anime_end_list_markup(session: Any, page: int = 1, per_page: int = 10) -> tuple[InlineKeyboardMarkup, int]:
     from services.anime_service import AnimeService
     service = AnimeService(session=session)
     
-    # 1. Keshdan yoki DB dan ma'lumotlarni xavfsiz yuklash
+    # 1. SQL offset-ni hisoblaymiz
+    offset = (page - 1) * per_page
+
+    # 2. Service orqali faqat joriy sahifa va jami sonni yuklaymiz
     try:
-        all_anime = await service.list_anime()
-        if not all_anime:  # Agar None kelsa, ishdan chiqmasligi uchun bo'sh ro'yxat
-            all_anime = []
+        data = await service.get_completed_animes(offset=offset, limit=per_page)
+        total_anime = data.get("total_count", 0)
+        animes = data.get("animes", [])
     except Exception as e:
-        logger.error(f"❌ Anime ro'yxatini olishda xatolik: {e}")
-        all_anime = []
+        logger.error(f"❌ Tugallangan animelar ro'yxatini olishda xatolik: {e}")
+        total_anime = 0
+        animes = []
         
-    total_anime = len(all_anime)
-    
-    # 2. Agar anime umuman topilmasa
+    # 3. Agar anime umuman topilmasa
     if total_anime == 0:
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu", style="danger")]
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu")]
         ])
         return kb, 0
 
-    # 3. Sahifalarni xavfsiz va qisqa yo'l bilan hisoblash
+    # 4. Sahifalar sonini va joriy sahifani hisoblash
     total_pages = math.ceil(total_anime / per_page)
-    # Page chegaradan chiqib ketmasligini bitta qatorda ta'minlaymiz:
     page = max(1, min(page, total_pages))
-
-    # 4. Ro'yxatdan joriy sahifaga kerakli qismini kesib olish (Juda tez)
-    start_idx = (page - 1) * per_page
-    current_page_anime = all_anime[start_idx : start_idx + per_page]
 
     inline_keyboard = []
 
-    # 5. Tugmalarni shakllantirish (Lug'at kalitlarini xavfsiz o'qish)
-    for anime in current_page_anime:
+    # 5. Tugmalarni shakllantirish
+    for anime in animes:
         anime_id = anime.get("anime_id")
-        title = anime.get("title", "Nomsiz anime")
+        
+        # Titleni aniqlash (titles ro'yxatidan yoki asosiy kalitdan)
+        titles = anime.get("titles", [])
+        title = "Nomsiz anime"
+        if titles and isinstance(titles, list):
+            title = titles[0].get("title_name", title) if isinstance(titles[0], dict) else getattr(titles[0], "title_name", title)
+        elif anime.get("title"):
+            title = anime.get("title")
+
         year = anime.get("year", "—")
         
         inline_keyboard.append([
@@ -112,25 +117,24 @@ async def get_anime_list_markup(session, page: int = 1, per_page: int = 10) -> t
     # 6. Paginatsiya (Navigatsiya) satri
     nav_row = []
     if page > 1:
-        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"list_anime_end_page:{page-1}", style="primary"))
+        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"list_anime_end_page:{page-1}"))
     else:
-        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="danger"))
+        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void"))
 
-    nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="void", style="primary"))
+    nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="void"))
 
     if page < total_pages:
-        nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"list_anime_end_page:{page+1}", style="primary"))
+        nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"list_anime_end_page:{page+1}"))
     else:
-        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="danger"))
+        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void"))
 
     inline_keyboard.append(nav_row)
 
-    # 7. Ortga qaytish satri (style olib tashlandi, chunki Aiogram 3 oddiy tugmalarga rang bera olmaydi)
+    # 7. Ortga qaytish satri
     inline_keyboard.append([
-        InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu", style="danger")
+        InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu")
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard), total_anime
-
 
 
