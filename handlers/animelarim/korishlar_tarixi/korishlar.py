@@ -15,15 +15,14 @@ def get_history_keyboard() -> InlineKeyboardMarkup:
                 text="⏺️ Tugatilgan",
                 callback_data="history_completed",
                 style="primary"
-            )
-        ],
-        [
+            ),
             InlineKeyboardButton(
                 text="🕣 Ko‘rilmoqda",
                 callback_data="history_watching",
                 style="primary"
             )
         ],
+        
         [
             InlineKeyboardButton(
                 text="⬅️ Orqaga",
