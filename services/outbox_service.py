@@ -61,7 +61,7 @@ class EventCompressor:
             return orjson.loads(json_bytes)
         except Exception as e:
             logger.error(f"Decompression error: {e}")
-            return {}
+            return {} 
 
     @staticmethod
     def diff(old: Optional[dict], new: dict) -> Optional[dict]:

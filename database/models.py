@@ -328,6 +328,11 @@ class Anime(Base):
         default=False,
         server_default="false"
     )
+    is_finished: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default="false"
+    )
 
     genres: Mapped[list["Genre"]] = relationship(
         secondary="anime_genres",

@@ -493,7 +493,7 @@ class AnimeRepository:
         limit: int = 10
     ) -> Dict[str, Any]:
         """
-        Tugallangan (is_completed = True) animelar ro'yxatini va ularning umumiy sonini qaytaradi.
+        Tugallangan (is_finished = True) animelar ro'yxatini va ularning umumiy sonini qaytaradi.
         """
         from sqlalchemy import func
         session = await AnimeRepository._prepare_session(session)
@@ -501,14 +501,14 @@ class AnimeRepository:
         # 1. Tugallangan animelarning umumiy sonini hisoblash (Count query)
         count_stmt = (
             select(func.count(Anime.anime_id))
-            .where(Anime.is_completed == True)
+            .where(Anime.is_finished == True)
         )
         total_count = (await session.execute(count_stmt)).scalar() or 0
 
         # 2. Tugallangan animelar ro'yxatini yuklash (Data query)
         stmt = (
             select(Anime)
-            .where(Anime.is_completed == True)
+            .where(Anime.is_finished == True)
             .options(
                 selectinload(Anime.titles),
                 selectinload(Anime.genres),

@@ -454,5 +454,5 @@ class AnimeService:
         data = await self.repo.get_completed_animes(self.session, offset=offset, limit=limit)
         
         # 30 daqiqaga keshga saqlaymiz (TTL: 1800s)
-        await self.cache.set("anime_completed", cache_key, data, ttl=1800)
+        await self.cache.set("anime_completed", cache_key, data, ttl=180)
         return data
