@@ -249,7 +249,7 @@ async def process_subscription_anime_card_click(callback: CallbackQuery, state: 
 
     nav = NavigationManager(state)
     # Ushbu bo'limdan anime ichiga kirganda "my_subscriptions" tarixiga yozamiz:
-    await nav.push("    ", page=page_num)
+    await nav.push("my_subscriptions", page=page_num)
 
     anime_service = AnimeService(session)
     anime = await anime_service.get_anime(anime_id)

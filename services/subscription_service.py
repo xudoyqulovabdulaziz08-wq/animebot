@@ -38,8 +38,9 @@ class SubscriptionService:
             cache_key = f"{user_id}:{anime_id}"
             await self.cache.set("user_subscription", cache_key, new_status, ttl=30)
             
-            # Yangi obuna qo'shilsa yoki o'chirilsa, umumiy ro'yxat keshini tozalaymiz
+            # Yangi obuna qo'shilsa/o'chirilsa keshni tozalaymiz
             await self.cache.invalidate("user_sub_page", f"{user_id}:*", broadcast=True)
+            await self.cache.invalidate("user_sub_count", user_id, broadcast=True) # 👈 Yangi
             
             return new_status
 
