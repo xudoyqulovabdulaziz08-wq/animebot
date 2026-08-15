@@ -124,20 +124,27 @@ class RatingRepository:
     ) -> List[Dict[str, Any]]:
         """
         Foydalanuvchi baholagan animelarni JOIN orqali 
-        BITTA SQL so'rovida olib keladi.
+        BITTA SQL so'rovida olib keladi (Yangi AnimeTitle strukturasiga mos).
         """
+        from database.models import Anime, AnimeRating, AnimeTitle
+        from sqlalchemy import func
+
         session = await RatingRepository._prepare_session(session)
 
+        # LEFT JOIN orqali AnimeTitle ni ulaymiz. 
+        # Bir nechta nom bo'lsa, title_uz (yoki birinchi mavjud nom) olinishi uchun func.coalesce ishlatamiz.
         stmt = (
             select(
                 Anime.anime_id,
-                Anime.title,
+                func.coalesce(AnimeTitle.title_uz, AnimeTitle.title_en, "Nomsiz anime").label("title"),
                 Anime.year,
                 Anime.poster_id,
                 AnimeRating.score
             )
             .join(AnimeRating, AnimeRating.anime_id == Anime.anime_id)
+            .outerjoin(AnimeTitle, AnimeTitle.anime_id == Anime.anime_id)
             .where(AnimeRating.user_id == user_id)
+            .group_by(Anime.anime_id, AnimeTitle.id, AnimeRating.id)
             .order_by(AnimeRating.id.desc())
             .offset(offset)
             .limit(limit)
