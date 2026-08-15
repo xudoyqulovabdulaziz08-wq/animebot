@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 import enum
 import uuid
+
 from sqlalchemy import inspect
 from decimal import Decimal
 from typing import Optional
@@ -43,6 +44,12 @@ class UserStatus(enum.Enum):
     VIP = "vip"
     ADMIN = "admin"
 
+
+#========================================================================#
+class AnimeType(str, enum.Enum):
+    TV_SERIES = "TV SERIES"
+    MOVIE = "MOVIE"
+    OVA = "OVA"
 #========================================================================#
 anime_genres = Table(
     "anime_genres",
@@ -244,8 +251,21 @@ class Anime(Base):
         primary_key=True
     )
 
-    title: Mapped[str] = mapped_column(
-        String(255),
+    titles: Mapped[list["AnimeTitle"]] = relationship(
+        "AnimeTitle",
+        back_populates="anime",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    type: Mapped[AnimeType] = mapped_column(
+        Enum(
+            AnimeType, 
+            name="anime_type_enum", 
+            values_callable=lambda x: [e.value for e in x]
+        ),
+        default=AnimeType.TV_SERIES,
+        server_default=AnimeType.TV_SERIES.value,
         nullable=False,
         index=True
     )
@@ -253,10 +273,17 @@ class Anime(Base):
     poster_id: Mapped[Optional[str]] = mapped_column(
         String(255)
     )
+
+    trailer_id: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True
+    )
+
     poster_r2_url: Mapped[Optional[str]] = mapped_column(
         String(500),
         nullable=True
     )
+
     year: Mapped[Optional[int]] = mapped_column(
         Integer,
         index=True
@@ -330,29 +357,30 @@ class Anime(Base):
         order_by=lambda: Episode.episode,
         lazy="selectin"
     )
+    
     ratings: Mapped[list["AnimeRating"]] = relationship(
         "AnimeRating",
         back_populates="anime",
         cascade="all, delete-orphan",
         lazy="selectin"
     )
-    def to_api_dict(self) -> dict:
-        data = self.to_dict()
-        data["average_rating"] = self.average_rating
-
-    # Relationship'lar xotiraga yuklanganligini (unloaded emasligini) xavfsiz tekshirish
+    @property
+    def canon_episodes_count(self) -> int:
+        """Faqat asosiy (canon) qismlar sonini qaytaradi"""
         state = inspect(self)
-    
-        if "genres" not in state.unloaded and self.genres:
-            data["genres"] = [g.to_dict() for g in self.genres]
-        
-        if "dubbers" not in state.unloaded and self.dubbers:
-            data["dubbers"] = [d.to_dict() for d in self.dubbers]
-        
         if "episodes" not in state.unloaded and self.episodes:
-            data["episodes_count"] = len(self.episodes)
+            return sum(1 for ep in self.episodes if not ep.is_filler)
+        return 0
 
-        return data
+    @property
+    def filler_episodes_count(self) -> int:
+        """Faqat filler qismlar sonini qaytaradi"""
+        state = inspect(self)
+        if "episodes" not in state.unloaded and self.episodes:
+            return sum(1 for ep in self.episodes if ep.is_filler)
+        return 0
+    
+
     @hybrid_property
     def average_rating(self) -> float:
         if self.rating_count == 0:
@@ -371,6 +399,26 @@ class Anime(Base):
             (calculated_avg > 10.0, 10.0),
             else_=calculated_avg
         )
+    
+    def to_api_dict(self) -> dict:
+        data = self.to_dict()
+        data["average_rating"] = self.average_rating
+        data["type"] = self.type.value if hasattr(self.type, "value") else str(self.type)
+
+        state = inspect(self)
+
+        if "genres" not in state.unloaded and self.genres:
+            data["genres"] = [g.to_dict() for g in self.genres]
+
+        if "dubbers" not in state.unloaded and self.dubbers:
+            data["dubbers"] = [d.to_dict() for d in self.dubbers]
+
+        if "episodes" not in state.unloaded and self.episodes:
+            data["episodes_count"] = len(self.episodes)
+            data["canon_episodes_count"] = self.canon_episodes_count
+            data["filler_episodes_count"] = self.filler_episodes_count
+
+        return data
 
     # 🔒 BAZA DARAJASIDA XAVFSIZLIK:
     # Kimdir tasodifan xato kod yozib, reytingni buzib yubormasligi uchun cheklov
@@ -431,6 +479,7 @@ class AnimeRating(Base):
     )
 
 #========================================================================#
+#========================================================================#
 class Episode(Base):
     __tablename__ = "anime_episodes"
 
@@ -447,19 +496,138 @@ class Episode(Base):
         index=True,
         nullable=False
     )
+    is_filler: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default=text("false"),
+        nullable=False,
+        index=True
+    )
+
+    episode_title: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True
+    )
+
+    # Relationship-lar
+    anime: Mapped["Anime"] = relationship(
+        back_populates="episodes",
+        lazy="selectin"
+    )
+
+    # Bitta qismda bir nechta audio/video manbalari bo'lishi mumkin
+    streams: Mapped[list["EpisodeStream"]] = relationship(
+        "EpisodeStream",
+        back_populates="episode",
+        cascade="all, delete-orphan",
+        lazy="selectin"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("anime_id", "episode"),
+    )
+
+#========================================================================#
+class EpisodeStream(Base):
+    __tablename__ = "anime_episode_streams"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    episode_id: Mapped[int] = mapped_column(
+        ForeignKey("anime_episodes.id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
 
     file_id: Mapped[str] = mapped_column(
         String(255),
         nullable=False
     )
 
+    # Dublyaj guruhi yoki tavsifi (masalan: "Professional Dublyaj", "Havasakor")
+    dub_group: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True
+    )
+
+    # Bepul yoki VIP ekanligi
+    is_vip: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        server_default=text("false"),
+        nullable=False,
+        index=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False
+    )
+
+    # Relationship
+    episode: Mapped["Episode"] = relationship(
+        "Episode",
+        back_populates="streams",
+        lazy="selectin"
+    )
+
+#========================================================================#
+class AnimeTitle(Base):
+    __tablename__ = "anime_titles"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True
+    )
+
+    anime_id: Mapped[int] = mapped_column(
+        ForeignKey("anime_list.anime_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False
+    )
+
+    # O'zbekcha nom majburiy (nullable=False)
+    title_uz: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        index=True
+    )
+
+    # Boshqa tillar ixtiyoriy (nullable=True)
+    title_en: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True
+    )
+
+    title_jp: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True
+    )
+
+    title_jp_romaji: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True
+    )
+
+    title_ru: Mapped[Optional[str]] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True
+    )
+
+    # Munosabat (Relationship)
     anime: Mapped["Anime"] = relationship(
-        back_populates="episodes",
+        "Anime",
+        back_populates="titles",
         lazy="selectin"
     )
 
     __table_args__ = (
-        UniqueConstraint("anime_id", "episode"),
+        # Bir xil anime uchun nomlar takrorlanishining oldini olish (ixtiyoriy, lekin foydali)
+        UniqueConstraint("anime_id", "title_uz", name="uq_anime_title_uz"),
     )
 
 #========================================================================#
@@ -741,6 +909,8 @@ MODELS_TO_WATCH = {
     "Anime",
     "Episode",
     "Genre",
+    "AnimeTitle",
+    "EpisodeStream",
     "Channel",
     "Dubber",
     "Comment",
