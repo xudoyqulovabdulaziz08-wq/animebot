@@ -23,14 +23,12 @@ logger = logging.getLogger(__name__)
 
 router = Router()
 
+@router.callback_query(F.data.startswith("list_anime_page:"))
 async def process_anime_list_page(callback: CallbackQuery, session: Any):
     page = int(callback.data.split(":")[1])
     
-    # 1. Telegram indikatorini darhol yopamiz
-    await callback.answer()
-    
-    # 2. Ma'lumotlarni yuklaymiz
-    markup, total_count = await get_anime_end_list_markup(session, page=page)
+    # Ma'lumotlarni bazadan/keshdan yuklaymiz
+    markup, total_count = await get_anime_list_markup(session, page=page)
     
     text = (
         f"📋 {html.bold('Bazadagi animelar ro‘yxati')}\n"
@@ -39,61 +37,63 @@ async def process_anime_list_page(callback: CallbackQuery, session: Any):
         f"👇 Tafsilotlarini ko‘rish uchun kerakli animeni tanlang:"
     )
     
-    # 3. Agar eski xabar media (rasm/video) bo'lsa: yangi xabar yuborib, eskisini o'chiramiz
+    # 💡 Agar bu handlerga rasm yoki video ostidagi tugmadan kelingan bo'lsa
     if callback.message.photo or callback.message.video:
-        await callback.message.answer(text=text, reply_markup=markup, parse_mode="HTML")
+        await callback.answer() # Yuklanish soatini darhol o'chiramiz
         try:
             await callback.message.delete()
-        except Exception as e:
-            logger.warning(f"Media xabarni o'chirishda xatolik: {e}")
+        except Exception:
+            pass
+        await callback.message.answer(text=text, reply_markup=markup, parse_mode="HTML")
     
-    # 4. Oddiy matnli xabar bo'lsa: tahrirlaymiz
+    # Agar oddiy matnli xabardan bosilgan bo'lsa (Silliq o'tish)
     else:
         try:
             await callback.message.edit_text(text=text, reply_markup=markup, parse_mode="HTML")
-        except TelegramBadRequest as e:
-            # Matn va tugmalar bir xil bo'lsa chiqadigan xatolikni e'tiborsiz qoldiramiz
-            if "message is not modified" in str(e):
-                pass
-            else:
-                logger.error(f"Xabarni tahrirlashda xatolik: {e}")
+            await callback.answer("Yuklanmoqda...") # Faqat muvaffaqiyatli editdan keyin soatni o'chiramiz
+        except Exception:
+            await callback.answer()
 
 
 
 
 
-async def get_anime_end_list_markup(session, page: int = 1, per_page: int = 10) -> tuple[InlineKeyboardMarkup, int]:
+
+async def get_anime_list_markup(session, page: int = 1, per_page: int = 10) -> tuple[InlineKeyboardMarkup, int]:
     from services.anime_service import AnimeService
     service = AnimeService(session=session)
     
-    # 1. SQL offset-ni hisoblaymiz
-    offset = (page - 1) * per_page
-
-    # 2. Service-dan lug'at ko'rinishida ma'lumotni yuklaymiz
+    # 1. Keshdan yoki DB dan ma'lumotlarni xavfsiz yuklash
     try:
-        data = await service.get_completed_animes(offset=offset, limit=per_page)
-        total_anime = data.get("total_count", 0)
-        animes = data.get("animes", [])
+        all_anime = await service.get_completed_animes()
+        if not all_anime:  # Agar None kelsa, ishdan chiqmasligi uchun bo'sh ro'yxat
+            all_anime = []
     except Exception as e:
         logger.error(f"❌ Anime ro'yxatini olishda xatolik: {e}")
-        total_anime = 0
-        animes = []
+        all_anime = []
         
-    # 3. Agar anime umuman topilmasa
+    total_anime = len(all_anime)
+    
+    # 2. Agar anime umuman topilmasa
     if total_anime == 0:
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu")]
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu", style="danger")]
         ])
         return kb, 0
 
-    # 4. Sahifalar sonini hisoblash
+    # 3. Sahifalarni xavfsiz va qisqa yo'l bilan hisoblash
     total_pages = math.ceil(total_anime / per_page)
+    # Page chegaradan chiqib ketmasligini bitta qatorda ta'minlaymiz:
     page = max(1, min(page, total_pages))
+
+    # 4. Ro'yxatdan joriy sahifaga kerakli qismini kesib olish (Juda tez)
+    start_idx = (page - 1) * per_page
+    current_page_anime = all_anime[start_idx : start_idx + per_page]
 
     inline_keyboard = []
 
-    # 5. Tugmalarni shakllantirish (animes ro'yxati bo'yicha)
-    for anime in animes:
+    # 5. Tugmalarni shakllantirish (Lug'at kalitlarini xavfsiz o'qish)
+    for anime in current_page_anime:
         anime_id = anime.get("anime_id")
         title = anime.get("title", "Nomsiz anime")
         year = anime.get("year", "—")
@@ -110,18 +110,18 @@ async def get_anime_end_list_markup(session, page: int = 1, per_page: int = 10) 
     if page > 1:
         nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"list_anime_page:{page-1}", style="primary"))
     else:
-        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="primary"))
+        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="danger"))
 
     nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="void", style="primary"))
 
     if page < total_pages:
         nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"list_anime_page:{page+1}", style="primary"))
     else:
-        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="primary"))
+        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="danger"))
 
     inline_keyboard.append(nav_row)
 
-    # 7. Ortga qaytish satri
+    # 7. Ortga qaytish satri (style olib tashlandi, chunki Aiogram 3 oddiy tugmalarga rang bera olmaydi)
     inline_keyboard.append([
         InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu", style="danger")
     ])
