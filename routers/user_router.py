@@ -9,7 +9,7 @@ from handlers.menu.reklama import (
     reklama_handlers
 )
 from handlers.animelarim import (
-    animelarim_menu, sevimlilarim, baholaganlarim, shahrlaganim
+    animelarim_menu, sevimlilarim, baholaganlarim, shahrlaganim, obunalarim
 )
 from handlers.menu.cabinet import (
     cabinet_handlers
@@ -26,5 +26,6 @@ user_router.include_routers(
     animelarim_menu.router,
     sevimlilarim.router,
     baholaganlarim.router,
-    shahrlaganim.router
+    shahrlaganim.router,
+    obunalarim.router
 )

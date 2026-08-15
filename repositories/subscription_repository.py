@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, List
-from sqlalchemy import select, func, delete
-from database.models import AnimeSubscription
+from typing import Any, List, Dict
+from sqlalchemy import select, func, delete, desc
+from database.models import AnimeSubscription, Anime, DBUser
 
 logger = logging.getLogger("SubscriptionRepository")
 
@@ -97,3 +97,43 @@ class SubscriptionRepository:
         )
         result = await real_session.execute(stmt)
         return result.scalar() or 0
+
+    @staticmethod
+    async def get_user_subscribed_anime_list(
+        session: Any, 
+        user_id: int, 
+        offset: int = 0, 
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Foydalanuvchining obuna bo'lgan animelarini JOIN orqali 
+        BITTA SQL so'rovida olib keladi.
+        """
+        session = await SubscriptionRepository._prepare_session(session)
+
+        stmt = (
+            select(
+                Anime.anime_id,       # 👈 Modelga mos ravishda Anime.anime_id
+                Anime.title,
+                Anime.year,
+                Anime.poster_id       # 👈 Modelga mos ravishda poster_id
+            )
+            .join(AnimeSubscription, AnimeSubscription.anime_id == Anime.anime_id)
+            .where(AnimeSubscription.user_id == user_id)
+            .order_by(AnimeSubscription.id.desc())
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = await session.execute(stmt)
+        rows = result.all()
+
+        return [
+            {
+                "anime_id": row.anime_id,
+                "title": row.title,
+                "year": row.year,
+                "poster": row.poster_id
+            }
+            for row in rows
+        ]

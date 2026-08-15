@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, List
 from repositories.subscription_repository import SubscriptionRepository
 
 logger = logging.getLogger("SubscriptionService")
@@ -118,3 +118,34 @@ class SubscriptionService:
         except Exception as e:
             logger.error(f"❌ User obunalari sonini olishda xatolik (user_id={user_id}): {e}")
             return 0
+        
+    
+    async def get_user_subscribed_anime_list(
+        self, 
+        user_id: int, 
+        page: int = 1, 
+        per_page: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Foydalanuvchining ma'lum bir sahifadagi obuna bo'lgan animelar ro'yxatini keshdan/DBdan oladi.
+        """
+        cache_sub_key = f"{user_id}:{page}:{per_page}"
+        
+        # 1. Keshni tekshiramiz
+        cached_list = await self.cache.get("user_sub_page", cache_sub_key)
+        if cached_list is not None:
+            return cached_list
+
+        # 2. Keshda bo'lmasa DBdan JOIN so'rovi bilan bittada olamiz
+        offset = (page - 1) * per_page
+        anime_list = await self.repo.get_user_subscribed_anime_list(
+            self.session, 
+            user_id=user_id, 
+            offset=offset, 
+            limit=per_page
+        )
+
+        # 3. Keshga yozamiz (TTL: 30 soniya)
+        await self.cache.set("user_sub_page", cache_sub_key, anime_list, ttl=30)
+
+        return anime_list
