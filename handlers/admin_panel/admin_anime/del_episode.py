@@ -10,9 +10,9 @@ from services.anime_service import AnimeService
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import InputMediaVideo
-from handlers.admin_panel.admin_anime.list_anime import get_episode_list_markup
+from handlers.admin_panel.admin_anime.list_anime1 import get_episode_list_markup
 
-from handlers.admin_panel.admin_anime.list_anime import show_specific_episode_handler
+from handlers.admin_panel.admin_anime.list_anime1 import show_specific_episode_handler
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Message
 router = Router()
 
