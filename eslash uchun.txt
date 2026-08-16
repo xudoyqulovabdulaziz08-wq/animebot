@@ -1,0 +1,1 @@
+get_anime: await self.repo.get_by_id(...) dan oldin.  list_anime: await self.repo.list(...) dan oldin.  create_anime: try bloki boshiga, self.repo.create(...) dan oldin.  get_search_map: await self.repo.list(...) dan oldin.  search_by_genres: if not genre_ids: tekshiruvidan keyin.  search_by_dubbers: if not dubber_ids: tekshiruvidan keyin.  

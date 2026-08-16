@@ -86,7 +86,7 @@ async def get_genres_paginated_markup(
     # Paginatsiya boshqaruvi (Oldingi | Keyingi)
     nav_row = []
     if page > 1:
-        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"g_page:{page-1}"))
+        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"g_page:{page-1}", style="primary"))
     if total_pages > 1:
         nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="none"))
     if page < total_pages:
@@ -632,3 +632,6 @@ async def save_anime_to_db(callback: CallbackQuery, state: FSMContext, session: 
             parse_mode="HTML"
         )
 # ================= BEKOR QILISH HANDLERI =================
+
+
+

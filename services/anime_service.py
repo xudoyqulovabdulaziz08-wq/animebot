@@ -31,6 +31,9 @@ class AnimeService:
             logger.debug(f"🎯 CACHE HIT anime_id={anime_id}")
             return cached
 
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
         anime = await self.repo.get_by_id(self.session, anime_id)
         if not anime:
             return None
@@ -43,31 +46,37 @@ class AnimeService:
     # 🔥 UPDATE ANIME (TRANSACTION-SAFE & CACHE-AWARE)
     # ==================================================
     async def update_anime(self, anime_id: int, update_data: Dict[str, Any]) -> bool:
-        """
-        Business Logic: Animeni yangilaydi, DB commit qiladi va muvaffaqiyatli bo'lsa,
-        Valkey keshidan eski ma'lumotni o'chirib tashlaydi (Invalidate).
-        """
         if not update_data:
             return False
 
-        # ✅ TO'G'RI VARIANT (Teskari sleshlar olib tashlandi):
         if hasattr(self.session, "_ensure_session"):
             await self.session._ensure_session()
 
+    # ✅ Repozitoriy pop() qilishidan oldin sezgir kalitlarni tekshirib olamiz
+        sensitive_keys = {"title_uz", "title_en", "genres", "dubbers", "is_finished", "is_completed"}
+        has_sensitive_changes = any(key in update_data for key in sensitive_keys)
+
         try:
-            # Repozitoriy orqali bazadagi fieldlarni yangilaymiz
             success = await self.repo.update(self.session, anime_id, update_data)
-            
             if not success:
                 return False
-                
+            
             if hasattr(self.session, "commit"):
                 await self.session.commit()
-                
+            
             await self.cache.invalidate("anime", anime_id)
+
+        # ✅ Oldindan saqlangan mantiq bo'yicha kesh tozalanadi
+            if has_sensitive_changes:
+                await self.cache.invalidate("anime", "all", broadcast=True)
+                await self.cache.invalidate("search_map", "all", broadcast=True)
+                await self.cache.invalidate("dubber", "all", broadcast=True)
+                await self.cache.invalidate("anime_completed", "all", broadcast=True)
+            await self.cache.invalidate("anime_ongoing", "all", broadcast=True)
+
             logger.info(f"✅ Anime ID={anime_id} muvaffaqiyatli yangilandi va keshi tozalandi.")
             return True
-            
+        
         except Exception as e:
             logger.error(f"🚨 Service ichida animeni yangilashda xato yuz berdi: {e}")
             if hasattr(self.session, "rollback"):
@@ -83,54 +92,67 @@ class AnimeService:
         if cached is not None:  # Bo'sh ro'yxat kelsa ham kesh ishlashi uchun
             return cached
 
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
         data = await self.repo.list(self.session)
         await self.cache.set("anime", "all", data, ttl=1800)
         return data
-
-    # ==================================================
+# ==================================================
     # ➕ CREATE ANIME (TRANSACTION SAFE & CACHE-AWARE)
     # ==================================================
     async def create_anime(
         self,
-        title: str,
+        title_uz: str,
+        title_en: Optional[str],
         poster_id: Optional[str],
+        trailer_id: Optional[str],
+        type: str,
         year: int,
         is_completed: bool,
         genres: List[int],
-        dubbers: List[int],  # 🎙 Yangi: Dubber ID ro'yxati argument sifatida qo'shildi
+        dubbers: List[int],
         description: str,
         languages: list
     ) -> Dict:
         try:
-            # Repozitoriyga dubbers ro'yxatini ham yuboramiz
+            if hasattr(self.session, "_ensure_session"):
+                await self.session._ensure_session()
+
+            # Yangilangan AnimeRepository.create metodiga mos argumentlarni uzatamiz
             anime = await self.repo.create(
-                self.session,
-                title,
-                poster_id,
-                year,
-                is_completed,
-                genres,
-                dubbers,  # 🎙 Repozitoriy darajasiga uzatiladi
-                description,
-                languages
+                session=self.session,
+                title_uz=title_uz,
+                title_en=title_en,
+                poster_id=poster_id,
+                trailer_id=trailer_id,
+                type=type,
+                year=year,
+                is_completed=is_completed,
+                genres=genres,
+                dubbers=dubbers,
+                description=description,
+                languages=languages
             )
             
             await self.session.commit()
             anime_id = anime["anime_id"]
 
             # Kesh operatsiyalari
-            await self.cache.set("anime", anime_id, anime, ttl=3600)
+            await self.cache.set("anime", anime_id, anime, ttl=180)
             await self.cache.invalidate("anime", "all", broadcast=True)
             await self.cache.invalidate("search_map", "all", broadcast=True)
+            await self.cache.invalidate("anime_completed", "all", broadcast=True)
+            await self.cache.invalidate("anime_ongoing", "all", broadcast=True)
             
-            # 🎙 O'zgarish bo'lgani uchun dubber qidiruv keshi ham majburiy tozalanadi
+            # O'zgarish bo'lgani uchun dubber qidiruv keshi ham majburiy tozalanadi
             await self.cache.invalidate("dubber", "all", broadcast=True)
 
-            logger.info(f"✅ Anime created + cached with dubbers: {anime_id}")
+            logger.info(f"✅ Anime created + cached with new architecture: {anime_id}")
             return anime
 
         except Exception as e:
-            # 💡 SAFE ROLLBACK: AttributeError (NoneType) xavfi yo'q qilingan holatda
+            # SAFE ROLLBACK: AttributeError (NoneType) xavfi yo'q qilingan holatda
             if self.session and hasattr(self.session, "rollback"):
                 await self.session.rollback()
             logger.error(f"❌ Failed to create anime: {e}")
@@ -139,24 +161,32 @@ class AnimeService:
     # ==================================================
     # 🎬 ADD EPISODE (TRANSACTION SAFE)
     # ==================================================
-    # services/anime_service.py
-
     async def add_episode(
         self,
         anime_id: int,
         episode_num: int,
-        file_id: str
+        file_id: str,
+        dub_group: str = "default",  # 👈 QO'SHILDI
+        is_vip: bool = False         # 👈 QO'SHILDI
     ) -> bool:
         try:
-            ok = await self.repo.add_episode(self.session, anime_id, episode_num, file_id)
+            if hasattr(self.session, "_ensure_session"):
+                await self.session._ensure_session()
+
+            # Argumentlar endi repository logikasiga mos ravishda to'liq uzatiladi
+            ok = await self.repo.add_episode(
+                self.session, anime_id, episode_num, file_id, dub_group, is_vip
+            )
+            
             await self.session.commit()
 
             if ok:
                 await self.cache.invalidate("anime", anime_id, broadcast=True)
                 await self.cache.invalidate("anime", "all", broadcast=True)
-                # 💥 MANA SHU QATOR QO'SHILADI:
                 await self.cache.invalidate("anime_episodes", anime_id, broadcast=True)
-                logger.info(f"➕ Episode added + cache invalidated: Anime {anime_id}, Ep {episode_num}")
+                await self.cache.invalidate("anime_completed", "all", broadcast=True)
+                await self.cache.invalidate("anime_ongoing", "all", broadcast=True)
+                logger.info(f"➕ Episode added + cache invalidated: Anime {anime_id}, Ep {episode_num} [{dub_group}, VIP={is_vip}]")
             return ok
 
         except Exception as e:
@@ -175,7 +205,7 @@ class AnimeService:
             if hasattr(self.session, "_ensure_session"):
                 await self.session._ensure_session()
             
-            # Repozitoriy orqali o'chirishni ijro etamiz
+            # Repozitoriy orqali o'chirishni ijro etamiz (Bu db-level cascade orqali EpisodeStream larni ham o'chiradi)
             ok = await self.repo.delete_episode(self.session, anime_id, episode_num)
             
             # Muammosiz o'chsa, tranzaksiyani saqlaymiz
@@ -186,6 +216,8 @@ class AnimeService:
                 await self.cache.invalidate("anime", anime_id, broadcast=True)
                 await self.cache.invalidate("anime", "all", broadcast=True)
                 await self.cache.invalidate("anime_episodes", anime_id, broadcast=True)
+                await self.cache.invalidate("anime_completed", "all", broadcast=True)
+                await self.cache.invalidate("anime_ongoing", "all", broadcast=True)
                 logger.info(f"🗑 Episode cache invalidated: Anime {anime_id}, Ep {episode_num}")
 
             return ok
@@ -196,6 +228,7 @@ class AnimeService:
             logger.error(f"❌ Failed to delete episode: {e}")
             raise e
 
+
     # ==================================================
     # 🗑 DELETE ANIME (TRANSACTION SAFE)
     # ==================================================
@@ -203,16 +236,20 @@ class AnimeService:
         try:
             # Session'ni oldin "uyg'otamiz"
             if hasattr(self.session, "_ensure_session"):
-             await self.session._ensure_session()
+                await self.session._ensure_session()
             
             ok = await self.repo.delete(self.session, anime_id)
         
-            await self.session.commit()   # ✅ Endi bir xil session
+            await self.session.commit()
 
             if ok:
                 await self.cache.invalidate("anime", anime_id, broadcast=True)
                 await self.cache.invalidate("anime", "all", broadcast=True)
                 await self.cache.invalidate("search_map", "all", broadcast=True)
+                await self.cache.invalidate("anime_episodes", anime_id, broadcast=True)
+                await self.cache.invalidate("anime_completed", "all", broadcast=True)
+                await self.cache.invalidate("anime_ongoing", "all", broadcast=True)
+                logger.info(f"🗑 Anime deleted + cache invalidated: {anime_id}")
 
             return ok
 
@@ -226,12 +263,22 @@ class AnimeService:
     # ==================================================
     # 🔄 UPDATE EPISODE FILE (TRANSACTION SAFE)
     # ==================================================
-    async def update_episode_file(self, anime_id: int, episode_num: int, new_file_id: str) -> bool:
+    async def update_episode_file(
+        self, 
+        anime_id: int, 
+        episode_num: int, 
+        new_file_id: str,
+        dub_group: str = "default",  # 👈 QO'SHILDI
+        is_vip: bool = False         # 👈 QO'SHILDI
+    ) -> bool:
         try:
             if hasattr(self.session, "_ensure_session"):
                 await self.session._ensure_session()
             
-            ok = await self.repo.update_episode_file(self.session, anime_id, episode_num, new_file_id)
+            # Repozitoriyga endi stream xususiyatlari bilan murojaat qilinadi
+            ok = await self.repo.update_episode_file(
+                self.session, anime_id, episode_num, new_file_id, dub_group, is_vip
+            )
             await self.session.commit()
 
             if ok:
@@ -239,7 +286,9 @@ class AnimeService:
                 await self.cache.invalidate("anime", anime_id, broadcast=True)
                 await self.cache.invalidate("anime", "all", broadcast=True)
                 await self.cache.invalidate("anime_episodes", anime_id, broadcast=True)
-                logger.info(f"🔄 Episode file updated + cache invalidated: Anime {anime_id}, Ep {episode_num}")
+                await self.cache.invalidate("anime_completed", "all", broadcast=True)
+                await self.cache.invalidate("anime_ongoing", "all", broadcast=True)
+                logger.info(f"🔄 Episode file updated + cache invalidated: Anime {anime_id}, Ep {episode_num} [{dub_group}, VIP={is_vip}]")
 
             return ok
 
@@ -255,14 +304,15 @@ class AnimeService:
         cached = await self.cache.get("search_map", "all")
         if cached:
             return cached
-
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
         all_anime = await self.repo.list(self.session)
         search_map = {
-            str(a["anime_id"]): f'{a["title"]} ({a.get("year")})'
+            str(a["anime_id"]): f'{a.get("title_uz") or a.get("title")} ({a.get("year")})'
             for a in all_anime
         }
 
-        await self.cache.set("search_map", "all", search_map, ttl=3600)
+        await self.cache.set("search_map", "all", search_map, ttl=180)
         return search_map
     
 
@@ -273,6 +323,8 @@ class AnimeService:
         """Tanlangan barcha janrlarga mos keluvchi animelarni bazadan eng tezkor usulda filtrlab beradi."""
         if not genre_ids:
             return []
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
         return await self.repo.get_by_genres(self.session, genre_ids)
     
 
@@ -283,6 +335,8 @@ class AnimeService:
         """Tanlangan barcha dubberlarga mos keluvchi animelarni bazadan eng tezkor usulda filtrlab beradi."""
         if not dubber_ids:
             return []
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
         return await self.repo.get_by_dubbers(self.session, dubber_ids)
 
     # ==================================================
@@ -328,6 +382,9 @@ class AnimeService:
             # Keshni va barcha qidiruv xaritalarini majburiy tozalaymiz
             await self.cache.invalidate("anime", anime_id)
             await self.cache.invalidate("anime", "all", broadcast=True)
+            await self.cache.invalidate("anime_completed", "all", broadcast=True)
+            await self.cache.invalidate("anime_ongoing", "all", broadcast=True)
+            await self.cache.invalidate("search_map", "all", broadcast=True)
             return True
         except Exception as e:
             logger.error(f"🚨 Janrlarni yangilashda service xatosi: {e}")
@@ -351,6 +408,7 @@ class AnimeService:
             # 🔥 Ushbu animening va umumiy ro'yxatning keshini majburiy tozalaymiz
             await self.cache.invalidate("anime", anime_id)
             await self.cache.invalidate("anime", "all", broadcast=True)
+            await self.cache.invalidate("dubber", "all", broadcast=True)
             logger.info(f"✅ Anime ID={anime_id} dubberlari yangilandi va kesh tozalandi.")
             return True
             
