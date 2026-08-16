@@ -110,6 +110,13 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
             InlineKeyboardButton(text="🗑 Animeni o‘chirish", callback_data=f"del_anime:{anime_id}", style="danger")
         ],
         [
+            InlineKeyboardButton(text="🟢 Tugalandi", callback_data=f"end:{anime_id}", style="primary"),
+            InlineKeyboardButton(text="🎯 Anime turi", callback_data=f"anime_type:{anime_id}", style="primary"),
+        ],
+        [
+            InlineKeyboardButton(text="✏️ Tizer tahrirlash", callback_data=f"tizer_edit:{anime_id}", style="primary"),
+        ],
+        [
             InlineKeyboardButton(text="✏️ Anime Tahrirlash", callback_data=f"edit_anime:{anime_id}", style="primary" )
         ],
         [
@@ -301,6 +308,9 @@ async def manage_episodes_handler(callback: CallbackQuery, session: Any):
             InlineKeyboardButton(text="▶️ Qismlarni ko‘rish", callback_data=f"view_episodes_list:{anime_id}", style="primary")
         ],
         [
+            InlineKeyboardButton(text="💎 VIP qismlar", callback_data=f"vip:{anime_id}", style="primary")
+        ],
+        [
             InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"v_anime:{anime_id}:1", style="danger" )
         ]
     ])
@@ -484,6 +494,9 @@ async def show_specific_episode_handler(callback: CallbackQuery, session: Any):
         [
             InlineKeyboardButton(text="🗑   O‘chirish", callback_data=f"burn_ep:{anime_id}:{ep_num}:{back_page}", style="danger" ),
             InlineKeyboardButton(text="🔄  Almashtirish", callback_data=f"swap_ep:{anime_id}:{ep_num}:{back_page}", style="primary" )
+        ],
+        [
+            InlineKeyboardButton(text="🌀 Filler ", callback_data=f"filler:", style="primary")
         ],
         [
             # Ro'yxatga qaytishda aynan qaysi sahifadan kelgan bo'lsa, o'shanga qaytadi
