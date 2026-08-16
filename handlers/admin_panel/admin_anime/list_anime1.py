@@ -119,7 +119,8 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
         ],
 
         [
-            InlineKeyboardButton(text="📢 e‘lon qilish", callback_data=f"publish_episodes_chan:{anime_id}", style="primary")
+            InlineKeyboardButton(text="🆔 MAL ID", callback_data=f"mal_id:{anime_id}", style="primary" ),
+            InlineKeyboardButton(text="📢 E‘lon qilish", callback_data=f"publish_episodes_chan:{anime_id}", style="primary")
         ],
         [
             InlineKeyboardButton(text="⬅️ Ro‘yxatga qaytish", callback_data=f"list_anime_page:{page}", style="danger")
