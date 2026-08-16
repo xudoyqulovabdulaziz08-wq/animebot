@@ -83,7 +83,7 @@ async def get_anime_end_list_markup(session: Any, page: int = 1, per_page: int =
     # 3. Agar anime umuman topilmasa
     if total_anime == 0:
         kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu")]
+            [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu", style="danger")]
         ])
         return kb, 0
 
@@ -117,22 +117,22 @@ async def get_anime_end_list_markup(session: Any, page: int = 1, per_page: int =
     # 6. Paginatsiya (Navigatsiya) satri
     nav_row = []
     if page > 1:
-        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"list_anime_end_page:{page-1}"))
+        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"list_anime_end_page:{page-1}", style="primary"))
     else:
-        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void"))
+        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="primary"))
 
-    nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="void"))
+    nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="void", style="primary"))
 
     if page < total_pages:
-        nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"list_anime_end_page:{page+1}"))
+        nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"list_anime_end_page:{page+1}", style="primary"))
     else:
-        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void"))
+        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="primary"))
 
     inline_keyboard.append(nav_row)
 
     # 7. Ortga qaytish satri
     inline_keyboard.append([
-        InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu")
+        InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu", style="danfer")
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard), total_anime
