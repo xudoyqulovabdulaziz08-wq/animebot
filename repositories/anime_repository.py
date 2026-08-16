@@ -527,3 +527,47 @@ class AnimeRepository:
             "total_count": total_count,
             "animes": [AnimeRepository._serialize_anime(anime) for anime in animes]
         }
+
+    
+    # ================= GET ONGOING / UNFINISHED ANIMES =================
+    @staticmethod
+    async def get_ongoing_animes(
+        session: Any, 
+        offset: int = 0, 
+        limit: int = 10
+    ) -> Dict[str, Any]:
+        """
+        Davom etayotgan / tugallanmagan (is_finished = False) animelar ro'yxatini va ularning umumiy sonini qaytaradi.
+        """
+        from sqlalchemy import func
+        session = await AnimeRepository._prepare_session(session)
+
+        # 1. Tugallanmagan animelarning umumiy sonini hisoblash
+        count_stmt = (
+            select(func.count(Anime.anime_id))
+            .where(Anime.is_finished == False)
+        )
+        total_count = (await session.execute(count_stmt)).scalar() or 0
+
+        # 2. Tugallanmagan animelar ro'yxatini yuklash
+        stmt = (
+            select(Anime)
+            .where(Anime.is_finished == False)
+            .options(
+                selectinload(Anime.titles),
+                selectinload(Anime.genres),
+                selectinload(Anime.episodes).selectinload(Episode.streams),
+                selectinload(Anime.dubbers)
+            )
+            .order_by(desc(Anime.anime_id))
+            .offset(offset)
+            .limit(limit)
+        )
+
+        result = await session.execute(stmt)
+        animes = result.scalars().all()
+
+        return {
+            "total_count": total_count,
+            "animes": [AnimeRepository._serialize_anime(anime) for anime in animes]
+        }

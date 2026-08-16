@@ -456,3 +456,28 @@ class AnimeService:
         # 30 daqiqaga keshga saqlaymiz (TTL: 1800s)
         await self.cache.set("anime_completed", cache_key, data, ttl=180)
         return data
+    
+
+
+    # ==================================================
+    # ⏳ GET ONGOING ANIMES (CACHE-AWARE)
+    # ==================================================
+    async def get_ongoing_animes(self, offset: int = 0, limit: int = 10) -> Dict[str, Any]:
+        """
+        Davom etayotgan (tugallanmagan) animelar ro'yxati hamda umumiy sonini qaytaradi (Kesh bilan ishlaydi).
+        """
+        cache_key = f"ongoing_offset_{offset}_limit_{limit}"
+        cached_data = await self.cache.get("anime_ongoing", cache_key)
+        
+        if cached_data is not None:
+            logger.debug(f"🎯 CACHE HIT: Ongoing animes loaded from cache (offset={offset}, limit={limit})")
+            return cached_data
+
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        data = await self.repo.get_ongoing_animes(self.session, offset=offset, limit=limit)
+        
+        # 3 daqiqaga keshga saqlaymiz (TTL: 180s)
+        await self.cache.set("anime_ongoing", cache_key, data, ttl=180)
+        return data
