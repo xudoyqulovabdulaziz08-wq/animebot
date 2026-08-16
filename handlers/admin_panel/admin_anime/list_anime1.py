@@ -114,13 +114,12 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
             InlineKeyboardButton(text="🎯 Anime turi", callback_data=f"anime_type:{anime_id}", style="primary"),
         ],
         [
-            InlineKeyboardButton(text="✏️ Tizer tahrirlash", callback_data=f"tizer_edit:{anime_id}", style="primary"),
+            InlineKeyboardButton(text="🎬 Tizer edit", callback_data=f"tizer_edit:{anime_id}", style="primary"),
+            InlineKeyboardButton(text="🧩 Anime edit", callback_data=f"edit_anime:{anime_id}", style="primary" )
         ],
+
         [
-            InlineKeyboardButton(text="✏️ Anime Tahrirlash", callback_data=f"edit_anime:{anime_id}", style="primary" )
-        ],
-        [
-            InlineKeyboardButton(text="📢 Kanalga e‘lon qilish", callback_data=f"publish_episodes_chan:{anime_id}", style="primary")
+            InlineKeyboardButton(text="📢 e‘lon qilish", callback_data=f"publish_episodes_chan:{anime_id}", style="primary")
         ],
         [
             InlineKeyboardButton(text="⬅️ Ro‘yxatga qaytish", callback_data=f"list_anime_page:{page}", style="danger")
