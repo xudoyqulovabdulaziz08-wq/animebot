@@ -29,6 +29,7 @@ admin_router.include_routers(
     add_anime.router,
     list_all_anime.router,
     list_end_anime.router,
+    list_contine_anime.router,
     list_anime1.router,
     janr.router,
     dubber.router,
