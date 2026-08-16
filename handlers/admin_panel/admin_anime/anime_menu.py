@@ -27,7 +27,11 @@ async def admin_anime(callback: CallbackQuery, state: FSMContext):
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(text="➕ Anime qo‘shish", callback_data="add_anime", style="primary")],
-            [InlineKeyboardButton(text="📋 Anime ro‘yxati", callback_data="list_type_menu", style="primary")], # Paginatsiya 1-sahifadan boshlanadi
+            [InlineKeyboardButton(text="📋 Anime ro‘yxati", callback_data="list_type_menu", style="primary")],
+            [
+                InlineKeyboardButton(text="🎙️ Dubber edit", callback_data=f"dubber", style="primary" ),
+                InlineKeyboardButton(text="🎭 Janr edit", callback_data=f"genre", style="primary" )
+            ], 
             [InlineKeyboardButton(text="⬅️ Bosh panelga", callback_data="admin_panel", style="danger")]  
         ]
     )
