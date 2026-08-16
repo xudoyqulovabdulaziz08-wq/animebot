@@ -129,7 +129,7 @@ async def get_anime_contine_list_markup(session: Any, page: int = 1, per_page: i
 
     # 7. Ortga qaytish satri
     inline_keyboard.append([
-        InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu", style="danfer")
+        InlineKeyboardButton(text="⬅️ Orqaga", callback_data="list_type_menu", style="danger")
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard), total_anime
