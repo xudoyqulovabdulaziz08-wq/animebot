@@ -114,14 +114,14 @@ async def get_anime_contine_list_markup(session: Any, page: int = 1, per_page: i
     # 6. Paginatsiya (Navigatsiya) satri
     nav_row = []
     if page > 1:
-        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"list_anime_end_page:{page-1}", style="primary"))
+        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"list_anime_contine_page:{page-1}", style="primary"))
     else:
         nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="primary"))
 
     nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="void", style="primary"))
 
     if page < total_pages:
-        nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"list_anime_end_page:{page+1}", style="primary"))
+        nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"list_anime_contine_page:{page+1}", style="primary"))
     else:
         nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="primary"))
 
