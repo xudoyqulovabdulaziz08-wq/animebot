@@ -650,10 +650,16 @@ async def process_type_anime(callback: CallbackQuery, state: FSMContext, session
     
     # AnimeType enum ga mos qiymatni olamiz
     anime_type_enum = AnimeType[selected_type_key]
-    await state.update_data(anime_type=anime_type_enum.value) # "TV SERIES", "MOVIE" yoki "OVA" saqlanadi
+    await state.update_data(anime_type=anime_type_enum.value)
 
-    # Bazadan Janr va Dubberlarni olish
+    # State'dan ma'lumotlarni olish
     data = await state.get_data()
+    
+    # 💡 Sarlavhalarni formatlash
+    title_uz = data.get("title_uz", "Nomsiz")
+    title_en = data.get("title_en")
+    title_display = f"{title_uz} | {title_en}" if title_en and title_uz != title_en else title_uz
+
     selected_genre_ids = data.get("selected_genres", [])
     selected_dubber_ids = data.get("selected_dubbers", [])
 
@@ -670,12 +676,14 @@ async def process_type_anime(callback: CallbackQuery, state: FSMContext, session
     genres_str = ", ".join(genre_names) if genre_names else "Tanlanmagan ⚠️"
     dubbers_str = ", ".join(dubber_names) if dubber_names else "Tanlanmagan ⚠️"
     languages_str = ", ".join(data.get('languages', [])) if data.get('languages') else "Tanlanmagan ⚠️"
-    tizzer_status = "Mavjud ✅" if data.get("tizzer_id") else "Mavjud emas ❌"
+    
+    # 💡 trailer_id yoki tizzer_id ni bir xil kalit orqali tekshirish
+    trailer_id = data.get("trailer_id") or data.get("tizzer_id")
+    tizzer_status = "Mavjud ✅" if trailer_id else "Mavjud emas ❌"
 
-    # Premium UX uslubida daxshat ramkali dizayn
     preview_text = (
         f"╔══════════════════╗\n"
-        f"    🎬 <b>{data.get('title', 'Nomsiz')}</b>\n"
+        f"    🎬 <b>{title_display}</b>\n"
         f"╚══════════════════╝\n\n"
         f"📌 <b>Anime haqida ma'lumot:</b>\n"
         f"╔══════════════════╗\n"
@@ -683,7 +691,7 @@ async def process_type_anime(callback: CallbackQuery, state: FSMContext, session
         f"├ 📺 Turi: <b>{anime_type_enum.value}</b>\n"
         f"├ 🌐 Til: <b>{languages_str}</b>\n"
         f"├ 🎙 Dubber: <b>{dubbers_str}</b>\n"
-        f"├ 🎞 Tizzer: <b>{tizzer_status}</b>\n"
+        f"├ 🎞 Treyler: <b>{tizzer_status}</b>\n"
         f"╚══════════════════╝\n"
         f"╔══════════════════╗\n"
         f" 🔮 Janrlar: <i>{genres_str}</i>\n"
@@ -695,15 +703,14 @@ async def process_type_anime(callback: CallbackQuery, state: FSMContext, session
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="🟢 Ha, saqlansin", callback_data="db_save_anime", style="success"),
-            InlineKeyboardButton(text="🔴 Yo‘q, bekor qilinsin", callback_data="admin_anime", style="danger")
+            InlineKeyboardButton(text="🟢 Saqlansin", callback_data="db_save_anime", style="success"),
+            InlineKeyboardButton(text="🔴 Bekor qilinsin", callback_data="admin_anime", style="danger")
         ]
     ])
 
     await state.set_state(AddAnimeStates.confirm_save)
     poster_id = data.get('poster_id')
 
-    # Media bilan birga caption sifatida yuborish
     if poster_id:
         try:
             await callback.message.answer_photo(
@@ -719,22 +726,21 @@ async def process_type_anime(callback: CallbackQuery, state: FSMContext, session
         await callback.message.edit_text(text=preview_text, reply_markup=kb, parse_mode="HTML")
 
 
-
 # =====================================================================
 # 💾 13. ANIME'NI BAZAGA SAQLASH (DB SAVE HANDLER)
 # =====================================================================
 @router.callback_query(AddAnimeStates.confirm_save, F.data == "db_save_anime")
 async def save_anime_to_db(callback: CallbackQuery, state: FSMContext, session: Any):
-    # Interfeys qotib qolmasligi uchun darhol javob beramiz
     await callback.answer("Anime bazaga saqlanmoqda...")
     
     data = await state.get_data()
     service = AnimeService(session=session)
     
     try:
-        # AnimeService orqali barcha ma'lumotlarni bazaga yozamiz
+        # 💡 Parametrlar yangi arxitekturaga moslandi
         anime = await service.create_anime(
-            title=data.get("title"),
+            title_uz=data.get("title_uz"),
+            title_en=data.get("title_en"),
             poster_id=data.get("poster_id"),
             year=data.get("year"),
             is_completed=False,
@@ -742,15 +748,14 @@ async def save_anime_to_db(callback: CallbackQuery, state: FSMContext, session: 
             dubbers=data.get("selected_dubbers", []),
             description=data.get("description"),
             languages=data.get("languages", []),
-            tizzer_id=data.get("tizzer_id"),       # 🎞️ Yangi: Tizzer (Treyler) ID
-            type_anime=data.get("anime_type")       # ⚙️ Yangi: Enum qiymati (TV SERIES, MOVIE, OVA)
+            trailer_id=data.get("tizzer_id"),       # tizzer_id o'rniga trailer_id
+            type=data.get("anime_type")             # type_anime o'rniga type
         )
         
-        # anime dict yoki ORM obyekti bo'lishiga qarab ID va Title olinadi
-        anime_id = anime.get("anime_id") if isinstance(anime, dict) else anime.id
-        anime_title = anime.get("title") if isinstance(anime, dict) else anime.title
+        # 💡 "title" o'rniga "title_uz", "anime_id" o'rniga standart "id" tekshiriladi
+        anime_id = anime.get("anime_id") if isinstance(anime, dict) else getattr(anime, "anime_id", None)
+        anime_title = anime.get("title_uz") if isinstance(anime, dict) else getattr(anime, "title_uz", "Nomsiz")
         
-        # ✅ Muvaffaqiyatli saqlangach FSM ni tozalaymiz
         await state.clear()  
         
         success_text = (
@@ -764,27 +769,19 @@ async def save_anime_to_db(callback: CallbackQuery, state: FSMContext, session: 
         
         success_kb = InlineKeyboardMarkup(inline_keyboard=[
             [
-                InlineKeyboardButton(text="📹 Qism qo‘shish", callback_data=f"add_episode:{anime_id}", style="success"),
+                InlineKeyboardButton(text="📹 Qism qo‘shish", callback_data=f"add_episode:{anime_id}"),
                 InlineKeyboardButton(text="⬅️ Anime menyusi", callback_data="admin_anime")
             ]
         ])
         
-        # Xabar media yoki matn ekanligiga xavfsiz moslashish
         try:
-            await callback.message.edit_caption(
-                caption=success_text, 
-                reply_markup=success_kb, 
-                parse_mode="HTML"
-            )
+            await callback.message.edit_caption(caption=success_text, reply_markup=success_kb, parse_mode="HTML")
         except Exception:
-            await callback.message.edit_text(
-                text=success_text, 
-                reply_markup=success_kb, 
-                parse_mode="HTML"
-            )
+            await callback.message.edit_text(text=success_text, reply_markup=success_kb, parse_mode="HTML")
         
     except Exception as e:
         logger.error(f"🚨 Anime saqlashda xatolik: {e}")
+        
         
         error_kb = InlineKeyboardMarkup(inline_keyboard=[
             [

@@ -2,7 +2,7 @@ from aiogram import Router
 from handlers.menu import admin_menu
 from handlers.admin_panel import admin_stastika
 from handlers.admin_panel.admin_anime import (
-    anime_menu, add_anime, janr, dubber, 
+    anime_menu,  janr, dubber, 
     add_episode, del_episode, channel_anime, edit_anime, list_anime1
 )
 from handlers.admin_panel.admin_channel import (
@@ -17,6 +17,9 @@ from handlers.admin_panel.admin_vip import (
 from handlers.admin_panel.admin_anime.list_anime import (
     list_all_anime, list_end_anime, list_contine_anime
 )
+from handlers.admin_panel.admin_anime.add_anime import (
+    add_anime
+)
 admin_router = Router()
 
 admin_router.include_routers(
@@ -26,6 +29,7 @@ admin_router.include_routers(
     admin_advet_menu.router,
     admin_vip_menu.router,
     admin_stastika.router,
+    
     add_anime.router,
     list_all_anime.router,
     list_end_anime.router,
