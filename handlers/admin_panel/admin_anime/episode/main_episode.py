@@ -69,22 +69,22 @@ async def get_episode_list_markup(anime_id: int, episodes: list, page: int = 1, 
     # Paginatsiya (Navigatsiya) satri
     nav_row = []
     if page > 1:
-        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"view_episodes_page:{anime_id}:{page-1}"))
+        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"view_episodes_page:{anime_id}:{page-1}", style="primary"))
     else:
-        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void"))
+        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="primary"))
 
-    nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="void"))
+    nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="void", style="primary"))
 
     if page < total_pages:
-        nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"view_episodes_page:{anime_id}:{page+1}"))
+        nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"view_episodes_page:{anime_id}:{page+1}", style="primary"))
     else:
-        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void"))
+        nav_row.append(InlineKeyboardButton(text="⛔️", callback_data="void", style="primary"))
 
     inline_keyboard.append(nav_row)
 
     # Ortga qaytish satri
     inline_keyboard.append([
-        InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"manage_episodes:{anime_id}")
+        InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"manage_episodes:{anime_id}", style="danger")
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=inline_keyboard)
@@ -214,7 +214,7 @@ async def show_specific_episode_handler(callback: CallbackQuery, session: Any):
         ],
         [
             # Ro'yxatga qaytishda aynan qaysi sahifadan kelgan bo'lsa, o'shanga qaytadi
-            InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"view_episodes_page:{anime_id}:{back_page}", style="danger0")
+            InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"view_episodes_page:{anime_id}:{back_page}", style="danger")
         ]
     ])
 
