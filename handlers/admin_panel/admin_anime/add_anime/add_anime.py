@@ -591,8 +591,8 @@ async def process_description(message: Message, state: FSMContext):
     )
     
     reply_markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⏭ O'tkazib yuborish", callback_data="skip_tizzer")],
-        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="admin_anime")]
+        [InlineKeyboardButton(text="⏭ O'tkazib yuborish", callback_data="skip_tizzer", style="primary")],
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="admin_anime", style="danger")]
     ])
     
     await message.answer(text=text, reply_markup=reply_markup, parse_mode="HTML")
@@ -624,9 +624,9 @@ async def ask_anime_type(message: Message, state: FSMContext, is_callback: bool 
     )
     
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📺 TV Series", callback_data="type_TV_SERIES")],
-        [InlineKeyboardButton(text="🎬 Movie", callback_data="type_MOVIE")],
-        [InlineKeyboardButton(text="📀 OVA", callback_data="type_OVA")],
+        [InlineKeyboardButton(text="📺 TV Series", callback_data="type_TV_SERIES", style="primary")],
+        [InlineKeyboardButton(text="🎬 Movie", callback_data="type_MOVIE", style="primary")],
+        [InlineKeyboardButton(text="📀 OVA", callback_data="type_OVA", style="primary")],
         [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="admin_anime", style="danger")]
     ])
     
@@ -769,8 +769,8 @@ async def save_anime_to_db(callback: CallbackQuery, state: FSMContext, session: 
         
         success_kb = InlineKeyboardMarkup(inline_keyboard=[
             [
-                InlineKeyboardButton(text="📹 Qism qo‘shish", callback_data=f"add_episode:{anime_id}"),
-                InlineKeyboardButton(text="⬅️ Anime menyusi", callback_data="admin_anime")
+                InlineKeyboardButton(text="📹 Qism qo‘shish", callback_data=f"add_episode:{anime_id}", style="primary"),
+                InlineKeyboardButton(text="⬅️ Anime kartasi", callback_data=f"v_anime:{anime_id}:1", style="danger")
             ]
         ])
         

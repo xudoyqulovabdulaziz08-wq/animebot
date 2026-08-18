@@ -3,7 +3,7 @@ from handlers.menu import admin_menu
 from handlers.admin_panel import admin_stastika
 from handlers.admin_panel.admin_anime import (
     anime_menu,  janr, dubber, 
-    add_episode, del_episode, channel_anime, edit_anime, list_anime1
+    del_episode, channel_anime, edit_anime, list_anime1
 )
 from handlers.admin_panel.admin_channel import (
     channel_menu, add_channel, list_channel, channel_advert
@@ -18,7 +18,8 @@ from handlers.admin_panel.admin_anime.list_anime import (
     list_all_anime, list_end_anime, list_contine_anime
 )
 from handlers.admin_panel.admin_anime.add_anime import (
-    add_anime
+    add_anime,
+    add_episode
 )
 admin_router = Router()
 

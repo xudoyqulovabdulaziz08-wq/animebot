@@ -28,9 +28,11 @@ router = Router()
 
 @router.callback_query(F.data.startswith("v_anime:"))
 async def view_anime_details(callback: CallbackQuery, session: Any):
-    _, anime_id_str, page_str = callback.data.split(":")
-    anime_id = int(anime_id_str)
-    page = int(page_str) # Orqaga qaytishda aynan shu sahifaga qaytish uchun
+    data_parts = callback.data.split(":")
+    anime_id = int(data_parts[1])
+    
+    # Agar 3-qism (page) kelmasa, avtomatik 1 deb qabul qiladi
+    page = int(data_parts[2]) if len(data_parts) > 2 else 1 
     
     from services.anime_service import AnimeService
     service = AnimeService(session=session)
