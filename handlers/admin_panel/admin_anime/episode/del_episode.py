@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError
 
 from services.anime_service import AnimeService
-from handlers.admin_panel.admin_anime.list_anime1 import get_episode_list_markup
+from handlers.admin_panel.admin_anime.episode.main_episode import get_episode_list_markup
 
 router = Router()
 logger = logging.getLogger(__name__)
