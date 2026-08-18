@@ -167,7 +167,8 @@ class AnimeService:
         episode_num: int,
         file_id: str,
         dub_group: str = "default",  # 👈 QO'SHILDI
-        is_vip: bool = False         # 👈 QO'SHILDI
+        is_vip: bool = False,         # 👈 QO'SHILDI
+        is_filler: bool = False
     ) -> bool:
         try:
             if hasattr(self.session, "_ensure_session"):
@@ -175,7 +176,7 @@ class AnimeService:
 
             # Argumentlar endi repository logikasiga mos ravishda to'liq uzatiladi
             ok = await self.repo.add_episode(
-                self.session, anime_id, episode_num, file_id, dub_group, is_vip
+                self.session, anime_id, episode_num, file_id, dub_group, is_vip, is_filler
             )
             
             await self.session.commit()
@@ -539,3 +540,38 @@ class AnimeService:
         # 3 daqiqaga keshga saqlaymiz (TTL: 180s)
         await self.cache.set("anime_ongoing", cache_key, data, ttl=180)
         return data
+    
+
+
+
+    # ==================================================
+    # 🏷 SET EPISODE FILLER (TRANSACTION SAFE)
+    # ==================================================
+    async def set_episode_filler(self, anime_id: int, episode_num: int, is_filler: bool) -> bool:
+        """
+        Epizodning filler maqomini yangilaydi va tegishli keshni tozalaydi.
+        """
+        try:
+            if hasattr(self.session, "_ensure_session"):
+                await self.session._ensure_session()
+
+            ok = await self.repo.set_episode_filler(self.session, anime_id, episode_num, is_filler)
+            await self.session.commit()
+
+            if ok:
+                # Epizod ma'lumotlari o'zgargani uchun keshlar tozalanadi
+                await self.cache.invalidate("anime", anime_id, broadcast=True)
+                await self.cache.invalidate("anime", "all", broadcast=True)
+                await self.cache.invalidate("anime_episodes", anime_id, broadcast=True)
+
+                await self.cache.invalidate("anime_completed", "all", broadcast=True)
+                await self.cache.invalidate("anime_ongoing", "all", broadcast=True)
+                logger.info(f"🏷 Episode filler status updated: Anime {anime_id}, Ep {episode_num} -> {is_filler}")
+
+            return ok
+
+        except Exception as e:
+            if self.session and hasattr(self.session, "rollback"):
+                await self.session.rollback()
+            logger.error(f"❌ Failed to update episode filler status: {e}")
+            raise e

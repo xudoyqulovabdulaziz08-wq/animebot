@@ -3,7 +3,10 @@ from aiogram import Router
 from handlers.admin_panel.admin_anime.episode import( 
     add_episode, 
     del_episode,
-    swap_episode
+    swap_episode,
+    episode_menu,
+    main_episode,
+    filler_episode,
 )
 from handlers.menu import admin_menu
 from handlers.admin_panel import admin_stastika
@@ -51,6 +54,9 @@ admin_router.include_routers(
     add_episode.router,
     del_episode.router,
     swap_episode.router,
+    episode_menu.router,
+    main_episode.router,
+    filler_episode.router,
 
     channel_anime.router,
     edit_anime.router,

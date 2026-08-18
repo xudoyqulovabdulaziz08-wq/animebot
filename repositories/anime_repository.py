@@ -159,7 +159,7 @@ class AnimeRepository:
             ep_dict["streams"] = streams
             # Eskicha kodlar buzilmasligi uchun birinchi/asosiy file_id ni qaytaramiz
             ep_dict["file_id"] = streams[0]["file_id"] if streams else None
-
+            ep_dict["is_filler"] = getattr(ep, "is_filler", False)
             formatted_episodes.append(ep_dict)
 
         return formatted_episodes
@@ -338,7 +338,8 @@ class AnimeRepository:
         episode_num: int, 
         file_id: str,
         dub_group: str = "default",
-        is_vip: bool = False
+        is_vip: bool = False,
+        is_filler: bool = False
     ) -> bool:
         from database.models import Episode, EpisodeStream
         from sqlalchemy import select
@@ -353,7 +354,11 @@ class AnimeRepository:
         episode = res.scalar_one_or_none()
 
         if not episode:
-            episode = Episode(anime_id=anime_id, episode=episode_num)
+            episode = Episode(
+                anime_id=anime_id, 
+                episode=episode_num,
+                is_filler=is_filler
+            )
             real_session.add(episode)
             await real_session.flush()
 
@@ -369,6 +374,8 @@ class AnimeRepository:
         if existing_stream:
             existing_stream.file_id = file_id
         else:
+            episode.is_filler = is_filler
+
             stream = EpisodeStream(
                 episode_id=episode.id,
                 dub_group=dub_group,
@@ -684,3 +691,30 @@ class AnimeRepository:
             "total_count": total_count,
             "animes": [AnimeRepository._serialize_anime(anime) for anime in animes]
         }
+    
+    # ================= UPDATE EPISODE FILLER STATUS =================
+    @staticmethod
+    async def set_episode_filler(
+        session: Any, 
+        anime_id: int, 
+        episode_num: int, 
+        is_filler: bool
+    ) -> bool:
+        """Epizodning filler holatini (True/False) yangilash"""
+        from sqlalchemy import update
+        from database.models import Episode
+
+        real_session = await AnimeRepository._prepare_session(session)
+
+        stmt = (
+            update(Episode)
+            .where(
+                Episode.anime_id == anime_id,
+                Episode.episode == episode_num
+            )
+            .values(is_filler=is_filler)
+        )
+        result = await real_session.execute(stmt)
+        await real_session.flush()
+
+        return result.rowcount > 0
