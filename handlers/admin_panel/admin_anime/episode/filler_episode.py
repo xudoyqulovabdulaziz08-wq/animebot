@@ -107,13 +107,17 @@ async def toggle_episode_filler_handler(callback: CallbackQuery, session: Any):
     # Ekran ma'lumotlarini va tugmalarni yangilash uchun ko'rsatish handlerini xavfsiz chaqiramiz
     try:
         from handlers.admin_panel.admin_anime.episode.main_episode import show_specific_episode_handler
-        callback.data = f"show_ep:{anime_id}:{ep_num}:{back_page_str}"
-        await show_specific_episode_handler(callback, session)
+        
+        # ✅ Pydantic v2 xavfsiz nusxalash (frozen ob'ektni o'zgartirish o'rniga yangi nusxa yaratamiz)
+        updated_callback = callback.model_copy(
+            update={"data": f"show_ep:{anime_id}:{ep_num}:{back_page_str}"}
+        )
+        await show_specific_episode_handler(updated_callback, session)
+
     except ImportError:
         logger.error("show_specific_episode_handler import qilib bo'lmadi.")
     except Exception as e:
         logger.error(f"UI yangilashda xato: {e}", exc_info=True)
-
 
 # =========================================================
 # 2. KO'P EPIZODLARNI BIR VAQTDA FILLER QILISH (RANGE FILLER)

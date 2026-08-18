@@ -201,7 +201,7 @@ async def show_specific_episode_handler(callback: CallbackQuery, session: Any):
     )
 
     # Filler tugmasining matni va callback malumoti holatga qarab o'zgaradi
-    filler_btn_text = "✅ Canon qilish" if is_filler else "🌀 Filler qilish"
+    filler_btn_text = "🌀 Filler" if is_filler else "✅ Canon "
     filler_btn_style = "success" if is_filler else "primary"
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
