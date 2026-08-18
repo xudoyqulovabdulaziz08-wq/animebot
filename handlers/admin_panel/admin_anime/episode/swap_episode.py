@@ -131,7 +131,7 @@ async def start_swap_episode_handler(callback: CallbackQuery, state: FSMContext,
     )
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"show_ep:{anime_id}:{ep_num}:{back_page}")]
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"show_ep:{anime_id}:{ep_num}:{back_page}", style="danger")]
     ])
 
     await _safe_update_message(callback.message, caption, kb, poster_id)
@@ -166,8 +166,8 @@ async def receive_new_swap_video_handler(message: Message, state: FSMContext):
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Ha, almashtirilsin", callback_data="confirm_real_swap"),
-            InlineKeyboardButton(text="❌ Yo‘q, bekor qilish", callback_data="cancel_swap_process")
+            InlineKeyboardButton(text="✅ Almashtirilsin", callback_data="confirm_real_swap", style="success"),
+            InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_swap_process", style="danger")
         ]
     ])
 

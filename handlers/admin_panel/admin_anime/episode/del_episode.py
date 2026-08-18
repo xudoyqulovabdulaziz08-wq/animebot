@@ -139,8 +139,8 @@ async def confirm_delete_episode_handler(callback: CallbackQuery, session: Any):
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Ha, o‘chirilsin", callback_data=f"real_burn_ep:{anime_id}:{ep_num}:{back_page}"),
-            InlineKeyboardButton(text="❌ Yo‘q, bekor qilish", callback_data=f"show_ep:{anime_id}:{ep_num}:{back_page}")
+            InlineKeyboardButton(text="✅ O‘chirilsin", callback_data=f"real_burn_ep:{anime_id}:{ep_num}:{back_page}", style="success"),
+            InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"show_ep:{anime_id}:{ep_num}:{back_page}", style="danger")
         ]
     ])
 
@@ -195,7 +195,7 @@ async def execute_delete_episode_handler(callback: CallbackQuery, session: Any):
         logger.error(f"❌ get_episode_list_markup xatosi: {e}", exc_info=True)
         # Ro'yxat yasalmasa ham, admin hech bo'lmasa qayta urinish tugmasini ko'radi
         markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Qayta urinish", callback_data=f"show_ep:{anime_id}:{ep_num}:{back_page}")]
+            [InlineKeyboardButton(text="🔄 Qayta urinish", callback_data=f"show_ep:{anime_id}:{ep_num}:{back_page}", style="primary")]
         ])
 
     poster_id = anime.get("poster_id") if anime else None
