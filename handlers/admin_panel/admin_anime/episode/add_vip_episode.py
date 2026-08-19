@@ -19,13 +19,10 @@ logger = logging.getLogger("add_vip_episode")
 router = Router()
 
 class AddEpisodeStates(StatesGroup):
-    waiting_for_vip_videos = State()
-
-
-
+    waiting_for_vip_videos = State()  # 👑 VIP uchun maxsus state
 
 # =======================================================
-# 🧰 YORDAMCHI FUNKSIYALAR (Telegramning turli xatolaridan himoya)
+# 🧰 YORDAMCHI FUNKSIYALAR
 # =======================================================
 async def safe_answer(callback: CallbackQuery, text: Optional[str] = None, show_alert: bool = False) -> None:
     try:
@@ -52,7 +49,6 @@ async def safe_delete(message: Message) -> None:
 
 
 async def safe_send(message: Message, **kwargs) -> Optional[Message]:
-    """message.answer()ni xavfsiz chaqiradi — bloklangan admin yoki tarmoq xatosida crash bermaydi."""
     try:
         return await message.answer(**kwargs)
     except TelegramRetryAfter as e:
@@ -65,22 +61,14 @@ async def safe_send(message: Message, **kwargs) -> Optional[Message]:
 
 
 def _calc_next_episode(episodes: list) -> int:
-    """
-    🟢 TUZATILDI: avval len(episodes)+1 edi — agar biror epizod o'chirilgan bo'lsa
-    (masalan 10 tadan 5-chisi), bu hisoblash noto'g'ri raqamga to'g'ri kelib,
-    MAVJUD epizodni ustidan yozib yuborishi mumkin edi. Endi eng katta mavjud
-    epizod raqamidan +1 qilib hisoblanadi — bu har doim xavfsiz keyingi raqam.
-    """
+    """Endi faqat uzatilgan (VIP) qismlar ro'yxati asosida hisoblaydi."""
     if not episodes:
         return 1
     max_ep = max((ep.get("episode", 0) for ep in episodes), default=0)
     return max_ep + 1
 
-
-
 _video_locks: Dict[int, asyncio.Lock] = {}
 _debounce_tasks: Dict[int, asyncio.Task] = {}
-
 
 def _get_lock(user_id: int) -> asyncio.Lock:
     lock = _video_locks.get(user_id)
@@ -89,18 +77,16 @@ def _get_lock(user_id: int) -> asyncio.Lock:
         _video_locks[user_id] = lock
     return lock
 
-
 def _cancel_debounce(user_id: int) -> None:
     task = _debounce_tasks.pop(user_id, None)
     if task and not task.done():
         task.cancel()
 
-
 # =======================================================
-# 1. "QISM QO'SHISH" TUGMASI BOSILGANDA
+# 1. "VIP QISM QO'SHISH" TUGMASI BOSILGANDA
 # =======================================================
 @router.callback_query(F.data.startswith("add_vip_episode:"))
-async def start_add_episode(callback: CallbackQuery, state: FSMContext, session: Any):
+async def start_add_vip_episode(callback: CallbackQuery, state: FSMContext, session: Any):
     await safe_answer(callback)
 
     try:
@@ -113,7 +99,7 @@ async def start_add_episode(callback: CallbackQuery, state: FSMContext, session:
         service = AnimeService(session=session)
         anime = await service.get_anime(anime_id)
     except Exception as e:
-        logger.error(f"start_add_episode: anime olishda xato: {e}", exc_info=True)
+        logger.error(f"start_add_vip_episode: anime olishda xato: {e}", exc_info=True)
         await safe_answer(callback, "❌ Tizimda xatolik yuz berdi.", show_alert=True)
         return
 
@@ -121,25 +107,27 @@ async def start_add_episode(callback: CallbackQuery, state: FSMContext, session:
         await safe_answer(callback, "❌ Anime topilmadi!", show_alert=True)
         return
 
-    episodes = anime.get("episodes", [])
-    next_ep = _calc_next_episode(episodes)
+    # 📌 O'ZGARISH: Faqat VIP qismlarni hisobga olamiz
+    all_episodes = anime.get("episodes", [])
+    vip_episodes = [ep for ep in all_episodes if ep.get("is_vip")]
+    next_ep = _calc_next_episode(vip_episodes)
 
     if callback.message:
         await safe_delete(callback.message)
 
-    # Har bir yangi urinishda eski debounce jarayonini tozalab boshlaymiz
     _cancel_debounce(callback.from_user.id)
 
+    # 📌 O'ZGARISH: VIP state ishlatildi
     await state.set_state(AddEpisodeStates.waiting_for_vip_videos)
     await state.update_data(anime_id=anime_id, video_list=[], next_ep=next_ep)
 
     anime_title = html.quote(str(anime.get("title", "Anime")))
 
     text = (
-        f"🎬 {html.bold(anime_title)} animesiga vip qism qo‘shish\n"
+        f"👑 {html.bold(anime_title)} animesiga VIP qism qo‘shish\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"📹 Iltimos, qism videolarini ketma-ketlikda tashlang.\n"
-        f"ℹ️ Tizim avtomatik ravishda {html.code(f'{next_ep}-qismdan')} boshlab raqamlaydi.\n\n"
+        f"📹 Iltimos, VIP qism videolarini ketma-ketlikda tashlang.\n"
+        f"ℹ️ Tizim avtomatik ravishda {html.code(f'{next_ep}-VIP qismdan')} boshlab raqamlaydi.\n\n"
         f"⚠️ {html.italic('Bir nechta videoni belgilab birdaniga tashlashingiz ham mumkin.')}"
     )
 
@@ -149,3 +137,156 @@ async def start_add_episode(callback: CallbackQuery, state: FSMContext, session:
 
     await safe_send(callback.message, text=text, reply_markup=kb, parse_mode="HTML")
 
+# =======================================================
+# 2. VIDEO QABUL QILISH (VIP State bilan)
+# =======================================================
+@router.message(AddEpisodeStates.waiting_for_vip_videos, F.video)
+async def collect_vip_videos_handler(message: Message, state: FSMContext):
+    user_id = message.from_user.id
+    lock = _get_lock(user_id)
+
+    async with lock:
+        try:
+            current_data = await state.get_data()
+        except Exception as e:
+            logger.error(f"collect_vip_videos_handler: state o'qishda xato: {e}", exc_info=True)
+            return
+
+        video_list = current_data.get("video_list", [])
+        video_list.append(message.video.file_id)
+
+        try:
+            await state.update_data(video_list=video_list)
+        except Exception as e:
+            logger.error(f"collect_vip_videos_handler: state yozishda xato: {e}", exc_info=True)
+            return
+
+        _cancel_debounce(user_id)
+        loop = asyncio.get_running_loop()
+        _debounce_tasks[user_id] = loop.create_task(
+            wait_and_finish_vip_collection(message, state, user_id)
+        )
+
+@router.message(AddEpisodeStates.waiting_for_vip_videos)
+async def collect_vip_videos_invalid(message: Message) -> None:
+    await safe_send(message, text="📹 Iltimos, VIP qism uchun faqat VIDEO yuboring.")
+
+async def wait_and_finish_vip_collection(message: Message, state: FSMContext, user_id: int) -> None:
+    try:
+        await asyncio.sleep(1.5)
+
+        data = await state.get_data()
+        video_list = data.get("video_list", [])
+        anime_id = data.get("anime_id")
+        next_ep = data.get("next_ep", 1)
+
+        if not video_list or not anime_id:
+            return
+
+        total_added = len(video_list)
+        end_ep = next_ep + total_added - 1
+
+        summary_text = (
+            f"👑 {html.bold('VIP videolar muvaffaqiyatli qabul qilindi!')}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"📥 Jami yuklangan VIP fayllar: {html.bold(str(total_added))} ta\n"
+            f"🔢 Qismlar oralig‘i: {html.code(f'{next_ep}-qismdan')} -> {html.code(f'{end_ep}-qismgacha')}\n\n"
+            f"✨ Endi quyidagi amallardan birini tanlang:"
+        )
+
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                # 📌 O'ZGARISH: Callback'lar VIP ga moslandi
+                InlineKeyboardButton(text="👑 Faqat bazaga saqlash", callback_data=f"save_vip_episodes_db:{anime_id}", style="primary")
+                
+            ],
+            [
+                InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"view_vip_episodes_list:{anime_id}:1", style="danger")
+            ]
+        ])
+
+        await safe_send(message, text=summary_text, reply_markup=kb, parse_mode="HTML")
+
+    except asyncio.CancelledError:
+        pass
+    except Exception as e:
+        logger.error(f"wait_and_finish_vip_collection kutilmagan xato: {e}", exc_info=True)
+    finally:
+        _debounce_tasks.pop(user_id, None)
+
+# =======================================================
+# 3. ✅ VIP BAZAGA SAQLASH 
+# =======================================================
+@router.callback_query(F.data.startswith("save_vip_episodes_db:"), AddEpisodeStates.waiting_for_vip_videos)
+async def save_vip_episodes_to_database(callback: CallbackQuery, state: FSMContext, session: Any):
+    await safe_answer(callback, "VIP qismlarni saqlash boshlandi...")
+
+    data = await state.get_data()
+    video_list = data.get("video_list", [])
+    anime_id = data.get("anime_id")
+    next_ep = data.get("next_ep", 1)
+
+    if not video_list or not anime_id:
+        await safe_send(callback.message, text="❌ Saqlash uchun videolar topilmadi. Jarayon bekor qilindi.")
+        await state.clear()
+        _cancel_debounce(callback.from_user.id)
+        return
+
+    await state.clear()
+    _cancel_debounce(callback.from_user.id)
+
+    if hasattr(session, "_ensure_session"):
+        await session._ensure_session()
+
+    service = AnimeService(session=session)
+
+    success_count = 0
+    failed_episodes: list[int] = []
+
+    for index, file_id in enumerate(video_list):
+        current_episode_num = next_ep + index
+        try:
+            # 📌 O'ZGARISH: is_vip=True xususiyati qo'shib yuborilmoqda
+            ok = await service.add_episode(
+                anime_id=anime_id,
+                episode_num=current_episode_num,
+                file_id=file_id,
+                is_vip=True
+            )
+            if ok:
+                success_count += 1
+            else:
+                failed_episodes.append(current_episode_num)
+        except Exception as e:
+            logger.error(
+                f"❌ VIP Epizod saqlashda xatolik: anime_id={anime_id}, episode={current_episode_num}: {e}",
+                exc_info=True
+            )
+            failed_episodes.append(current_episode_num)
+
+    if callback.message:
+        await safe_delete(callback.message)
+
+    if failed_episodes:
+        failed_str = ", ".join(str(n) for n in failed_episodes)
+        final_text = (
+            f"⚠️ {html.bold('Qisman saqlandi (VIP)')}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"✅ Muvaffaqiyatli saqlandi: {html.bold(str(success_count))} ta\n"
+            f"❌ Xato berdi: {html.bold(str(len(failed_episodes)))} ta (qism: {html.code(failed_str)})\n\n"
+            f"Xato bergan qismlarni qayta yuklab ko'ring."
+        )
+    else:
+        final_text = (
+            f"👑 {html.bold('Muvaffaqiyatli saqlandi!')}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            f"Bazaga jami {html.bold(str(success_count))} ta yangi VIP qism qo‘shildi."
+        )
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="⬅️ VIP Qismlar ro'yxati", callback_data=f"view_vip_episodes_list:{anime_id}:1", style="danger")
+        ]
+    ])
+
+    await safe_send(callback.message, text=final_text, reply_markup=kb, parse_mode="HTML")
