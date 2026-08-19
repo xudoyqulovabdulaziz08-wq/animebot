@@ -122,11 +122,11 @@ async def start_add_episode(callback: CallbackQuery, state: FSMContext, session:
 
     # Faqat VIP qismlarni hisobga olamiz
     all_episodes = anime.get("episodes", [])
-    vip_episodes = [
+    regular_episodes = [
         ep for ep in all_episodes 
-        if any(stream.get("is_vip") for stream in ep.get("streams", []))
+        if not any(stream.get("is_vip") for stream in ep.get("streams", []))
     ]
-    next_ep = _calc_next_episode(vip_episodes)
+    next_ep = _calc_next_episode(regular_episodes)
 
     if callback.message:
         await safe_delete(callback.message)
@@ -277,7 +277,7 @@ async def save_episodes_to_database(callback: CallbackQuery, state: FSMContext, 
                 episode_num=current_episode_num,
                 file_id=file_id,
                 dub_group="default", # 👈 Agar alohida dublyaj guruhi bo'lsa nomini yozing
-                is_vip=True
+                is_vip=False
             )
             if ok:
                 success_count += 1

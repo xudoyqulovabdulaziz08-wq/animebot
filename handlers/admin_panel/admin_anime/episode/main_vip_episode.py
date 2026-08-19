@@ -156,3 +156,111 @@ async def view_vip_episodes_list_handler(callback: CallbackQuery, session: Any):
                 logger.warning(f"edit_text orqali yangilash amalga oshmadi: {err}")
     except Exception as e:
         logger.error(f"Kutilmagan xato: {e}")
+
+
+
+
+
+    
+
+
+
+@router.callback_query(F.data.startswith("show_vip_ep:"))
+async def show_specific_vip_episode_handler(callback: CallbackQuery, session: Any):
+    await safe_answer(callback, "⭐️ VIP Video yuklanmoqda...")
+    
+    try:
+        _, anime_id_str, ep_num_str, back_page_str = callback.data.split(":")
+        anime_id = int(anime_id_str)
+        ep_num = int(ep_num_str)
+        back_page = int(back_page_str)  # Orqaga qaytganda o'sha sahifani eslab qolish uchun
+    except (IndexError, ValueError):
+        await safe_answer(callback, "❌ Noto'g'ri so'rov formati!", show_alert=True)
+        return
+
+    service = AnimeService(session=session)
+    try:
+        anime = await service.get_anime(anime_id)
+    except Exception as e:
+        logger.error(f"Anime yuklanmadi: {e}")
+        anime = None
+    
+    if not anime:
+        await safe_answer(callback, "❌ Anime topilmadi!", show_alert=True)
+        return
+
+    # Kerakli epizod ma'lumotlarini ajratib olamiz
+    episodes = anime.get("episodes", [])
+    target_ep = next((ep for ep in episodes if ep.get("episode") == ep_num), None)
+
+    if not target_ep:
+        await safe_answer(callback, "❌ Ushbu qism topilmadi!", show_alert=True)
+        return
+
+    # 🔥 VIP videoning file_id sini 'streams' ichidan qidiramiz
+    streams = target_ep.get("streams", [])
+    vip_stream = next((stream for stream in streams if stream.get("is_vip")), None)
+
+    if not vip_stream or not vip_stream.get("file_id"):
+        await safe_answer(callback, "❌ Ushbu qismning VIP videosi topilmadi!", show_alert=True)
+        return
+
+    file_id = vip_stream.get("file_id")
+    is_filler = target_ep.get("is_filler", False)  # Filler holatini aniqlaymiz
+    
+    raw_title = anime.get("title", "Nomsiz anime")
+    title = html.quote(str(raw_title))  # HTML xatoligini oldini olamiz
+    
+    # Filler holatiga mos ravishda status matni
+    filler_status_text = "🌀 <b>Filler qism</b>" if is_filler else "✅ <b>Canon qism</b>"
+    
+    caption = (
+        f"🎬 <b>{title}</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"⭐️ <b>VIP QISM</b>\n"
+        f"📹 Joriy qism: <b>{ep_num}-qism</b> ({filler_status_text})\n\n"
+        f"🛠 <b>Admin amallari:</b>\n"
+        f"⚠️ {html.italic('Ushbu VIP qismni o‘chirish, almashish yoki filler holatini o‘zgartirish uchun quyidagi tugmalardan foydalaning.')}"
+    )
+
+    # Filler tugmasining matni va callback malumoti holatga qarab o'zgaradi
+    filler_btn_text = "🌀 Filler" if is_filler else "✅ Canon "
+    filler_btn_style = "success" if is_filler else "primary"
+
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            # VIP ga moslashtirilgan callback_data lar:
+            InlineKeyboardButton(text="🗑   O‘chirish", callback_data=f"burn_vip_ep:{anime_id}:{ep_num}:{back_page}", style="danger"),
+            InlineKeyboardButton(text="🔄  Almashtirish", callback_data=f"swap_vip_ep:{anime_id}:{ep_num}:{back_page}", style="primary")
+        ],
+        [
+            # Filler holatini o'zgartirish (agar VIP va oddiy epizodlar bitta filler flag ishlatsa, toggle_filler o'zi qolishi ham mumkin)
+            InlineKeyboardButton(text=filler_btn_text, callback_data=f"toggle_vip_filler:{anime_id}:{ep_num}:{back_page}", style=filler_btn_style)
+        ],
+        [
+            # Orqaga qaytish aynan VIP qismlar menyusiga (view_vip_episodes_page) qaytishi kerak
+            InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"view_vip_episodes_page:{anime_id}:{back_page}", style="danger")
+        ]
+    ])
+
+    # 🔥 MEDIA EDIT va XAVFSIZLIK FALLBACK
+    try:
+        new_media = InputMediaVideo(media=file_id, caption=caption, parse_mode="HTML")
+        await callback.message.edit_media(media=new_media, reply_markup=kb)
+    except TelegramBadRequest as e:
+        msg = str(e).lower()
+        if "message is not modified" in msg:
+            pass # Eski media va xabar turi bir xil bo'lsa, o'zgarishsiz qoldiradi
+        elif "there is no media in the message" in msg:
+            # Muhim xavfsizlik: Matnli xabarni mediaga 'edit_media' qilib bo'lmaydi. 
+            # Shuning uchun uni o'chirib, o'rniga yangi video yuboramiz!
+            try:
+                await callback.message.delete()
+                await callback.message.answer_video(video=file_id, caption=caption, reply_markup=kb, parse_mode="HTML")
+            except Exception as err:
+                logger.error(f"Xabarni o'chirib yangi VIP videoni yuborishda xato: {err}")
+        else:
+            logger.error(f"❌ VIP Media almashtirishda xatolik yuz berdi: {e}")
+            await safe_answer(callback, "❌ VIP videoni yuklashda xatolik! Fayl ID buzilgan bo'lishi mumkin.", show_alert=True)
+    except Exception as e:
+        logger.error(f"Kutilmagan xato (VIP show): {e}")
