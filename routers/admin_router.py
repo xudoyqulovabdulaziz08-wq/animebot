@@ -7,6 +7,8 @@ from handlers.admin_panel.admin_anime.episode import(
     episode_menu,
     main_episode,
     filler_episode,
+    add_vip_episode,
+    main_vip_episode
 )
 from handlers.menu import admin_menu
 from handlers.admin_panel import admin_stastika
@@ -57,6 +59,8 @@ admin_router.include_routers(
     episode_menu.router,
     main_episode.router,
     filler_episode.router,
+    add_vip_episode.router,
+    main_vip_episode.router,
 
     channel_anime.router,
     edit_anime.router,

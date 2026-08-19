@@ -77,7 +77,7 @@ async def manage_episodes_handler(callback: CallbackQuery, session: Any):
             InlineKeyboardButton(text="▶️ Qismlarni ko‘rish", callback_data=f"view_episodes_list:{anime_id}", style="primary")
         ],
         [
-            InlineKeyboardButton(text="💎 VIP qismlar", callback_data=f"vip:{anime_id}", style="primary")
+            InlineKeyboardButton(text="💎 VIP qismlar", callback_data=f"view_vip_episodes_list:{anime_id}", style="primary")
         ],
         [
             InlineKeyboardButton(text="⬅️ Orqaga", callback_data=f"v_anime:{anime_id}:1", style="danger")
