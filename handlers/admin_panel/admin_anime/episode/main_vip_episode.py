@@ -124,8 +124,13 @@ async def view_vip_episodes_list_handler(callback: CallbackQuery, session: Any):
     title = html.quote(str(raw_title))
     
     # Faqat VIP qismlarni ajratib olish
+    # Faqat VIP qismlarni ajratib olish
     all_episodes = anime.get("episodes", [])
-    vip_episodes = [ep for ep in all_episodes if ep.get("is_vip")]
+    # Har bir epizodning 'streams' ro'yxati ichidan is_vip=True bo'lganini qidiramiz
+    vip_episodes = [
+        ep for ep in all_episodes 
+        if any(stream.get("is_vip") for stream in ep.get("streams", []))
+    ]
 
     caption = (
         f"╔══════════════════╗\n"

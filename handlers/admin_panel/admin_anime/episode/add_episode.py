@@ -120,8 +120,13 @@ async def start_add_episode(callback: CallbackQuery, state: FSMContext, session:
         await safe_answer(callback, "❌ Anime topilmadi!", show_alert=True)
         return
 
-    episodes = anime.get("episodes", [])
-    next_ep = _calc_next_episode(episodes)
+    # Faqat VIP qismlarni hisobga olamiz
+    all_episodes = anime.get("episodes", [])
+    vip_episodes = [
+        ep for ep in all_episodes 
+        if any(stream.get("is_vip") for stream in ep.get("streams", []))
+    ]
+    next_ep = _calc_next_episode(vip_episodes)
 
     if callback.message:
         await safe_delete(callback.message)
@@ -270,7 +275,9 @@ async def save_episodes_to_database(callback: CallbackQuery, state: FSMContext, 
             ok = await service.add_episode(
                 anime_id=anime_id,
                 episode_num=current_episode_num,
-                file_id=file_id
+                file_id=file_id,
+                dub_group="default", # 👈 Agar alohida dublyaj guruhi bo'lsa nomini yozing
+                is_vip=True
             )
             if ok:
                 success_count += 1
@@ -278,10 +285,11 @@ async def save_episodes_to_database(callback: CallbackQuery, state: FSMContext, 
                 failed_episodes.append(current_episode_num)
         except Exception as e:
             logger.error(
-                f"❌ Epizod saqlashda xatolik: anime_id={anime_id}, episode={current_episode_num}: {e}",
+                f"❌ VIP Epizod saqlashda xatolik: anime_id={anime_id}, episode={current_episode_num}: {e}",
                 exc_info=True
             )
             failed_episodes.append(current_episode_num)
+
 
     if callback.message:
         await safe_delete(callback.message)
