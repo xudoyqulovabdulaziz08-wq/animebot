@@ -223,7 +223,7 @@ async def execute_delete_vip_episode_handler(callback: CallbackQuery, session: A
     except Exception as e:
         logger.error(f"❌ get_vip_episode_list_markup xatosi: {e}", exc_info=True)
         markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔄 Qayta urinish", callback_data=f"show_vip_ep:{anime_id}:{ep_num}:{back_page}")]
+            [InlineKeyboardButton(text="🔄 Qayta urinish", callback_data=f"show_vip_ep:{anime_id}:{ep_num}:{back_page}", style="primary")]
         ])
 
     poster_id = anime.get("poster_id") if anime else None
