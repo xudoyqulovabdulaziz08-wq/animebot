@@ -137,11 +137,11 @@ async def confirm_delete_vip_episode_handler(callback: CallbackQuery, session: A
         [
             InlineKeyboardButton(
                 text="✅ O‘chirilsin", 
-                callback_data=f"real_burn_vip_ep:{anime_id}:{ep_num}:{back_page}:{dub_group}"
+                callback_data=f"real_burn_vip_ep:{anime_id}:{ep_num}:{back_page}:{dub_group}", style="success"
             ),
             InlineKeyboardButton(
                 text="❌ Bekor qilish", 
-                callback_data=f"show_vip_ep:{anime_id}:{ep_num}:{back_page}"
+                callback_data=f"show_vip_ep:{anime_id}:{ep_num}:{back_page}", style="danger"
             )
         ]
     ])
@@ -185,7 +185,27 @@ async def execute_delete_vip_episode_handler(callback: CallbackQuery, session: A
         logger.error(f"❌ real_burn_vip_ep: anime qayta yuklashda xato: {e}", exc_info=True)
         anime = None
 
-    episodes = anime.get("episodes", []) if anime else []
+    all_episodes = anime.get("episodes", []) if anime else []
+    
+    # ====================================================================
+    # 🛠 BUG FIX: Faqat VIP videosi (stream) bor qismlarni filtrlab olamiz
+    # Shunda o'chirilgan (faqat free bo'lib qolgan) qismlar ro'yxatga kirmaydi
+    # ====================================================================
+    vip_episodes = []
+    for ep in all_episodes:
+        # Pydantic dict yoki SQLAlchemy model ekanligini hisobga olib streams ni olamiz
+        streams = ep.get("streams", []) if isinstance(ep, dict) else getattr(ep, "streams", [])
+        
+        # Ushbu qism ichida is_vip=True bo'lgan stream bor yoki yo'qligini tekshiramiz
+        has_vip = any(
+            (s.get("is_vip") if isinstance(s, dict) else getattr(s, "is_vip", False)) 
+            for s in streams
+        )
+        
+        if has_vip:
+            vip_episodes.append(ep)
+    # ====================================================================
+
     raw_title = anime.get("title", "Nomsiz anime") if anime else "Nomsiz anime"
     title = html.quote(str(raw_title))
 
@@ -198,7 +218,8 @@ async def execute_delete_vip_episode_handler(callback: CallbackQuery, session: A
     )
 
     try:
-        markup = await get_vip_episode_list_markup(anime_id=anime_id, episodes=episodes, page=back_page)
+        # ✅ Endi `all_episodes` o'rniga tozalangan `vip_episodes` ro'yxatini yuboramiz
+        markup = await get_vip_episode_list_markup(anime_id=anime_id, episodes=vip_episodes, page=back_page)
     except Exception as e:
         logger.error(f"❌ get_vip_episode_list_markup xatosi: {e}", exc_info=True)
         markup = InlineKeyboardMarkup(inline_keyboard=[
