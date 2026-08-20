@@ -5,7 +5,6 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError
 
 from services.anime_service import AnimeService
-# ✅ Import qismi VIP menu ro'yxatini yasaydigan funksiyaga o'zgartirildi
 from handlers.admin_panel.admin_anime.episode.main_vip_episode import get_vip_episode_list_markup
 
 router = Router()
@@ -96,7 +95,6 @@ async def _safe_update_message(
     return False
 
 
-# ✅ Callback so'rovi 'burn_vip_ep:' ga o'zgartirildi
 @router.callback_query(F.data.startswith("burn_vip_ep:"))
 async def confirm_delete_vip_episode_handler(callback: CallbackQuery, session: Any):
     await safe_answer(callback)
@@ -106,6 +104,7 @@ async def confirm_delete_vip_episode_handler(callback: CallbackQuery, session: A
         anime_id = int(parts[1])
         ep_num = int(parts[2])
         back_page = int(parts[3])
+        dub_group = parts[4] if len(parts) > 4 else "default"
     except (IndexError, ValueError):
         await safe_answer(callback, "❌ Noto'g'ri so'rov!", show_alert=True)
         return
@@ -125,7 +124,6 @@ async def confirm_delete_vip_episode_handler(callback: CallbackQuery, session: A
     title = html.quote(str(anime.get("title") or "Nomsiz anime"))
     poster_id = anime.get("poster_id")
 
-    # ✅ Matnlar VIP ga moslandi
     caption = (
         f"⚠️ {html.bold('DIQQAT! VIP QISMNI O‘CHIRISH')}\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -135,18 +133,22 @@ async def confirm_delete_vip_episode_handler(callback: CallbackQuery, session: A
         f"Haqiqatdan ham ushbu VIP qismni o‘chirmoqchimisiz?"
     )
 
-    # ✅ Tugmalar callbacklari real_burn_vip_ep va show_vip_ep ga o'tkazildi
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ O‘chirilsin", callback_data=f"real_burn_vip_ep:{anime_id}:{ep_num}:{back_page}", style="primary"),
-            InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"show_vip_ep:{anime_id}:{ep_num}:{back_page}", style="danger")
+            InlineKeyboardButton(
+                text="✅ O‘chirilsin", 
+                callback_data=f"real_burn_vip_ep:{anime_id}:{ep_num}:{back_page}:{dub_group}"
+            ),
+            InlineKeyboardButton(
+                text="❌ Bekor qilish", 
+                callback_data=f"show_vip_ep:{anime_id}:{ep_num}:{back_page}"
+            )
         ]
     ])
 
     await _safe_update_message(callback.message, caption, kb, poster_id)
 
 
-# ✅ Bajarish callback'i 'real_burn_vip_ep:' ga o'tkazildi
 @router.callback_query(F.data.startswith("real_burn_vip_ep:"))
 async def execute_delete_vip_episode_handler(callback: CallbackQuery, session: Any):
     try:
@@ -154,6 +156,7 @@ async def execute_delete_vip_episode_handler(callback: CallbackQuery, session: A
         anime_id = int(parts[1])
         ep_num = int(parts[2])
         back_page = int(parts[3])
+        dub_group = parts[4] if len(parts) > 4 else "default"
     except (IndexError, ValueError):
         await safe_answer(callback, "❌ Noto'g'ri so'rov!", show_alert=True)
         return
@@ -161,8 +164,12 @@ async def execute_delete_vip_episode_handler(callback: CallbackQuery, session: A
     service = AnimeService(session=session)
 
     try:
-        # ✅ is_vip=True parametri bilan faqat VIP videoni o'chirishni ta'minlaymiz
-        ok = await service.delete_episode(anime_id=anime_id, episode_num=ep_num, is_vip=True)
+        # ✅ AnimeService xavfsiz delete_episode_vip metodi chaqirildi
+        ok = await service.delete_episode_vip(
+            anime_id=anime_id, 
+            episode_num=ep_num, 
+            dub_group=dub_group
+        )
     except Exception as e:
         logger.error(f"❌ VIP Epizod o'chirish handlerida xato: {e}", exc_info=True)
         ok = False
@@ -191,11 +198,9 @@ async def execute_delete_vip_episode_handler(callback: CallbackQuery, session: A
     )
 
     try:
-        # ✅ VIP ro'yxat yasovchi funksiya ishlatildi
         markup = await get_vip_episode_list_markup(anime_id=anime_id, episodes=episodes, page=back_page)
     except Exception as e:
         logger.error(f"❌ get_vip_episode_list_markup xatosi: {e}", exc_info=True)
-        # Fallback tugmasi VIP ga moslandi
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🔄 Qayta urinish", callback_data=f"show_vip_ep:{anime_id}:{ep_num}:{back_page}")]
         ])

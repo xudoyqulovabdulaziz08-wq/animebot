@@ -7,16 +7,14 @@ from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardBut
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError
 
 from services.anime_service import AnimeService
-# ✅ Import VIP ko'rsatuvchi handlerga o'zgartirildi
 from handlers.admin_panel.admin_anime.episode.main_vip_episode import show_specific_vip_episode_handler
 
 router = Router()
 logger = logging.getLogger("swap_vip_episode")
 
 
-# ✅ State nomi VIP uchun o'zgartirildi
 class SwapVIPEpisodeStates(StatesGroup):
-    waiting_for_new_video = State()  # Yangi VIP videoni kutish holati
+    waiting_for_new_video = State()
 
 
 async def safe_answer(callback: CallbackQuery, text: Optional[str] = None, show_alert: bool = False) -> None:
@@ -93,16 +91,16 @@ async def _safe_update_message(
     return False
 
 
-# ✅ Callback data 'swap_vip_ep:' qilib o'zgartirildi
 @router.callback_query(F.data.startswith("swap_vip_ep:"))
 async def start_swap_vip_episode_handler(callback: CallbackQuery, state: FSMContext, session: Any):
     await safe_answer(callback)
     
     try:
-        _, anime_id_str, ep_num_str, back_page_str = callback.data.split(":")
-        anime_id = int(anime_id_str)
-        ep_num = int(ep_num_str)
-        back_page = int(back_page_str)
+        parts = callback.data.split(":")
+        anime_id = int(parts[1])
+        ep_num = int(parts[2])
+        back_page = int(parts[3])
+        dub_group = parts[4] if len(parts) > 4 else "default"
     except (IndexError, ValueError):
         await safe_answer(callback, "❌ Noto'g'ri so'rov!", show_alert=True)
         return
@@ -119,9 +117,13 @@ async def start_swap_vip_episode_handler(callback: CallbackQuery, state: FSMCont
         await safe_answer(callback, "❌ Anime topilmadi!", show_alert=True)
         return
 
-    # ✅ VIP State ishlatildi
     await state.set_state(SwapVIPEpisodeStates.waiting_for_new_video)
-    await state.update_data(anime_id=anime_id, ep_num=ep_num, back_page=back_page)
+    await state.update_data(
+        anime_id=anime_id, 
+        ep_num=ep_num, 
+        back_page=back_page, 
+        dub_group=dub_group
+    )
 
     poster_id = anime.get("poster_id")
     raw_title = anime.get("title", "Nomsiz anime")
@@ -134,15 +136,13 @@ async def start_swap_vip_episode_handler(callback: CallbackQuery, state: FSMCont
         f"📥 {html.italic('Yangi video qabul qilingandan so‘ng, tizim sizdan yakuniy ruxsatni so‘raydi.')}"
     )
 
-    # ✅ Bekor qilishda show_vip_ep ga qaytishni ta'minlaymiz
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"show_vip_ep:{anime_id}:{ep_num}:{back_page}", style="danger")]
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"show_vip_ep:{anime_id}:{ep_num}:{back_page}")]
     ])
 
     await _safe_update_message(callback.message, caption, kb, poster_id)
 
 
-# ✅ FSM State VIP ga to'g'rilandi
 @router.message(SwapVIPEpisodeStates.waiting_for_new_video, F.video)
 async def receive_new_vip_swap_video_handler(message: Message, state: FSMContext):
     data = await state.get_data()
@@ -169,11 +169,10 @@ async def receive_new_vip_swap_video_handler(message: Message, state: FSMContext
         f"Haqiqatdan ham ushbu VIP qism videosini yangilashni tasdiqlaysizmi?"
     )
 
-    # ✅ Callback ma'lumotlari moslashtirildi
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="✅ Almashtirilsin", callback_data="confirm_real_vip_swap", style="success"),
-            InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_vip_swap_process", style="danger")
+            InlineKeyboardButton(text="✅ Almashtirilsin", callback_data="confirm_real_vip_swap"),
+            InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_vip_swap_process")
         ]
     ])
 
@@ -183,7 +182,6 @@ async def receive_new_vip_swap_video_handler(message: Message, state: FSMContext
         logger.error(f"Yangi VIP videoni tasdiqlash xabari yuborilmadi: {e}", exc_info=True)
 
 
-# ✅ Cancel uchun handler VIP callback nomiga qarab kutadi
 @router.callback_query(F.data == "cancel_vip_swap_process", SwapVIPEpisodeStates.waiting_for_new_video)
 async def cancel_vip_swap_handler(callback: CallbackQuery, state: FSMContext, session: Any):
     data = await state.get_data()
@@ -198,14 +196,12 @@ async def cancel_vip_swap_handler(callback: CallbackQuery, state: FSMContext, se
     if not anime_id or not ep_num:
         return
 
-    # ✅ show_ep dan show_vip_ep ga o'tkazildi
     cloned_callback = callback.model_copy(
         update={"data": f"show_vip_ep:{anime_id}:{ep_num}:{back_page}"}
     )
     await show_specific_vip_episode_handler(cloned_callback, session=session)
 
 
-# ✅ Tasdiqlash handleri VIP uchun tayyorlandi
 @router.callback_query(F.data == "confirm_real_vip_swap", SwapVIPEpisodeStates.waiting_for_new_video)
 async def execute_vip_swap_handler(callback: CallbackQuery, state: FSMContext, session: Any):
     data = await state.get_data()
@@ -213,6 +209,7 @@ async def execute_vip_swap_handler(callback: CallbackQuery, state: FSMContext, s
     ep_num = data.get("ep_num")
     back_page = data.get("back_page", 1)
     new_file_id = data.get("new_file_id")
+    dub_group = data.get("dub_group", "default")
 
     if not anime_id or not ep_num or not new_file_id:
         await safe_answer(callback, "❌ Xatolik: Jarayon ma'lumotlari to'liq emas!", show_alert=True)
@@ -222,12 +219,12 @@ async def execute_vip_swap_handler(callback: CallbackQuery, state: FSMContext, s
     service = AnimeService(session=session)
     
     try:
-        # ✅ is_vip=True parametri bilan VIP qism bazasiga xabar beramiz
         ok = await service.update_episode_file(
             anime_id=anime_id,
             episode_num=ep_num,
             new_file_id=new_file_id,
-            is_vip=True
+            is_vip=True,
+            dub_group=dub_group
         )
     except Exception as e:
         logger.error(f"❌ VIP almashtirishda xato yuz berdi: {e}", exc_info=True)
@@ -240,7 +237,6 @@ async def execute_vip_swap_handler(callback: CallbackQuery, state: FSMContext, s
     else:
         await safe_answer(callback, "❌ Tizimda xatolik yuz berdi, almashtirilmadi.", show_alert=True)
 
-    # ✅ show_ep dan show_vip_ep ga o'tkazildi
     cloned_callback = callback.model_copy(
         update={"data": f"show_vip_ep:{anime_id}:{ep_num}:{back_page}"}
     )

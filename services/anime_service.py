@@ -575,3 +575,51 @@ class AnimeService:
                 await self.session.rollback()
             logger.error(f"❌ Failed to update episode filler status: {e}")
             raise e
+    
+
+
+    # ==================================================
+    # 🗑 DELETE EPISODE VIP (TRANSACTION SAFE & CACHE-AWARE)
+    # ==================================================
+    async def delete_episode_vip(
+        self, 
+        anime_id: int, 
+        episode_num: int, 
+        dub_group: str = "default"
+    ) -> bool:
+        """
+        VIP qism (stream)ni o'chiradi, tranzaksiyani commit qiladi va keshni invalidatsiya qiladi.
+        """
+        try:
+            if hasattr(self.session, "_ensure_session"):
+                await self.session._ensure_session()
+
+            # Repozitoriy orqali VIP stream o'chiriladi
+            ok = await self.repo.delete_episode_vip(
+                self.session, 
+                anime_id, 
+                episode_num, 
+                dub_group
+            )
+            
+            # Tranzaksiyani tasdiqlaymiz
+            await self.session.commit()
+
+            if ok:
+                # Barcha aloqador keshlar tozalanadi
+                await self.cache.invalidate("anime", anime_id, broadcast=True)
+                await self.cache.invalidate("anime", "all", broadcast=True)
+                await self.cache.invalidate("anime_episodes", anime_id, broadcast=True)
+                await self.cache.invalidate("anime_completed", "all", broadcast=True)
+                await self.cache.invalidate("anime_ongoing", "all", broadcast=True)
+                logger.info(
+                    f"🗑 VIP Episode stream deleted + cache invalidated: Anime {anime_id}, Ep {episode_num} [{dub_group}]"
+                )
+
+            return ok
+
+        except Exception as e:
+            if self.session and hasattr(self.session, "rollback"):
+                await self.session.rollback()
+            logger.error(f"❌ Failed to delete VIP episode stream: {e}")
+            raise e

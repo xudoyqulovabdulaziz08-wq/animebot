@@ -718,3 +718,41 @@ class AnimeRepository:
         await real_session.flush()
 
         return result.rowcount > 0
+    
+    # ================= DELETE EPISODE VIP STREAM =================
+    @staticmethod
+    async def delete_episode_vip(
+        session: Any, 
+        anime_id: int, 
+        episode_num: int, 
+        dub_group: str = "default"
+    ) -> bool:
+        """
+        🎬 Ma'lum bir animening ko'rsatilgan qismidagi VIP stream (fayl)ni bazadan o'chiradi.
+        """
+        from sqlalchemy import select, delete
+        from database.models import Episode, EpisodeStream
+
+        real_session = await AnimeRepository._prepare_session(session)
+
+        # 1. Anime va epizod raqami bo'yicha Episode ID'ni topamiz
+        stmt_ep = select(Episode.id).where(
+            Episode.anime_id == anime_id,
+            Episode.episode == episode_num
+        )
+        res_ep = await real_session.execute(stmt_ep)
+        episode_id = res_ep.scalar_one_or_none()
+
+        if not episode_id:
+            return False
+
+        # 2. Ushbu epizodning mos dublyaj guruhiga tegishli VIP stream'ini o'chiramiz (is_vip=True)
+        stmt = delete(EpisodeStream).where(
+            EpisodeStream.episode_id == episode_id,
+            EpisodeStream.dub_group == dub_group,
+            EpisodeStream.is_vip == True
+        )
+        result = await real_session.execute(stmt)
+        await real_session.flush()
+
+        return result.rowcount > 0
