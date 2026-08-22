@@ -29,15 +29,23 @@ router = Router()
 @router.callback_query(F.data.startswith("v_anime:"))
 async def view_anime_details(callback: CallbackQuery, session: Any):
     data_parts = callback.data.split(":")
+    
+    # 1. Xavfsiz ID o'qish (IndexError yoki ValueError oldini olamiz)
+    if len(data_parts) < 2 or not data_parts[1].isdigit():
+        await callback.answer("❌ Noto'g'ri anime ID!", show_alert=True)
+        return
+        
     anime_id = int(data_parts[1])
     
-    # Agar 3-qism (page) kelmasa, avtomatik 1 deb qabul qiladi
-    page = int(data_parts[2]) if len(data_parts) > 2 else 1 
-    
+    # Xavfsiz sahifa (page) o'qish
+    page = 1
+    if len(data_parts) > 2 and data_parts[2].isdigit():
+        page = int(data_parts[2])
+        
     from services.anime_service import AnimeService
     service = AnimeService(session=session)
     
-    # 1. DB/Cache dan xavfsiz yuklash
+    # 2. DB/Cache dan xavfsiz yuklash
     try:
         anime = await service.get_anime(anime_id)
     except Exception as e:
@@ -48,17 +56,17 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
         await callback.answer("❌ Anime topilmadi yoki o‘chirilgan!", show_alert=True)
         return
 
-    # 2. KeyError oldini olish uchun lug'atdan xavfsiz o'qish
-    title = anime.get("title", "Nomsiz anime")
+    # 3. KeyError oldini olish uchun lug'atdan xavfsiz o'qish
+    title = anime.get("title") or "Nomsiz anime"
     anime_id_val = anime.get("anime_id", anime_id)
-    year = anime.get("year", "—")
+    year = anime.get("year") or "—"
     description = anime.get("description") or "Tavsif kiritilmagan."
     episodes_count = len(anime.get("episodes", []))
     
     languages = anime.get("languages", [])
     languages_str = ", ".join(languages) if languages else "Mavjud emas"
     
-    # 3. Janr nomlarini xavfsiz shakllantirish
+    # Janr nomlarini xavfsiz shakllantirish
     genres_str = "Mavjud emas"
     try:
         genre_ids = anime.get("genres", [])
@@ -85,11 +93,19 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
     except Exception as e:
         logger.error(f"❌ Dubberlarni yuklashda xato: {e}")
 
+    # 4. Holatga ko'ra dinamik tugma matni va dizayni (style)
+    is_finished = anime.get("is_finished", False)
+    if is_finished:
+        finished_btn_text = "🟢 Tugallandi"
+        finished_btn_style = "success"
+    else:
+        finished_btn_text = "🟡 Davom etmoqda"
+        finished_btn_style = "primary"
 
-    # 4. Siz aytgan daxshat ramkali UX dizayn
+    # 5. Siz aytgan daxshat ramkali UX dizayn
     caption = (
         f"╔══════════════════╗\n"
-        f"     🎬 <b>{title}</b>\n"
+        f"    🎬 <b>{title}</b>\n"
         f"╚══════════════════╝\n\n"
         f"📌 <b>Anime haqida ma'lumot:</b>\n"
         f"╔══════════════════╗\n"
@@ -109,17 +125,17 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="📹 Qism tahrirlash", callback_data=f"manage_episodes:{anime_id}", style="primary"),
-            InlineKeyboardButton(text="🗑 Animeni o‘chirish", callback_data=f"del_anime:{anime_id}", style="danger")
+            InlineKeyboardButton(text="🗑 O‘chirish", callback_data=f"del_anime:{anime_id}", style="danger")
         ],
         [
-            InlineKeyboardButton(text="🟢 Tugalandi", callback_data=f"end:{anime_id}", style="primary"),
+            # Statusga qarab tugma o'zgaradi
+            InlineKeyboardButton(text=finished_btn_text, callback_data=f"anime_end:{anime_id}", style=finished_btn_style),
             InlineKeyboardButton(text="🎯 Anime turi", callback_data=f"anime_type:{anime_id}", style="primary"),
         ],
         [
             InlineKeyboardButton(text="🎬 Tizer edit", callback_data=f"tizer_edit:{anime_id}", style="primary"),
             InlineKeyboardButton(text="🧩 Anime edit", callback_data=f"edit_anime:{anime_id}", style="primary" )
         ],
-
         [
             InlineKeyboardButton(text="🆔 MAL ID", callback_data=f"mal_id:{anime_id}", style="primary" ),
             InlineKeyboardButton(text="📢 E‘lon qilish", callback_data=f"publish_episodes_chan:{anime_id}", style="primary")
@@ -129,7 +145,7 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
         ]
     ])
 
-    # 5. Interfeys qotib qolmasligi uchun answer shu yerda beriladi
+    # 6. Interfeys qotib qolmasligi uchun answer shu yerda beriladi
     await callback.answer("Yuklanmoqda...") 
     
     try:
@@ -137,7 +153,7 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
     except Exception:
         pass
 
-    # 6. Fallback mexanizmi (Posterni xavfsiz yuborish)
+    # 7. Fallback mexanizmi (Posterni xavfsiz yuborish)
     poster_id = anime.get("poster_id")
     
     if poster_id:
@@ -151,10 +167,13 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
             except TelegramBadRequest:
                 # Agar Telegram media ID ni umuman tanimasa, matn yuboramiz (bot qotmasligi uchun)
                 await callback.message.answer(text=f"⚠️ (Media topilmadi)\n\n{caption}", reply_markup=kb, parse_mode="HTML")
+        except Exception as e:
+            # Har qanday boshqa kutilmagan tarmoq yoki server xatosida bot qotmasligi uchun
+            logger.error(f"Media yuborishda xato: {e}")
+            await callback.message.answer(text=caption, reply_markup=kb, parse_mode="HTML")
     else:
         # Agar poster_id bazada umuman saqlanmagan bo'lsa
         await callback.message.answer(text=caption, reply_markup=kb, parse_mode="HTML")
-
 
 
 

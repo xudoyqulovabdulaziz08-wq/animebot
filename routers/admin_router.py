@@ -33,7 +33,8 @@ from handlers.admin_panel.admin_anime.list_anime import (
 )
 from handlers.admin_panel.admin_anime.anime import (
     add_anime,
-    channel_anime
+    channel_anime,
+    tugalandi
 )
 admin_router = Router()
 
@@ -56,6 +57,7 @@ admin_router.include_routers(
     dubber.router,
 
     add_anime.router,
+    tugalandi.router,
     add_episode.router,
     del_episode.router,
     swap_episode.router,
@@ -67,6 +69,7 @@ admin_router.include_routers(
     filler_vip_episode.router,
     swap_vip_episode.router,
     del_vip_episode.router,
+
 
     channel_anime.router,
     edit_anime.router,
