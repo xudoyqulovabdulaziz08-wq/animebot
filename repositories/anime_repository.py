@@ -692,6 +692,46 @@ class AnimeRepository:
             "animes": [AnimeRepository._serialize_anime(anime) for anime in animes]
         }
     
+    # ================= GET ANIME TYPE (LIGHTWEIGHT) =================
+    @staticmethod
+    async def get_anime_type(session: Any, anime_id: int) -> Optional[str]:
+        """
+        ⚡ Animening FAQAT turini (type) oladi — to'liq anime ma'lumotini
+        (epizodlar, janrlar, dubberlar bilan) yuklamasdan, bitta ustunni so'raydi.
+        "Anime turi" menyusi ochilganda joriy holatni tez aniqlash uchun ishlatiladi.
+        Qaytadi: "TV SERIES" / "MOVIE" / "OVA" (str) yoki topilmasa None.
+        """
+        real_session = await AnimeRepository._prepare_session(session)
+ 
+        stmt = select(Anime.type).where(Anime.anime_id == anime_id)
+        result = await real_session.execute(stmt)
+        value = result.scalar_one_or_none()
+ 
+        if value is None:
+            return None
+        # AnimeType — str asosidagi enum, lekin xavfsizlik uchun .value ni ham tekshiramiz
+        return value.value if hasattr(value, "value") else value
+ 
+    # ================= UPDATE ANIME TYPE =================
+    @staticmethod
+    async def update_anime_type(session: Any, anime_id: int, new_type: Any) -> bool:
+        """
+        🏷 Animening turini (TV Series / Movie / OVA) yangilaydi.
+        new_type — database.models.AnimeType enum a'zosi (yoki uning qiymati) bo'lishi kerak.
+        """
+        from sqlalchemy import update
+ 
+        real_session = await AnimeRepository._prepare_session(session)
+ 
+        stmt = (
+            update(Anime)
+            .where(Anime.anime_id == anime_id)
+            .values(type=new_type)
+        )
+        result = await real_session.execute(stmt)
+        await real_session.flush()
+ 
+        return result.rowcount > 0
     # ================= UPDATE EPISODE FILLER STATUS =================
     @staticmethod
     async def set_episode_filler(

@@ -545,6 +545,68 @@ class AnimeService:
 
 
     # ==================================================
+    # ⚡ GET ANIME TYPE (LIGHTWEIGHT, CACHE-FIRST)
+    # ==================================================
+    async def get_anime_type(self, anime_id: int) -> Optional[str]:
+        """
+        Animening joriy turini (TV Series / Movie / OVA) tez va yengil usulda
+        oladi — to'liq anime obyektini (episodes/genres/dubbers bilan) yuklamaydi.
+        "Anime turi" menyusi ochilganda qaysi tugma yashil bo'lishini aniqlash uchun.
+        """
+        cache_key = "type"
+        cached = await self.cache.get("anime_field", f"{anime_id}:{cache_key}")
+        if cached is not None:
+            return cached
+
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        value = await self.repo.get_anime_type(self.session, anime_id)
+        if value is not None:
+            await self.cache.set("anime_field", f"{anime_id}:{cache_key}", value, ttl=600)
+        return value
+
+    # ==================================================
+    # 🏷 UPDATE ANIME TYPE (TRANSACTION SAFE & CACHE-AWARE)
+    # ==================================================
+    async def update_anime_type(self, anime_id: int, new_type) -> bool:
+        """
+        Animening turini (TV Series / Movie / OVA) yangilaydi, tranzaksiyani
+        commit qiladi va tegishli barcha keshlarni tozalaydi.
+        new_type — database.models.AnimeType enum a'zosi bo'lishi shart
+        (masalan AnimeType.TV_SERIES) — bu handler qatlamida callback_data
+        tokenidan ("TV_SERIES"/"MOVIE"/"OVA") mos enumga o'giriladi.
+        """
+        from database.models import AnimeType
+
+        if not isinstance(new_type, AnimeType):
+            logger.error(f"❌ update_anime_type: noto'g'ri turdagi qiymat berildi: {new_type!r}")
+            raise ValueError("new_type AnimeType enum a'zosi bo'lishi kerak")
+
+        try:
+            if hasattr(self.session, "_ensure_session"):
+                await self.session._ensure_session()
+
+            ok = await self.repo.update_anime_type(self.session, anime_id, new_type)
+            await self.session.commit()
+
+            if ok:
+                # Anime ma'lumotlari o'zgargani uchun tegishli barcha keshlar tozalanadi
+                await self.cache.invalidate("anime", anime_id, broadcast=True)
+                await self.cache.invalidate("anime", "all", broadcast=True)
+                await self.cache.invalidate("anime_field", f"{anime_id}:type", broadcast=True)
+                await self.cache.invalidate("anime_completed", "all", broadcast=True)
+                await self.cache.invalidate("anime_ongoing", "all", broadcast=True)
+                logger.info(f"🏷 Anime type updated: Anime {anime_id} -> {new_type.value}")
+
+            return ok
+
+        except Exception as e:
+            if self.session and hasattr(self.session, "rollback"):
+                await self.session.rollback()
+            logger.error(f"❌ Failed to update anime type: {e}")
+            raise e
+    # ==================================================
     # 🏷 SET EPISODE FILLER (TRANSACTION SAFE)
     # ==================================================
     async def set_episode_filler(self, anime_id: int, episode_num: int, is_filler: bool) -> bool:
