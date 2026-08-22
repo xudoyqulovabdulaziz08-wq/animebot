@@ -16,25 +16,39 @@ from handlers.admin_panel.admin_anime.episode import(
 from handlers.menu import admin_menu
 from handlers.admin_panel import admin_stastika
 from handlers.admin_panel.admin_anime import (
-    anime_menu,  janr, dubber, 
-    edit_anime, list_anime1
+    anime_menu,  
+    janr, 
+    dubber, 
+    edit_anime, 
+    list_anime1
 )
 from handlers.admin_panel.admin_channel import (
-    channel_menu, add_channel, list_channel, channel_advert
+    channel_menu, 
+    add_channel, 
+    list_channel, 
+    channel_advert
 )
 from handlers.admin_panel.admin_advert import (
-    admin_advet_menu, admin_advert_send
+    admin_advet_menu, 
+    admin_advert_send
 )
 from handlers.admin_panel.admin_vip import (
-    admin_vip_menu, add_vip, list_vip
+    admin_vip_menu, 
+    add_vip, 
+    list_vip
 )
 from handlers.admin_panel.admin_anime.list_anime import (
-    list_all_anime, list_end_anime, list_contine_anime
+    list_all_anime, 
+    list_end_anime, 
+    list_contine_anime
 )
 from handlers.admin_panel.admin_anime.anime import (
     add_anime,
     channel_anime,
     tugalandi
+)
+from handlers.admin_panel.admin_anime.anime_type import (
+    anime_type_menu
 )
 admin_router = Router()
 
@@ -52,6 +66,7 @@ admin_router.include_routers(
     list_contine_anime.router,
     list_anime1.router,
     
+    anime_type_menu.router,
 
     janr.router,
     dubber.router,
