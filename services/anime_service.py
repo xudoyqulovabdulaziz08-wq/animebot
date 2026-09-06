@@ -545,6 +545,39 @@ class AnimeService:
 
 
     # ==================================================
+    # 🎬 UPDATE / DELETE TRAILER (TIZER) — TRANSACTION SAFE & CACHE-AWARE
+    # ==================================================
+    async def update_trailer(self, anime_id: int, trailer_id: Optional[str]) -> bool:
+        """
+        Animening tizer video file_id'sini yangilaydi (yoki trailer_id=None
+        bo'lsa o'chiradi), tranzaksiyani commit qiladi va keshlarni tozalaydi.
+        """
+        try:
+            if hasattr(self.session, "_ensure_session"):
+                await self.session._ensure_session()
+
+            ok = await self.repo.update_trailer(self.session, anime_id, trailer_id)
+            await self.session.commit()
+
+            if ok:
+                await self.cache.invalidate("anime", anime_id, broadcast=True)
+                await self.cache.invalidate("anime", "all", broadcast=True)
+                action = "o'chirildi" if trailer_id is None else "yangilandi"
+                logger.info(f"🎬 Trailer {action}: Anime {anime_id}")
+
+            return ok
+
+        except Exception as e:
+            if self.session and hasattr(self.session, "rollback"):
+                await self.session.rollback()
+            logger.error(f"❌ Failed to update trailer: {e}")
+            raise e
+
+    async def delete_tizer(self, anime_id: int) -> bool:
+        """Animening tizerini butunlay o'chiradi (update_trailer(anime_id, None) ning qulay nomi)."""
+        return await self.update_trailer(anime_id, None)
+
+    # ==================================================
     # ⚡ GET ANIME TYPE (LIGHTWEIGHT, CACHE-FIRST)
     # ==================================================
     async def get_anime_type(self, anime_id: int) -> Optional[str]:

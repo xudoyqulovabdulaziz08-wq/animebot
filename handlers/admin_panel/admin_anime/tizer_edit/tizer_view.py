@@ -140,8 +140,8 @@ async def tizer_view(callback: CallbackQuery, session: Any):
         caption = f"🎬 <b>{html.escape(title)}</b> — Tizer\n\n{html.escape(description)}"
         
         buttons = [
-            [InlineKeyboardButton(text="🗑️ O'chirish", callback_data=f"tizer_delete:{anime_id}")],
-            [InlineKeyboardButton(text="🔙 Orqaga", callback_data=f"tizer_edit:{anime_id}")]
+            [InlineKeyboardButton(text="🗑️ O'chirish", callback_data=f"tizer_delete:{anime_id}", style="danger")],
+            [InlineKeyboardButton(text="🔙 Orqaga", callback_data=f"tizer_edit:{anime_id}", style="danger")]
         ]
         reply_markup = InlineKeyboardMarkup(inline_keyboard=buttons)
 

@@ -692,6 +692,27 @@ class AnimeRepository:
             "animes": [AnimeRepository._serialize_anime(anime) for anime in animes]
         }
     
+    # ================= UPDATE TRAILER (TIZER) =================
+    @staticmethod
+    async def update_trailer(session: Any, anime_id: int, trailer_id: Optional[str]) -> bool:
+        """
+        🎬 Animening tizer (trailer) video file_id'sini yangilaydi.
+        trailer_id=None berilsa — tizer bazadan o'chiriladi (tozalanadi).
+        """
+        from sqlalchemy import update
+
+        real_session = await AnimeRepository._prepare_session(session)
+
+        stmt = (
+            update(Anime)
+            .where(Anime.anime_id == anime_id)
+            .values(trailer_id=trailer_id)
+        )
+        result = await real_session.execute(stmt)
+        await real_session.flush()
+
+        return result.rowcount > 0
+
     # ================= GET ANIME TYPE (LIGHTWEIGHT) =================
     @staticmethod
     async def get_anime_type(session: Any, anime_id: int) -> Optional[str]:
