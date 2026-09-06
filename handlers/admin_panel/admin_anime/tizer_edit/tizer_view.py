@@ -1,7 +1,7 @@
 import logging
 from typing import Any, Optional
 from aiogram import Router, F, html
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, Message, InputMediaVideo
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, Message
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError, TelegramRetryAfter
 
 
@@ -10,6 +10,7 @@ from services.anime_service import AnimeService
 
 router = Router()
 logger = logging.getLogger(__name__)
+
 
 
 # =======================================================
@@ -67,7 +68,7 @@ async def _safe_update_message(
                 return True
         except Exception:
             pass
-        
+
         try:
             await message.edit_caption(caption=caption, reply_markup=reply_markup, parse_mode="HTML")
             return True
@@ -107,77 +108,39 @@ async def _safe_update_message(
         logger.error(f"Yangi xabar yuborishda xato: {e}", exc_info=True)
     return False
 
-
-
-@router.callback_query(F.data.startswith("tizer_edit:"))
-async def tizer_edit_handler(callback: CallbackQuery, session: Any):
-    # 1. Interfeys qotib qolmasligi uchun darhol va xavfsiz javob beramiz
-    await safe_answer(callback)
+@router.callback_query(F.data.startswith("tizer_view:"))
+async def tizer_view(callback: CallbackQuery, session: Any):
+    """Tizerni ko'rish tugmasi bosilganda ishlaydi."""
+    # Callback data'dan anime_id va tizer_id ni ajratib oling
+    _, anime_id, tizer_id = callback.data.split(":")
     
-    # 2. Callback datadan anime ID ni xavfsiz ajratib olish
-    try:
-        anime_id = int(callback.data.split(":")[1])
-    except (IndexError, ValueError):
-        await safe_answer(callback, "❌ Noto'g'ri so'rov!", show_alert=True)
-        return
-    
-    # 3. DB/Cache dan animeni xavfsiz yuklaymiz
-    service = AnimeService(session=session)
-    try:
-        anime = await service.get_anime(anime_id)
-    except Exception as e:
-        logger.error(f"❌ Tahrirlash uchun anime yuklashda xato yuz berdi: {e}", exc_info=True)
-        anime = None
+    # Anime va tizer ma'lumotlarini olish
+    anime_service = AnimeService(session)
+    anime = await anime_service.get_anime_by_id(anime_id)
+    tizer = await anime_service.get_tizer_by_id(tizer_id)
 
-    if not anime:
-        try:
-            await callback.message.answer("❌ Anime topilmadi yoki o‘chirilgan!")
-            await safe_delete(callback.message)
-        except Exception:
-            pass
+    if not anime or not tizer:
+        await safe_answer(callback, text="Anime yoki tizer topilmadi.", show_alert=True)
         return
 
-    # 4. HTML parsing xatoliklariga qarshi anime nomini himoyalaymiz
-    raw_title = anime.get("title_uz") or anime.get("title") or "Nomsiz anime"
-    title = html.quote(str(raw_title))
+    # Tizer ma'lumotlarini tayyorlash
+    caption = f"<b>{html.escape(anime.title)}</b>\n\n{html.escape(tizer.description)}"
     
-    # Tizer holatini tekshirish
-    trailer_id = anime.get("trailer_id")
-    status_icon = "✅" if trailer_id else "❌"
-    status_text = "Yuklangan" if trailer_id else "Yuklanmagan"
-
-    # 5. Caption (rasm ostidagi matn) tayyorlash
-    caption = (
-        f"🎬 <b>{title}</b>\n\n"
-        f"📼 Tizer holati: {status_icon} <b>{status_text}</b>\n\n"
-        f"👇 Quyidagi tugmalar orqali tizerni boshqarishingiz mumkin:"
-    )
-
-    # 6. Dinamik klaviatura tayyorlash
+    # Inline klaviatura yaratish
     buttons = [
-        [InlineKeyboardButton(text="🎬 Yangilash / Yuklash", callback_data=f"tizer_editer:{anime_id}", style="primary")]
-    ]
-    
-    # Agar baza (yoki keshda) tizer mavjud bo'lsa, 'Ko'rish' va 'O'chirish' tugmalari chiqadi
-    if trailer_id:
-        buttons.append([
-            InlineKeyboardButton(text="▶️ Ko'rish", callback_data=f"tizer_view:{anime_id}", style="primary")
-           
-        ])
         
-    # Asosiy anime boshqaruv menyusiga qaytish tugmasi (callback_data o'zingizning orqaga qaytish handleringizga moslang)
-    buttons.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data=f"v_anime:{anime_id}", style="danger")])
-    
-    kb = InlineKeyboardMarkup(inline_keyboard=buttons)
-    
-    # 7. Xabarni xavfsiz yangilash (sizning yordamchi funksiyangiz orqali)
-    # poster_id=None berilmoqda, chunki rasm o'zgarmaydi, faqat caption va keyboard o'zgaradi.
+        [InlineKeyboardButton(text="🗑️ O'chirish", callback_data=f"tizer_delete:{anime_id}:{tizer_id}", style="danger")],
+        [InlineKeyboardButton(text="🔙 Orqaga", callback_data=f"tizer_edit:{anime_id}", style="danger")]
+    ]
+    reply_markup = InlineKeyboardMarkup(inline_keyboard=buttons)
+
+    # Xabarni yangilash yoki yangi xabar yuborish
     success = await _safe_update_message(
         message=callback.message,
         caption=caption,
-        reply_markup=kb,
-        poster_id=None 
+        reply_markup=reply_markup,
+        poster_id=tizer.poster_id
     )
-    
+
     if not success:
-        logger.warning(f"ID:{anime_id} anime tizer menyusiga o'tishda xabar yangilanmadi.")
+        await safe_answer(callback, text="Xabarni yangilashda xato yuz berdi.", show_alert=True)

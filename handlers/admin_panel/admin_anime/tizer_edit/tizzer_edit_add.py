@@ -140,7 +140,7 @@ async def tizzer_id_start_wating(callback: CallbackQuery, state: FSMContext, ses
     
     # 5. Bekor qilish tugmasi (oldingi tizer_edit menyusiga qaytadi)
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Orqaga (Bekor qilish)", callback_data=f"tizer_edit:{anime_id}")]
+        [InlineKeyboardButton(text="⬅️ Orqaga (Bekor qilish)", callback_data=f"tizer_edit:{anime_id}", style="danger")]
     ])
     
     # 6. Rasm ostidagi matn (caption) ni xavfsiz yangilash (rasm o'zgarmaydi)
@@ -203,7 +203,7 @@ async def process_tizer_video(message: Message, state: FSMContext, session: Any)
         # 6. Pastdan yangi, toza xabarni yuborish
         success_text = "✅ <b>Tizer muvaffaqiyatli saqlandi!</b>\n\nPastdagi tugma orqali orqaga qaytishingiz mumkin."
         success_kb = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🔙 Tizer menyusiga qaytish", callback_data=f"tizer_edit:{anime_id}")]
+            [InlineKeyboardButton(text="🔙 Tizer menyusiga qaytish", callback_data=f"tizer_edit:{anime_id}", style="danger")]
         ])
         await safe_send(message, text=success_text, reply_markup=success_kb, parse_mode="HTML")
         
