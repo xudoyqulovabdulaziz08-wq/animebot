@@ -575,7 +575,7 @@ class AnimeService:
         commit qiladi va tegishli barcha keshlarni tozalaydi.
         new_type — database.models.AnimeType enum a'zosi bo'lishi shart
         (masalan AnimeType.TV_SERIES) — bu handler qatlamida callback_data
-        tokenidan ("TV_SERIES"/"MOVIE"/"OVA") mos enumga o'giriladi.
+        tokenidan ("TV_SERIES"/"MOVIE"/"OVA-") mos enumga o'giriladi.
         """
         from database.models import AnimeType
 
