@@ -36,7 +36,9 @@ from handlers.admin_panel.admin_anime.edits_anime import (
     edit_nomi_en,
     edit_anime_poster,
     edit_anime_yili,
-    edit_anime_tasnif
+    edit_anime_tasnif,
+    edit_anime_til,
+    edit_anime_janr
 )
 
 from handlers.admin_panel.admin_channel import (
@@ -114,6 +116,8 @@ admin_router.include_routers(
     edit_anime_poster.router,
     edit_anime_yili.router,
     edit_anime_tasnif.router,
+    edit_anime_til.router,
+    edit_anime_janr.router,
 
     del_anime.router,
 
