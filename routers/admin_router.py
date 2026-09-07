@@ -30,7 +30,9 @@ from handlers.admin_panel.admin_anime.tizer_edit import (
 )
 from handlers.admin_panel.admin_anime.edits_anime import (
     edit_anime_menu,
-    edit_anime_nomi
+    edit_anime_nomi,
+    edit_nomi_uz,
+    edit_nomi_en
 )
 from handlers.admin_panel.admin_channel import (
     channel_menu, 
@@ -102,6 +104,8 @@ admin_router.include_routers(
 
     edit_anime_menu.router,
     edit_anime_nomi.router,
+    edit_nomi_uz.router,
+    edit_nomi_en.router,
 
     channel_anime.router,
     edit_anime.router,
