@@ -28,6 +28,10 @@ from handlers.admin_panel.admin_anime.tizer_edit import (
     tizer_view,
     tizer_delete
 )
+from handlers.admin_panel.admin_anime.edits_anime import (
+    edit_anime_menu,
+    edit_anime_nomi
+)
 from handlers.admin_panel.admin_channel import (
     channel_menu, 
     add_channel, 
@@ -95,6 +99,9 @@ admin_router.include_routers(
     tizzer_edit_add.router,
     tizer_view.router,
     tizer_delete.router,
+
+    edit_anime_menu.router,
+    edit_anime_nomi.router,
 
     channel_anime.router,
     edit_anime.router,
