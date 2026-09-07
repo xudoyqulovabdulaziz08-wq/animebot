@@ -20,7 +20,8 @@ from handlers.admin_panel.admin_anime import (
     janr, 
     dubber, 
     edit_anime, 
-    list_anime1
+    list_anime1,
+    del_anime,
 )
 from handlers.admin_panel.admin_anime.tizer_edit import (
     tizer_menu,
@@ -32,8 +33,12 @@ from handlers.admin_panel.admin_anime.edits_anime import (
     edit_anime_menu,
     edit_anime_nomi,
     edit_nomi_uz,
-    edit_nomi_en
+    edit_nomi_en,
+    edit_anime_poster,
+    edit_anime_yili,
+    edit_anime_tasnif
 )
+
 from handlers.admin_panel.admin_channel import (
     channel_menu, 
     add_channel, 
@@ -106,6 +111,11 @@ admin_router.include_routers(
     edit_anime_nomi.router,
     edit_nomi_uz.router,
     edit_nomi_en.router,
+    edit_anime_poster.router,
+    edit_anime_yili.router,
+    edit_anime_tasnif.router,
+
+    del_anime.router,
 
     channel_anime.router,
     edit_anime.router,

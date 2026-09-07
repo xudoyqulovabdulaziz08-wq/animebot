@@ -131,7 +131,7 @@ async def edit_anime_title_en_start(callback: CallbackQuery, state: FSMContext):
     
     # Orqaga qaytish tugmasi (agar admin fikridan qaytsa)
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data=f"force_refresh_edit:{anime_id}", style="danger")]
+        [InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data=f"force_refresh_edit_nom:{anime_id}", style="danger")]
     ])
     
     text = (
@@ -270,8 +270,8 @@ async def save_or_cancel_anime_title_en(callback: CallbackQuery, state: FSMConte
 # =====================================================================
 # 📑 4-QADAM: Majburiy qaytish handler (Cancel qilinganda)
 # =====================================================================
-@router.callback_query(F.data.startswith("force_refresh_edit:"))
-async def force_refresh_edit_menu(callback: CallbackQuery, state: FSMContext, session: Any):
+@router.callback_query(F.data.startswith("force_refresh_edit_nom:"))
+async def force_refresh_edit_nom_menu(callback: CallbackQuery, state: FSMContext, session: Any):
     await state.clear() # Holatni tozalaymiz
     anime_id = int(callback.data.split(":")[1])
     
