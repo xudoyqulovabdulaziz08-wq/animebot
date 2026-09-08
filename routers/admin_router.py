@@ -19,7 +19,6 @@ from handlers.admin_panel.admin_anime import (
     anime_menu,  
     janr, 
     dubber, 
-    edit_anime, 
     list_anime1,
     del_anime,
 )
