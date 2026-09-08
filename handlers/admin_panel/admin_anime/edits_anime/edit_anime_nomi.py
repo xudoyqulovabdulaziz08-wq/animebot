@@ -5,7 +5,7 @@ from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, Message
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError, TelegramRetryAfter
 
-from handlers.admin_panel.admin_anime.list_anime1 import build_anime_card
+from handlers.admin_panel.admin_anime.anime_karta import build_anime_card
 from services.anime_service import AnimeService
 
 router = Router()

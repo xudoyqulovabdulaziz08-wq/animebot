@@ -4,7 +4,7 @@ from datetime import datetime
 ADMIN_USERNAME = "Khudoyqulov_pg"
 
 VIP_BENEFITS = (
-    "👑 <b>VIP IMTIYOZLAR:</b>\n\n"
+    "👑 <b>ELITE IMTIYOZLAR:</b>\n\n"
     "<blockquote expandable> 🎬 Premyeralarni hammadan birinchi ko'rish</blockquote>\n"
     "<blockquote expandable> 🚀 Animelarni cheklovsiz yuklab olish va ulashish </blockquote>\n"
     "<blockquote expandable> 🚫 Mutlaqo reklamasiz botdan foydalanish </blockquote>\n"
@@ -13,12 +13,12 @@ VIP_BENEFITS = (
 )
 
 RATES_TEXT = (
-    "💳 <b>VIP TARIFLARI:</b>\n\n"
-    "📅 <b>1 Oylik VIP</b>\n<blockquote expandable>💰 Narxi: 9,000 so'm (asl narx 💵)</blockquote>\n"
-    "📅 <b>2 Oylik VIP</b>\n<blockquote expandable>💰 Narxi: 16,000 so'm (Chegirma! 🔥)</blockquote>\n"
-    "📅 <b>3 Oylik VIP</b>\n<blockquote expandable>💰 Narxi: 22,000 so'm (Tavsiya etiladi! ✨)</blockquote>\n"
-    "📅 <b>6 Oylik VIP</b>\n<blockquote expandable>💰 Narxi: 43,000 so'm (Tejamkor! 🚀)</blockquote>\n"
-    "📅 <b>1 Yillik VIP</b>\n<blockquote expandable>💰 Narxi: 83,000 so'm (Eng katta chegirma! 👑)</blockquote>\n\n"
+    "💳 <b>ELITE TARIFLARI:</b>\n\n"
+    "📅 <b>1 Oylik ELITE</b>\n<blockquote expandable>💰 Narxi: 9,000 so'm (asl narx 💵)</blockquote>\n"
+    "📅 <b>2 Oylik ELITE</b>\n<blockquote expandable>💰 Narxi: 16,000 so'm (Chegirma! 🔥)</blockquote>\n"
+    "📅 <b>3 Oylik ELITE</b>\n<blockquote expandable>💰 Narxi: 22,000 so'm (Tavsiya etiladi! ✨)</blockquote>\n"
+    "📅 <b>6 Oylik ELITE</b>\n<blockquote expandable>💰 Narxi: 43,000 so'm (Tejamkor! 🚀)</blockquote>\n"
+    "📅 <b>1 Yillik ELITE</b>\n<blockquote expandable>💰 Narxi: 83,000 so'm (Eng katta chegirma! 👑)</blockquote>\n\n"
 )
 
 RATES_DATA = {
@@ -38,17 +38,17 @@ def get_vip_info_text(is_vip: bool, vip_expire: str | None = None) -> str:
             except Exception:
                 expire_str = str(vip_expire)
         return (
-            "💎 <b>VIP OBUNA</b>\n\n"
-            "✅ <b>Status:</b> <code>VIP Faol</code>\n"
+            "💎 <b>ELITE OBUNA</b>\n\n"
+            "✅ <b>Status:</b> <code>ELITE Faol</code>\n"
             f"📅 <b>Tugash sanasi:</b> <code>{expire_str}</code>\n\n"
             f"{VIP_BENEFITS}"
             "✨ <i>Obunangizni muddatidan oldin uzaytirishingiz ham mumkin:</i>"
         )
     return (
-        "💎 <b>VIP OBUNA</b>\n\n"
+        "💎 <b>ELITE OBUNA</b>\n\n"
         "👤 <b>Status:</b> Oddiy foydalanuvchi\n\n"
         f"{VIP_BENEFITS}"
-        "💳 <b>VIP obuna olib barcha imkoniyatlarni oching.</b>"
+        "💳 <b>ELITE obuna olib barcha imkoniyatlarni oching.</b>"
     )
 
 def get_checkout_data(months: str, user_id: int):
@@ -56,15 +56,15 @@ def get_checkout_data(months: str, user_id: int):
     duration, price = selected["duration"], selected["price"]
     
     start_text = (
-        f"Assalomu alaykum! Men {duration} VIP obuna sotib olmoqchi edim.\n"
+        f"Assalomu alaykum! Men {duration} ELITE obuna sotib olmoqchi edim.\n"
         f"💰 Narxi: {price}\n"
         f"🆔 Mening ID: {user_id}"
     )
     admin_url = f"https://t.me/{ADMIN_USERNAME}?text={urllib.parse.quote(start_text)}"
     
     caption = (
-        f"🛒 <b>VIP BUYURTMANI RASMIYLASHTIRISH</b>\n\n"
-        f"📅 Tanlangan tarif: <b>{duration} VIP</b>\n"
+        f"🛒 <b>ELITE BUYURTMANI RASMIYLASHTIRISH</b>\n\n"
+        f"📅 Tanlangan tarif: <b>{duration} ELITE</b>\n"
         f"💵 To'lov summasi: <code>{price}</code>\n\n"
         f"🚨 <b>MUHIM OGOHLANTIRISH:</b>\n\n"
         f"<i>Tizim xavfsizligi va firgarlikka qarshi kurashish maqsadida, botga har xil soxta (feyk) cheklarni tashlash mutlaqo taqiqlanadi! Soxta chek yuborgan foydalanuvchilar ogohlantirishsiz botdan abadiy <b>BAN</b> qilinadi.</i>\n\n"

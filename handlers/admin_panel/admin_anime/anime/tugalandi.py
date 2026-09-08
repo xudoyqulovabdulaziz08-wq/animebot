@@ -17,7 +17,7 @@ from aiogram.types import (
 )
 from aiogram import Router, F, html
 from services.anime_service import AnimeService
-from handlers.admin_panel.admin_anime.list_anime1 import view_anime_details
+from handlers.admin_panel.admin_anime.anime_karta import view_anime_details
 logger = logging.getLogger("ended_episode")
 router = Router()
 # =======================================================

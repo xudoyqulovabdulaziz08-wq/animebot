@@ -16,10 +16,10 @@ from handlers.admin_panel.admin_anime.episode import(
 from handlers.menu import admin_menu
 from handlers.admin_panel import admin_stastika
 from handlers.admin_panel.admin_anime import (
+    anime_karta,
     anime_menu,  
     janr, 
     dubber, 
-    list_anime1,
     del_anime,
 )
 from handlers.admin_panel.admin_anime.tizer_edit import (
@@ -83,7 +83,7 @@ admin_router.include_routers(
     list_all_anime.router,
     list_end_anime.router,
     list_contine_anime.router,
-    list_anime1.router,
+    anime_karta.router,
     
     anime_type_menu.router,
 

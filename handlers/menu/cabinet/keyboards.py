@@ -12,7 +12,7 @@ def get_cabinet_kb(user_id: int) -> InlineKeyboardMarkup:
             ],
             [
                 InlineKeyboardButton(
-                    text="💎 VIP bo'limi",
+                    text="💎 ELITE bo'limi",
                     callback_data="buy_vip",
                     style="primary"
                 ),

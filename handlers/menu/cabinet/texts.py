@@ -1,5 +1,5 @@
 def get_cabinet_text(user_id: int, password: str, is_vip: bool) -> str:
-    status = "💎 VIP" if is_vip else "👤 Oddiy"
+    status = "💎 ELITE" if is_vip else "👤 Oddiy"
     
     return (
         f"👤 <b>SHAXSIY KABINET</b>\n\n"

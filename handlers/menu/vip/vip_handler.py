@@ -41,7 +41,7 @@ async def vip_payed(callback: CallbackQuery, user_service: UserService):
     user_data = await user_service.get_user(callback.from_user.id)
     user_data = user_service._ensure_fresh_vip_status(user_data)
     
-    title = "🔄 <b>VIP obunangizni uzaytirish uchun...</b>\n\n" if user_data.get("is_vip") else "🛒 <b>VIP status sotib olish uchun...</b>\n\n"
+    title = "🔄 <b>Elite obunangizni uzaytirish uchun...</b>\n\n" if user_data.get("is_vip") else "🛒 <b>Elite status sotib olish uchun...</b>\n\n"
     caption = f"{title}{RATES_TEXT}<i>👇 Kerakli muddat tugmasini bosing:</i>"
     
     await _safe_edit_caption(callback, caption, get_vip_rates_kb())
