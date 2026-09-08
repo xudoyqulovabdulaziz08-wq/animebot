@@ -120,11 +120,11 @@ admin_router.include_routers(
     edit_anime_til.router,
     edit_anime_janr.router,
     edit_anime_dubber.router,
-    
+
     del_anime.router,
 
     channel_anime.router,
-    edit_anime.router,
+    
     add_vip.router,
     list_vip.router,
     add_channel.router,
