@@ -34,7 +34,7 @@ async def process_add_vip_click(callback: CallbackQuery, state: FSMContext):
     ])
     
     await callback.message.edit_text(
-        text="🆔 <b>Iltimos, VIP status bermoqchi bo'lgan foydalanuvchining Telegram ID raqamini yuboring:</b>\n\n"
+        text="🆔 <b>Iltimos, ELITE status bermoqchi bo'lgan foydalanuvchining Telegram ID raqamini yuboring:</b>\n\n"
              "<i>Masalan: 123456789</i>",
         reply_markup=cancel_kb,
         parse_mode="HTML"
@@ -114,7 +114,7 @@ async def process_valid_user_id(message: Message, state: FSMContext, session: An
         user_service = UserService(session=session)
         user_data = await user_service.get_user(user_id=user_id)
     except Exception as e:
-        logger.error(f"VIP tekshiruvida user qidirishda xato: {e}")
+        logger.error(f"ELITE tekshiruvida user qidirishda xato: {e}")
         error_msg = await message.answer("❌ Qidirishda texnik xatolik yuz berdi.")
         await state.update_data(bot_msg_id=error_msg.message_id)
         return
@@ -163,7 +163,7 @@ async def process_valid_user_id(message: Message, state: FSMContext, session: An
              f"👤 <b>Nomi:</b> {username}\n"
              f"🆔 <b>ID:</b> <code>{user_id}</code>\n"
              f"📊 <b>Joriy statusi:</b> <code>{current_status.upper()}</code>\n\n"
-             f"✨ <i>Iltimos, ushbu foydalanuvchi uchun VIP muddatini tanlang:</i>",
+             f"✨ <i>Iltimos, ushbu foydalanuvchi uchun ELITE muddatini tanlang:</i>",
         reply_markup=duration_kb,
         parse_mode="HTML"
     )
@@ -211,7 +211,7 @@ async def process_set_duration(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
         text=f"❓ <b>Tasdiqlash:</b>\n\n"
              f"Rostdan ham <code>{target_user_id}</code> ID raqamli foydalanuvchini "
-             f"<b>{duration_text}</b> muddatga <b>VIP</b> qilmoqchimisiz?",
+             f"<b>{duration_text}</b> muddatga <b>ELITE</b> qilmoqchimisiz?",
         reply_markup=confirm_kb,
         parse_mode="HTML"
     )
@@ -241,19 +241,19 @@ async def process_vip_confirmation(callback: CallbackQuery, state: FSMContext, s
     await state.clear()
 
     back_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="💎 VIP Panelga qaytish", callback_data="admin_vip_panel", style="danger")]
+        [InlineKeyboardButton(text="💎 ELITE Panelga qaytish", callback_data="admin_vip_panel", style="danger")]
     ])
 
     if decision == "no":
         await callback.message.edit_text(
-            text="❌ <b>VIP status berish jarayoni admin tomonidan bekor qilindi.</b>",
+            text="❌ <b>ELITE status berish jarayoni admin tomonidan bekor qilindi.</b>",
             reply_markup=back_kb,
             parse_mode="HTML"
         )
         await callback.answer()
         return
 
-    await callback.answer("⏳ VIP status faollashtirilmoqda...", show_alert=False)
+    await callback.answer("⏳ ELITE status faollashtirilmoqda...", show_alert=False)
 
     try:
         days_to_add = months * 30
@@ -277,7 +277,7 @@ async def process_vip_confirmation(callback: CallbackQuery, state: FSMContext, s
         await callback.message.edit_text(
             text=f"🚀 <b>Muvaffaqiyatli bajarildi!</b>\n\n"
                  f"👤 Foydalanuvchi: <code>{target_user_id}</code>\n"
-                 f"💎 Status: <b>VIP ({duration_text})</b>\n"
+                 f"💎 Status: <b>ELITE ({duration_text})</b>\n"
                  f"📅 Tugash muddati: <code>{formatted_date}</code> gacha belgilandi.\n\n"
                  f"<i>Kesh yangilandi.</i>",
             reply_markup=back_kb,
@@ -287,8 +287,8 @@ async def process_vip_confirmation(callback: CallbackQuery, state: FSMContext, s
         try:
             await callback.bot.send_message(
                 chat_id=target_user_id,
-                text=f"🎉 <b>Tabriklaymiz! Admin tomonidan sizga {duration_text} VIP status taqdim etildi!</b>\n"
-                     f"📅 VIP muddati: <code>{formatted_date}</code> gacha faol. \n"
+                text=f"🎉 <b>Tabriklaymiz! Admin tomonidan sizga {duration_text} ELITE status taqdim etildi!</b>\n"
+                     f"📅 ELITE muddati: <code>{formatted_date}</code> gacha faol. \n"
                      f"⚠️ Eslatib otamiz vaqt mintaqasi bizning soatdan 5 soat orqada bu bilan hech qanday muddat qoshmaydi yoki muddat kamaymaydi",
                 parse_mode="HTML"
             )
@@ -297,9 +297,9 @@ async def process_vip_confirmation(callback: CallbackQuery, state: FSMContext, s
 
     except Exception as db_err:
         await session.rollback()
-        logger.error(f"❌ VIP status berishda xato: {db_err}")
+        logger.error(f"❌ ELITE status berishda xato: {db_err}")
         await callback.message.edit_text(
-            text="❌ <b>Texnik xatolik:</b> VIP status berish amalga oshmadi.",
+            text="❌ <b>Texnik xatolik:</b> ELITE status berish amalga oshmadi.",
             reply_markup=back_kb,
             parse_mode="HTML"
         )

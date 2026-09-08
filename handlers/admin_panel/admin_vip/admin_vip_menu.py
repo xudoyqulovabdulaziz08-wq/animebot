@@ -16,17 +16,17 @@ async def admin_vip(callback: CallbackQuery, state: FSMContext):
     
     # Botingizning umumiy dizayniga mos, chiroyli sarlavhali matn (Imlosi to'g'rilandi)
     text = (
-        f"💎 {html.bold('VIP boshqaruvi bo‘limi')}\n\n"
-        f"Ushbu bo‘lim orqali bazadagi VIP obunachilarni  tahrirlashingiz, "
-        f"yangi VIP qo‘shishingiz yoki o‘chirishingiz mumkin.\n\n"
+        f"💎 {html.bold('Elite boshqaruvi bo‘limi')}\n\n"
+        f"Ushbu bo‘lim orqali bazadagi Elite obunachilarni  tahrirlashingiz, "
+        f"yangi Elite qo‘shishingiz yoki o‘chirishingiz mumkin.\n\n"
         f"Kerakli amalni tanlang:"
     )
     
     # Tugmalar iyerarxiyasi (style="danger" o'z o'rnida qoldi)
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="➕ VIP qo‘shish", callback_data="add_vip", style="primary")],
-            [InlineKeyboardButton(text="📃 VIPlar ro‘yxati", callback_data="list_vip", style="primary")],
+            [InlineKeyboardButton(text="➕ ELITE qo‘shish", callback_data="add_vip", style="primary")],
+            [InlineKeyboardButton(text="📃 ELITELar ro‘yxati", callback_data="list_vip", style="primary")],
             
             [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="admin_panel", style="danger")]  
         ]
