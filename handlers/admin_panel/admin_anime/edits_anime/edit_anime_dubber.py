@@ -1,45 +1,124 @@
 import logging
+import html
 import math
-from typing import Any
 from sqlalchemy import select
+from typing import Any, Optional
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, Message
-from aiogram.exceptions import TelegramBadRequest
-from aiogram.fsm.state import StatesGroup, State
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, Message
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError, TelegramRetryAfter
 from aiogram.fsm.context import FSMContext
-from services.anime_service import AnimeService
+
 from database.models import Genre
+from services.anime_service import AnimeService
+from aiogram.fsm.state import StatesGroup, State
+
+router = Router()
+logger = logging.getLogger(__name__)
+
+
+# =======================================================
+# 🧰 YORDAMCHI FUNKSIYALAR (Telegram xatolaridan himoya)
+# =======================================================
+async def safe_answer(callback: CallbackQuery, text: Optional[str] = None, show_alert: bool = False) -> None:
+    """CallbackQuery'ga xavfsiz javob berish (kutilgan xatoliklarni yutish)."""
+    try:
+        await callback.answer(text=text, show_alert=show_alert)
+    except TelegramBadRequest as e:
+        msg = str(e).lower()
+        if "query is too old" not in msg and "query id is invalid" not in msg and "response timeout expired" not in msg:
+            logger.warning(f"safe_answer xatosi: {e}")
+    except TelegramForbiddenError:
+        pass
+    except Exception as e:
+        logger.warning(f"safe_answer kutilmagan xato: {e}")
+
+async def safe_delete(message: Message) -> None:
+    """Xabarni xavfsiz o'chirish."""
+    try:
+        await message.delete()
+    except (TelegramBadRequest, TelegramForbiddenError):
+        pass
+    except Exception as e:
+        logger.warning(f"Xabarni o'chirishda kutilmagan xato: {e}")
+
+async def safe_send(message: Message, **kwargs) -> Optional[Message]:
+    """Xabarni xavfsiz yuborish."""
+    try:
+        return await message.answer(**kwargs)
+    except TelegramRetryAfter as e:
+        logger.warning(f"Flood control: retry_after={e.retry_after}")
+    except (TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError) as e:
+        logger.warning(f"Xabar yuborishda xato: {e}")
+    except Exception as e:
+        logger.error(f"Xabar yuborishda kutilmagan xato: {e}", exc_info=True)
+    return None
+
+async def _safe_update_message(
+    message: Any,
+    caption: str,
+    reply_markup: InlineKeyboardMarkup,
+    poster_id: Optional[str] = None
+) -> bool:
+    """Xabarni ishonchli usulda yangilash zanjiri."""
+    if poster_id:
+        try:
+            new_media = InputMediaPhoto(media=poster_id, caption=caption, parse_mode="HTML")
+            await message.edit_media(media=new_media, reply_markup=reply_markup)
+            return True
+        except TelegramForbiddenError:
+            return False
+        except TelegramBadRequest as e:
+            if "message is not modified" in str(e).lower():
+                return True
+        except Exception:
+            pass
+        
+        try:
+            await message.edit_caption(caption=caption, reply_markup=reply_markup, parse_mode="HTML")
+            return True
+        except TelegramBadRequest as e:
+            if "message is not modified" in str(e).lower():
+                return True
+        except Exception:
+            pass
+    else:
+        try:
+            await message.edit_text(text=caption, reply_markup=reply_markup, parse_mode="HTML")
+            return True
+        except TelegramBadRequest as e:
+            if "message is not modified" in str(e).lower():
+                return True
+        except Exception:
+            pass
+        
+        try:
+            await message.edit_caption(caption=caption, reply_markup=reply_markup, parse_mode="HTML")
+            return True
+        except TelegramBadRequest as e:
+            if "message is not modified" in str(e).lower():
+                return True
+        except Exception:
+            pass
+
+    try:
+        await message.delete()
+    except Exception:
+        pass
+    
+    try:
+        await message.answer(text=caption, reply_markup=reply_markup, parse_mode="HTML")
+        return True
+    except Exception as e:
+        logger.error(f"Xabar yuborishda kutilmagan xato: {e}", exc_info=True)
+    return False
 
 
 class EditAnimeStates(StatesGroup):
-  
-   
-  
-
-    waiting_for_genres = State()         # Janrlarni tanlash holati
-    waiting_for_dubbers = State()        # Dubberlarni tanlash holati
-    waiting_for_confirmation = State()   # Ha/Yo'q tasdiqlash holati
-
-
-
-
-
-
-
-
-logger = logging.getLogger("EditAnimeMenu")
-router = Router()
-
-
-
+    waiting_for_dubbers = State()           # Dubberlarni tanlash holati
+    waiting_for_confirmation = State()      # ❓ Tasdiqlash holati (Ha/Yo'q)
 
 
 PER_PAGE = 10
-
-
-
-
-
 
 
 # =====================================================================
@@ -106,12 +185,9 @@ async def get_admin_dubbers_edit_markup(
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
-
-
 # =====================================================================
 # 📑 1-QADAM: "🎙️ Dubber" tugmasi bosilganda oynani ochish
 # =====================================================================
-# Siz qo'shgan callback_data: f"edit_field:dubber:{anime_id}"
 @router.callback_query(F.data.startswith("edit_field:dubber:"))
 async def edit_anime_dubbers_start(callback: CallbackQuery, state: FSMContext, session: Any):
     anime_id = int(callback.data.split(":")[2])
@@ -129,14 +205,12 @@ async def edit_anime_dubbers_start(callback: CallbackQuery, state: FSMContext, s
     
     kb = await get_admin_dubbers_edit_markup(session, anime_id, current_dubbers, page=1)
     
-    await callback.answer()
-    await callback.message.edit_caption(
-        caption="🎙️ <b>Anime dubberlarini tahrirlash:</b>\n\nOvoz bergan dubberlarni tanlang (tanlanganlar yashil rangga kiradi) va saqlash tugmasini bosing:",
-        reply_markup=kb,
-        parse_mode="HTML"
+    await safe_answer(callback)
+    caption_text = (
+        "🎙️ <b>Anime dubberlarini tahrirlash:</b>\n\n"
+        "Ovoz bergan dubberlarni tanlang (tanlanganlar yashil rangga kiradi) va saqlash tugmasini bosing:"
     )
-
-
+    await _safe_update_message(callback.message, caption=caption_text, reply_markup=kb)
 
 
 # =====================================================================
@@ -162,22 +236,21 @@ async def process_dubber_toggle(callback: CallbackQuery, state: FSMContext, sess
     
     # Klaviaturani poster ostida yangilaymiz
     kb = await get_admin_dubbers_edit_markup(session, anime_id, selected_dubbers, page=page)
+    await safe_answer(callback)
+    
     try:
         await callback.message.edit_reply_markup(reply_markup=kb)
-    except:
-        pass
-    await callback.answer()
-
-
-
-router.callback_query(EditAnimeStates.waiting_for_dubbers, F.data.startswith("adm_d_page:"))
-
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e).lower():
+            logger.warning(f"Dubber toggleda reply_markup xatosi: {e}")
+    except Exception as e:
+        logger.warning(f"Dubber toggleda kutilmagan xato: {e}")
 
 
 # =====================================================================
 # 📑 1.5-QADAM: Paginatsiya (Keyingi / Oldingi sahifaga o'tish)
 # =====================================================================
-@router.callback_query(EditAnimeStates.waiting_for_dubbers, F.data.startswith("adm_d_page:"))  # <-- @ qo'shildi!
+@router.callback_query(EditAnimeStates.waiting_for_dubbers, F.data.startswith("adm_d_page:"))
 async def process_dubber_page_change(callback: CallbackQuery, state: FSMContext, session: Any):
     page = int(callback.data.split(":")[1])
     state_data = await state.get_data()
@@ -185,22 +258,22 @@ async def process_dubber_page_change(callback: CallbackQuery, state: FSMContext,
     selected_dubbers = state_data.get("selected_dubbers", [])
     
     kb = await get_admin_dubbers_edit_markup(session, anime_id, selected_dubbers, page=page)
+    await safe_answer(callback)
     
     try:
         await callback.message.edit_reply_markup(reply_markup=kb)
-    except Exception:
-        pass
-        
-    await callback.answer()
-
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e).lower():
+            logger.warning(f"Dubber paginatsiyasida reply_markup xatosi: {e}")
+    except Exception as e:
+        logger.warning(f"Dubber paginatsiyasida kutilmagan xato: {e}")
 
 
 @router.callback_query(F.data == "none")
 async def process_none_callback(callback: CallbackQuery):
-    await callback.answer()
+    await safe_answer(callback)
 
 
-    
 # =====================================================================
 # 📑 2-QADAM: Saqlash bosilganda tasdiqlash oynasiga o'tish
 # =====================================================================
@@ -209,7 +282,6 @@ async def process_dubbers_save_confirmation(callback: CallbackQuery, state: FSMC
     from database.models import Dubber  # Circular import oldini olish uchun
     
     state_data = await state.get_data()
-    anime_id = state_data.get("edit_anime_id")
     selected_dubbers = state_data.get("selected_dubbers", [])
     
     # Tanlangan dubberlarning nomlarini chiroyli ko'rsatish uchun DBdan olamiz
@@ -236,8 +308,8 @@ async def process_dubbers_save_confirmation(callback: CallbackQuery, state: FSMC
     ])
     
     await state.set_state(EditAnimeStates.waiting_for_confirmation)
-    await callback.answer()
-    await callback.message.edit_caption(caption=confirm_text, reply_markup=kb, parse_mode="HTML")
+    await safe_answer(callback)
+    await _safe_update_message(callback.message, caption=confirm_text, reply_markup=kb)
 
 
 # =====================================================================
@@ -252,45 +324,39 @@ async def save_or_cancel_anime_dubbers(callback: CallbackQuery, state: FSMContex
     
     # ❌ AGAR ADMIN "YO'Q" DESA
     if action == "no":
-        await callback.answer("O'zgarishlar bekor qilindi.", show_alert=True)
+        await safe_answer(callback, "O'zgarishlar bekor qilindi.", show_alert=True)
         await state.clear()
         
         cloned_callback = callback.model_copy(update={"data": f"edit_anime:{anime_id}"})
-        from handlers.admin_panel.admin_anime.edit_anime import process_edit_anime_menu
+        from handlers.admin_panel.admin_anime.edits_anime.edit_anime_menu import process_edit_anime_menu
         await process_edit_anime_menu(cloned_callback, session)
         return
 
     # ✅ AGAR ADMIN "HA" DESA (Bazaga yozish)
-    await callback.answer("Dubberlar bazaga yozilmoqda...")
+    await safe_answer(callback, "Dubberlar bazaga yozilmoqda...")
     
+    success = False
     try:
         service = AnimeService(session=session)
         # Oldingi qadamda service qatlamiga qo'shgan yangi xavfsiz metodimizni chaqiramiz
         success = await service.update_dubbers(anime_id=anime_id, dubber_ids=selected_dubbers)
-        
-        if success:
-            if hasattr(session, "expire_all"):
-                session.expire_all()
-            elif hasattr(session, "_session") and hasattr(session._session, "expire_all"):
-                session._session.expire_all()
     except Exception as e:
         logger.error(f"🚨 DB Update Dubbers critically failed: {e}")
-        success = False
+
+    await state.clear()
 
     if not success:
-        await callback.message.edit_caption(
+        error_kb = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="⚙️ Orqaga qaytish", callback_data=f"force_refresh_edit:{anime_id}", style="danger")
+        ]])
+        await _safe_update_message(
+            message=callback.message,
             caption="❌ <b>Xatolik:</b> Dubberlarni saqlashda texnik xato yuz berdi.",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text="⚙️ Orqaga qaytish", callback_data=f"force_refresh_edit:{anime_id}", style="danger")
-            ]]),
-            parse_mode="HTML"
+            reply_markup=error_kb
         )
-        await state.clear()
         return
 
     # Muvaffaqiyatli xabar va FSMni tozalab bosh menyuga qaytish
-    await state.clear()
-    
     cloned_callback = callback.model_copy(update={"data": f"edit_anime:{anime_id}"})
-    from handlers.admin_panel.admin_anime.edit_anime import process_edit_anime_menu
+    from handlers.admin_panel.admin_anime.edits_anime.edit_anime_menu import process_edit_anime_menu
     await process_edit_anime_menu(cloned_callback, session)

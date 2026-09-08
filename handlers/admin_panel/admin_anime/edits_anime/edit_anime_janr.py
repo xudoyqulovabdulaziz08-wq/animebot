@@ -1,8 +1,7 @@
-
 import logging
 import html
 import math
-from select import select
+from sqlalchemy import select
 from typing import Any, Optional
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto, Message
@@ -12,6 +11,7 @@ from aiogram.fsm.context import FSMContext
 from database.models import Genre
 from services.anime_service import AnimeService
 from aiogram.fsm.state import StatesGroup, State
+
 router = Router()
 logger = logging.getLogger(__name__)
 
@@ -110,8 +110,7 @@ async def _safe_update_message(
         return True
     except Exception as e:
         logger.error(f"Xabar yuborishda kutilmagan xato: {e}", exc_info=True)
-
-
+    return False
 
 
 class EditAnimeStates(StatesGroup):
@@ -119,13 +118,10 @@ class EditAnimeStates(StatesGroup):
     waiting_for_confirmation = State()      # ❓ Tasdiqlash holati (Ha/Yo'q)
 
 
-
-
-
-PER_PAGE = 10  # Bir sahifada ko'rinadigan janrlar soni (Chiroyli joylashishi uchun)
+PER_PAGE = 10  # Bir sahifada ko'rinadigan janrlar soni
 
 # =====================================================================
-# 🛠 YORDAMChI FUNKSIYA: Rangli Tugmalar va Paginatsiya Klasini yasash
+# 🛠 YORDAMCHI FUNKSIYA: Rangli Tugmalar va Paginatsiya Klaviaturasini yasash
 # =====================================================================
 async def get_admin_genres_edit_markup(
     session: Any, 
@@ -154,7 +150,7 @@ async def get_admin_genres_edit_markup(
         
         row.append(InlineKeyboardButton(
             text=f"{tick}{genre.name}",
-            callback_data=f"adm_g_tog:{genre.id}:{page}", # Admin uchun maxsus prefiks
+            callback_data=f"adm_g_tog:{genre.id}:{page}",
             style=btn_style
         ))
         if len(row) == 2:
@@ -206,12 +202,12 @@ async def edit_anime_genres_start(callback: CallbackQuery, state: FSMContext, se
     
     kb = await get_admin_genres_edit_markup(session, anime_id, current_genres, page=1)
     
-    await callback.answer()
-    await callback.message.edit_caption(
-        caption="🔮 <b>Anime janrlarini tahrirlash:</b>\n\nJanrlarni tanlang (tanlanganlar yashil rangga kiradi) va saqlash tugmasini bosing:",
-        reply_markup=kb,
-        parse_mode="HTML"
+    await safe_answer(callback)
+    caption_text = (
+        "🔮 <b>Anime janrlarini tahrirlash:</b>\n\n"
+        "Janrlarni tanlang (tanlanganlar yashil rangga kiradi) va saqlash tugmasini bosing:"
     )
+    await _safe_update_message(callback.message, caption=caption_text, reply_markup=kb)
 
 
 # =====================================================================
@@ -235,13 +231,16 @@ async def process_genre_toggle(callback: CallbackQuery, state: FSMContext, sessi
         
     await state.update_data(selected_genres=selected_genres)
     
-    # Klaviaturani rasm ostida yangilaymiz (Media edit bo'lib poster joyida qoladi)
     kb = await get_admin_genres_edit_markup(session, anime_id, selected_genres, page=page)
+    await safe_answer(callback)
+    
     try:
         await callback.message.edit_reply_markup(reply_markup=kb)
-    except:
-        pass
-    await callback.answer()
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e).lower():
+            logger.warning(f"Janr toggleda reply_markup xatosi: {e}")
+    except Exception as e:
+        logger.warning(f"Janr toggleda kutilmagan xato: {e}")
 
 
 @router.callback_query(EditAnimeStates.waiting_for_genres, F.data.startswith("adm_g_page:"))
@@ -252,23 +251,26 @@ async def process_genre_page_change(callback: CallbackQuery, state: FSMContext, 
     selected_genres = state_data.get("selected_genres", [])
     
     kb = await get_admin_genres_edit_markup(session, anime_id, selected_genres, page=page)
+    await safe_answer(callback)
+    
     try:
         await callback.message.edit_reply_markup(reply_markup=kb)
-    except:
-        pass
-    await callback.answer()
+    except TelegramBadRequest as e:
+        if "message is not modified" not in str(e).lower():
+            logger.warning(f"Janr paginatsiyasida reply_markup xatosi: {e}")
+    except Exception as e:
+        logger.warning(f"Janr paginatsiyasida kutilmagan xato: {e}")
 
 
 # =====================================================================
-# 📑 2-QADAM: Saqlash bosilganda tasdiqlash oynasiga o'tish (Siz aytgan qism)
+# 📑 2-QADAM: Saqlash bosilganda tasdiqlash oynasiga o'tish
 # =====================================================================
 @router.callback_query(EditAnimeStates.waiting_for_genres, F.data == "adm_g_save")
 async def process_genres_save_confirmation(callback: CallbackQuery, state: FSMContext, session: Any):
     state_data = await state.get_data()
-    anime_id = state_data.get("edit_anime_id")
     selected_genres = state_data.get("selected_genres", [])
     
-    # Tanlangan janrlarning nomlarini chiroyli qilib ko'rsatish uchun bazadan nomlarini olamiz
+    # Tanlangan janrlarning nomlarini olish
     if selected_genres:
         stmt = select(Genre).where(Genre.id.in_(selected_genres)).order_by(Genre.name)
         result = await session.execute(stmt)
@@ -292,8 +294,8 @@ async def process_genres_save_confirmation(callback: CallbackQuery, state: FSMCo
     ])
     
     await state.set_state(EditAnimeStates.waiting_for_confirmation)
-    await callback.answer()
-    await callback.message.edit_caption(caption=confirm_text, reply_markup=kb, parse_mode="HTML")
+    await safe_answer(callback)
+    await _safe_update_message(callback.message, caption=confirm_text, reply_markup=kb)
 
 
 # =====================================================================
@@ -308,45 +310,38 @@ async def save_or_cancel_anime_genres(callback: CallbackQuery, state: FSMContext
     
     # ❌ AGAR ADMIN "YO'Q" DESA
     if action == "no":
-        await callback.answer("O'zgarishlar bekor qilindi.", show_alert=True)
+        await safe_answer(callback, "O'zgarishlar bekor qilindi.", show_alert=True)
         await state.clear()
         
         cloned_callback = callback.model_copy(update={"data": f"edit_anime:{anime_id}"})
-        from handlers.admin_panel.admin_anime.edit_anime import process_edit_anime_menu
+        from handlers.admin_panel.admin_anime.edits_anime.edit_anime_menu import process_edit_anime_menu
         await process_edit_anime_menu(cloned_callback, session)
         return
 
     # ✅ AGAR ADMIN "HA" DESA (Bazaga yozish)
-    await callback.answer("Janrlar bazaga yozilmoqda...")
+    await safe_answer(callback, "Janrlar bazaga yozilmoqda...")
     
+    success = False
     try:
         service = AnimeService(session=session)
-        # Yuqorida qo'shgan yangi xavfsiz metodimizni chaqiramiz
         success = await service.update_genres(anime_id=anime_id, genre_ids=selected_genres)
-        
-        if success:
-            if hasattr(session, "expire_all"):
-                session.expire_all()
-            elif hasattr(session, "_session") and hasattr(session._session, "expire_all"):
-                session._session.expire_all()
     except Exception as e:
-        logger.error(f"🚨 DB Update Genres critically failed: {e}")
-        success = False
+        logger.error(f"🚨 DB Update Genres error: {e}")
+
+    await state.clear()
 
     if not success:
-        await callback.message.edit_caption(
+        error_kb = InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="⚙️ Orqaga qaytish", callback_data=f"force_refresh_edit:{anime_id}", style="danger")
+        ]])
+        await _safe_update_message(
+            message=callback.message,
             caption="❌ <b>Xatolik:</b> Janrlarni saqlashda texnik xato yuz berdi.",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
-                InlineKeyboardButton(text="⚙️ Orqaga qaytish", callback_data=f"force_refresh_edit:{anime_id}", style="danger")
-            ]]),
-            parse_mode="HTML"
+            reply_markup=error_kb
         )
-        await state.clear()
         return
 
-    # Muvaffaqiyatli xabar va FSMni tozalab bosh menyuga qaytish
-    await state.clear()
-    
+    # Muvaffaqiyatli saqlangach, bosh menyuga qaytariladi
     cloned_callback = callback.model_copy(update={"data": f"edit_anime:{anime_id}"})
-    from handlers.admin_panel.admin_anime.edit_anime import process_edit_anime_menu
+    from handlers.admin_panel.admin_anime.edits_anime.edit_anime_menu import process_edit_anime_menu
     await process_edit_anime_menu(cloned_callback, session)
