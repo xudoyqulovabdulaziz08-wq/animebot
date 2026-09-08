@@ -110,7 +110,7 @@ async def get_anime_end_list_markup(session: Any, page: int = 1, per_page: int =
         inline_keyboard.append([
             InlineKeyboardButton(
                 text=f"🎬 {title} ({year})", 
-                callback_data=f"v_anime:{anime_id}:{page}"
+                callback_data=f"v_anime:{anime_id}:{page}:end"
             )
         ])
 

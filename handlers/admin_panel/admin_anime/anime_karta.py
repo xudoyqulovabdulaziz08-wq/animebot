@@ -112,10 +112,12 @@ async def _safe_update_message(
     return False
 
 
+NAV_CACHE = {}
+
 # =======================================================
 # 🎬 ANIME KARTASINI YASASH (Optimallashtirilgan & Escaped)
 # =======================================================
-async def build_anime_card(session: Any, anime: dict, anime_id: int, page: int = 1):
+async def build_anime_card(session: Any, anime: dict, anime_id: int, page: int = 1, source: str = "all"):
     """
     🎬 Anime kartasi uchun caption va klaviaturani yasaydi.
     Barcha matnlar HTML injection'dan xavfsizlantirilgan va DB so'rovlari yengillashtirilgan.
@@ -185,7 +187,13 @@ async def build_anime_card(session: Any, anime: dict, anime_id: int, page: int =
         f"📝 <b>Tavsif:</b>\n"
         f"<blockquote expandable>{description}</blockquote>"
     )
-
+    # Orqaga qaytish yo'nalishini aniqlash
+    back_routes = {
+        "all": f"list_anime_page:{page}",
+        "contine": f"list_anime_contine_page:{page}",
+        "end": f"list_anime_end_page:{page}"
+    }
+    back_callback = back_routes.get(source, f"list_anime_page:{page}")
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
             InlineKeyboardButton(text="📹 Qism tahrirlash", callback_data=f"manage_episodes:{anime_id}", style="primary"),
@@ -217,13 +225,25 @@ async def build_anime_card(session: Any, anime: dict, anime_id: int, page: int =
 @router.callback_query(F.data.startswith("v_anime:"))
 async def view_anime_details(callback: CallbackQuery, session: Any):
     data_parts = callback.data.split(":")
+    user_id = callback.from_user.id
     
     if len(data_parts) < 2 or not data_parts[1].isdigit():
         await safe_answer(callback, "❌ Noto'g'ri anime ID!", show_alert=True)
         return
         
     anime_id = int(data_parts[1])
-    page = int(data_parts[2]) if len(data_parts) > 2 and data_parts[2].isdigit() else 1
+    
+    # 📌 NAVIGATSIYA KESHINI TEKSHIRISH
+    # 1. Agar tugmadan page va source kelsa keshni yangilaymiz
+    if len(data_parts) >= 4:
+        page = int(data_parts[2]) if data_parts[2].isdigit() else 1
+        source = data_parts[3]
+        NAV_CACHE[user_id] = {"page": page, "source": source}
+    else:
+        # 2. Agar sub-funksiyalardan (edit, tizer...) qaytgan bo'lsa, keshdan tiklaymiz
+        cached_nav = NAV_CACHE.get(user_id, {"page": 1, "source": "all"})
+        page = cached_nav["page"]
+        source = cached_nav["source"]
         
     service = AnimeService(session=session)
     
@@ -237,24 +257,17 @@ async def view_anime_details(callback: CallbackQuery, session: Any):
         await safe_answer(callback, "❌ Anime topilmadi yoki o‘chirilgan!", show_alert=True)
         return
 
-    # Karta matni va tugmalarni yasaymiz
-    caption, kb = await build_anime_card(session, anime, anime_id, page)
+    caption, kb = await build_anime_card(session, anime, anime_id, page=page, source=source)
     await safe_answer(callback)
 
     poster_id = anime.get("poster_id")
     
-    # Eskisini o'chirib qayta yubormasdan, mavjud xabarni xavfsiz tahrirlaymiz
     await _safe_update_message(
         message=callback.message,
         caption=caption,
         reply_markup=kb,
         poster_id=poster_id
     )
-
-
-
-
-
 
 
 

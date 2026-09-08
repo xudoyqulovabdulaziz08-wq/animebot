@@ -1,7 +1,7 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 def get_vip_menu_kb(is_vip: bool) -> InlineKeyboardMarkup:
-    btn_text = "🔄 VIP uzaytirish" if is_vip else "💳 VIP olish"
+    btn_text = "🔄 ELITE uzaytirish" if is_vip else "💳 ELITE olish"
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=btn_text, callback_data="purchase_vip", style="primary")],
         [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="cabinet", style="danger")]
