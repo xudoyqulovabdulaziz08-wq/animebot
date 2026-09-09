@@ -121,69 +121,67 @@ class EditAnimeStates(StatesGroup):
 PER_PAGE = 10
 
 
-# =====================================================================
-# 🛠 YORDAMCHI FUNKSIYA: Dubberlar uchun Paginatsiya va Tugmalarni yasash
-# =====================================================================
-async def get_admin_dubbers_edit_markup(
+async def get_admin_dubbers_list_markup(
     session: Any, 
-    anime_id: int, 
-    selected_dubbers: list[int], 
     page: int = 1
 ) -> InlineKeyboardMarkup:
     from database.models import Dubber  # Circular import oldini olish uchun
-    
+
     stmt = select(Dubber).order_by(Dubber.name)
     result = await session.execute(stmt)
     dubbers = result.scalars().all()
-    
+
     total_items = len(dubbers)
     total_pages = math.ceil(total_items / PER_PAGE) if total_items > 0 else 1
-    
+
     start_idx = (page - 1) * PER_PAGE
     end_idx = start_idx + PER_PAGE
     current_dubbers = dubbers[start_idx:end_idx]
-    
+
     keyboard = []
     row = []
-    
+
     for dubber in current_dubbers:
-        is_selected = dubber.id in selected_dubbers
-        tick = "✅ " if is_selected else ""
-        btn_style = "success" if is_selected else "default"
-        
+        # Har bir dubber tugmasi bosilganda o'sha dubberning tahrirlash oynasiga o'tadi
         row.append(InlineKeyboardButton(
-            text=f"{tick}{dubber.name}",
-            callback_data=f"adm_d_tog:{dubber.id}:{page}", # Admin dubber toggle prefiksi
-            style=btn_style
+            text=f"🎙 {dubber.name}",
+            callback_data=f"edit_dubber_detail:{dubber.id}",
+            style="default"
         ))
         if len(row) == 2:
             keyboard.append(row)
             row = []
     if row:
         keyboard.append(row)
-        
-    # Sahifalash (Paginatsiya) tugmalari
+
+    # ==========================================
+    # 📄 Paginatsiya (Sahifalash) tugmalari
+    # ==========================================
     nav_row = []
+    
+    # 1. Oldingi sahifa yoki Noop (⏹️)
     if page > 1:
-        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"adm_d_page:{page-1}", style="primary"))
-    if total_pages > 1:
-        nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="none", style="primary"))
+        nav_row.append(InlineKeyboardButton(text="⬅️ Oldingi", callback_data=f"list_edit_dubber_page:{page-1}", style="primary"))
+    else:
+        nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noop", style="primary"))
+
+    # 2. Markazdagi sahifa raqami
+    nav_row.append(InlineKeyboardButton(text=f"📄 {page}/{total_pages}", callback_data="noop", style="primary"))
+
+    # 3. Keyingi sahifa yoki Noop (⏹️)
     if page < total_pages:
-        nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"adm_d_page:{page+1}", style="primary"))
-        
-    if nav_row:
-        keyboard.append(nav_row)
-        
+        nav_row.append(InlineKeyboardButton(text="Keyingi ➡️", callback_data=f"list_edit_dubber_page:{page+1}", style="primary"))
+    else:
+        nav_row.append(InlineKeyboardButton(text="⏹️", callback_data="noop", style="primary"))
+
+    keyboard.append(nav_row)
+
     # Boshqaruv tugmalari
     keyboard.append([
-        InlineKeyboardButton(text="✅ Tanlanganlarni saqlash", callback_data="adm_d_save", style="success")
+        InlineKeyboardButton(text="⬅️ Dubber menyusiga qaytish", callback_data="dubber_menu", style="danger")
     ])
-    keyboard.append([
-        InlineKeyboardButton(text="⬅️ Bekor qilish", callback_data=f"force_refresh_edit:{anime_id}", style="danger")
-    ])
-    
-    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 # =====================================================================
 # 📑 1-QADAM: "🎙️ Dubber" tugmasi bosilganda oynani ochish
