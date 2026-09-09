@@ -121,7 +121,7 @@ class EditAnimeStates(StatesGroup):
 PER_PAGE = 10
 
 
-async def get_admin_dubbers_list_markup(
+async def get_admin_dubbers_edit_markup(
     session: Any, 
     page: int = 1
 ) -> InlineKeyboardMarkup:
