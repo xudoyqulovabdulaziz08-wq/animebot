@@ -118,7 +118,7 @@ async def dubber_menu_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     
     text = (
-        f"🎙️ {html.bold('Dubber bo‘limi')}\n"
+        f"🎙️<b>Dubber bo‘limi</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"Animelarning dubberlarini ko‘rish va tahrirlash uchun "
         f"kerakli bo‘limni tanlang.\n\n"

@@ -118,7 +118,7 @@ async def genre_menu_handler(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     
     text = (
-        f"🎭 {html.bold('Janrlar bo‘limi')}\n"
+        f"🎭<b>Janrlar bo‘limi</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"Janrlarni qo‘shish, o‘chirish va tahrirlash uchun kerakli bo‘limni tanlang.\n\n"
         f"⚠️ Eslatib o‘tamiz, bu yerdagi harakatlarni orqaga qaytarib bo‘lmaydi.\n\n"
