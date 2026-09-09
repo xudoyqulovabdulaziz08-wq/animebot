@@ -42,7 +42,8 @@ from handlers.admin_panel.admin_anime.edits_anime import (
 )
 from handlers.admin_panel.admin_anime.edit_dubber import (
     edit_dubber_menu,
-    add_dubber_edit
+    add_dubber_edit,
+    list_dubber_edit
 
 )
 from handlers.admin_panel.admin_anime.edit_janr import (
@@ -132,6 +133,8 @@ admin_router.include_routers(
     edit_dubber_menu.router,
     edit_janr_menu.router,
     add_dubber_edit.router,
+    list_dubber_edit.router,
+
     channel_anime.router,
     
     add_vip.router,
