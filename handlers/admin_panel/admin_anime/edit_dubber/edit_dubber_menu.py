@@ -129,7 +129,7 @@ async def dubber_menu_handler(callback: CallbackQuery, state: FSMContext):
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="🎙️ Dubber qo‘shish", callback_data="add_dubber", style="primary")
+                InlineKeyboardButton(text="🎙️ Dubber qo‘shish", callback_data="add_dubber_edit", style="primary")
             ],
             [
                 InlineKeyboardButton(text="📋 Dubber ro‘yxati", callback_data="list_edit_dubber_page:1", style="primary")
