@@ -19,7 +19,7 @@ from handlers.admin_panel.admin_anime import (
     anime_karta,
     anime_menu,  
     janr, 
-    dubber, 
+    
     del_anime,
 )
 from handlers.admin_panel.admin_anime.tizer_edit import (
@@ -97,7 +97,7 @@ admin_router.include_routers(
     anime_type_menu.router,
 
     janr.router,
-    dubber.router,
+    
 
     add_anime.router,
     tugalandi.router,
