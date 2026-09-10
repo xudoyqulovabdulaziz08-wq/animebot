@@ -254,23 +254,20 @@ async def save_dubbers_to_db(callback: CallbackQuery, state: FSMContext, session
             
         result_text += "\n💡 Endi anime yuklash jarayonida ushbu dubberlarni tanlashingiz mumkin."
         
-        # KEYINGI O'ZGARISH: keyboard, markup va reply_markup variantlarining
-        # barchasiga mos tushishi uchun to'g'ri param uzatamiz:
+        # TO'G'RILANGAN QISM: faqat reply_markup uzatamiz
         await _safe_update_message(
             callback.message, 
             caption=result_text, 
-            reply_markup=kb,
-            keyboard=kb,
-            markup=kb
+            reply_markup=kb
         )
         
     except Exception as e:
         logger.error(f"Dubberlarni saqlashda xatolik: {e}", exc_info=True)
         err_msg = f"❌ Dubberlarni saqlashda xatolik yuz berdi: <code>{html.escape(str(e))}</code>"
+        
+        # TO'G'RILANGAN QISM: bu yerda ham faqat reply_markup qoladi
         await _safe_update_message(
             callback.message, 
             caption=err_msg, 
-            reply_markup=kb,
-            keyboard=kb,
-            markup=kb
+            reply_markup=kb
         )
