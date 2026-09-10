@@ -18,7 +18,7 @@ from handlers.admin_panel import admin_stastika
 from handlers.admin_panel.admin_anime import (
     anime_karta,
     anime_menu,  
-    janr, 
+
     
     del_anime,
 )
@@ -51,6 +51,7 @@ from handlers.admin_panel.admin_anime.edit_janr import (
     edit_janr_menu,
     add_janr_edit,
     list_edit_genre,
+    del_janr_edit
 )
 from handlers.admin_panel.admin_channel import (
     channel_menu, 
@@ -98,7 +99,7 @@ admin_router.include_routers(
     
     anime_type_menu.router,
 
-    janr.router,
+
     
 
     add_anime.router,
@@ -140,6 +141,7 @@ admin_router.include_routers(
     del_dubber_edit.router,
     add_janr_edit.router,
     list_edit_genre.router,
+    del_janr_edit.router,
     
     channel_anime.router,
     
