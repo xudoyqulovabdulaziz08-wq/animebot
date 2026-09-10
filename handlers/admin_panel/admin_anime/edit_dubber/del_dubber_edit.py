@@ -11,7 +11,7 @@ from aiogram.fsm.context import FSMContext
 from database.models import Genre
 from services.anime_service import AnimeService
 from aiogram.fsm.state import StatesGroup, State
-from handlers.admin_panel.admin_anime.edit_dubber.list_dubber_edit import list_edit_dubber_page_handler
+from handlers.admin_panel.admin_anime.edit_dubber.list_dubber_edit import get_admin_dubbers_list_markup
 router = Router()
 logger = logging.getLogger(__name__)
 
@@ -262,8 +262,9 @@ async def delete_dubber_action_handler(callback: CallbackQuery, state: FSMContex
 
     await callback.answer("✅ Dubber muvaffaqiyatli o'chirildi!", show_alert=True)
     
-    # O'chirilgandan so'ng, dubberlar ro'yxatining 1-sahifasiga qaytarib yuborish
-    markup = await list_edit_dubber_page_handler(session=session, page=1)
+    # ⚠️ TAYYOR FUNKSIYA CHAQIRILDI:
+    markup = await get_admin_dubbers_list_markup(session=session, page=1)
+    
     caption = (
         "🎙️ <b>Dubberlar ro‘yxati</b>\n"
         "━━━━━━━━━━━━━━━━━━━━━━\n\n"
