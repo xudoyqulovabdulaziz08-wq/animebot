@@ -718,3 +718,44 @@ class AnimeService:
                 await self.session.rollback()
             logger.error(f"❌ Failed to delete VIP episode stream: {e}")
             raise e
+    
+
+
+
+    # ==================================================
+    # 🎭 QUICK GENRES ADD (TRANSACTION-SAFE & CACHE-AWARE)
+    # ==================================================
+    async def add_quick_genres(self, genres_list: list[str]) -> tuple[int, list[str]]:
+        """
+        Tezkor janrlarni bazaga qo'shish biznes logikasi.
+        Qaytaradi: (qo'shilganlar_soni, tashlab_ketilgan_janrlar_ro'yxati)
+        """
+        if hasattr(self.session, "_ensure_session"):
+            await self.session._ensure_session()
+
+        added_count = 0
+        skipped_genres = []
+
+        try:
+            for genre_name in genres_list:
+                existing = await self.repo.get_genre_by_name(self.session, genre_name)
+                
+                if not existing:
+                    await self.repo.add_genre(self.session, genre_name)
+                    added_count += 1
+                else:
+                    skipped_genres.append(genre_name)
+
+            if added_count > 0 and hasattr(self.session, "commit"):
+                await self.session.commit()
+                await self.cache.invalidate("genre", "all", broadcast=True)
+                await self.cache.invalidate("anime", "all", broadcast=True)
+                logger.info(f"💾 GENRE CACHE INVALIDATED: Added {added_count} new genres.")
+            
+            return added_count, skipped_genres
+
+        except Exception as e:
+            if hasattr(self.session, "rollback"):
+                await self.session.rollback()
+            logger.error(f"❌ Service Layer Error while adding genres: {e}")
+            raise e

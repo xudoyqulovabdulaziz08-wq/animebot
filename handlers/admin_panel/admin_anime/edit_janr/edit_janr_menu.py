@@ -127,7 +127,7 @@ async def genre_menu_handler(callback: CallbackQuery, state: FSMContext):
 
     kb = InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="➕ Janr qo‘shish", callback_data="add_genre", style="primary")],
+            [InlineKeyboardButton(text="➕ Janr qo‘shish", callback_data="add_janr_edit", style="primary")],
             [InlineKeyboardButton(text="📋 Janr ro‘yxati", callback_data="list_edit_genre_page:1", style="primary")],
             [InlineKeyboardButton(text="⬅️ Orqaga", callback_data="admin_anime", style="danger")]
         ]

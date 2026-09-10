@@ -817,3 +817,26 @@ class AnimeRepository:
         await real_session.flush()
 
         return result.rowcount > 0
+    
+
+    # ================= GENRE METHODS =================
+    @staticmethod
+    async def get_genre_by_name(session: Any, name: str) -> Optional[Any]:
+        """Janrni ismi orqali qidirish (Dublikat oldini olish uchun)"""
+        from database.models import Genre
+        session = await AnimeRepository._prepare_session(session)
+        
+        stmt = select(Genre).where(Genre.name == name)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    @staticmethod
+    async def add_genre(session: Any, name: str) -> Any:
+        """Yangi janr obyektini yaratish va sessiyaga qo'shish"""
+        from database.models import Genre
+        session = await AnimeRepository._prepare_session(session)
+        
+        new_genre = Genre(name=name)
+        session.add(new_genre)
+        await session.flush()
+        return new_genre
