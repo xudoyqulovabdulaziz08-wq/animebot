@@ -35,7 +35,17 @@ async def open_page(
     if page == "main_menu":
         user_id = event.from_user.id
         username = event.from_user.username or "do'stim"
-        await send_or_edit_start_menu(event, user_id=user_id, username=username, session=session)
+        # 🔥 O'ZGARISH: user_data=user parametri qo'shildi
+        await send_or_edit_start_menu(
+            target=event, 
+            user_id=user_id, 
+            username=username, 
+            user_data=user, 
+            session=session
+        )
+
+    elif page == "search_menu":
+        await search_menu(event, state=state)
 
     elif page == "search_menu":
         await search_menu(event, state=state)
