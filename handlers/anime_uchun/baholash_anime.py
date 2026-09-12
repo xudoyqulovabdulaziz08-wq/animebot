@@ -107,12 +107,6 @@ def build_rating_caption(
 async def anime_rating_menu_handler(callback: CallbackQuery, session):
     user_id = callback.from_user.id
 
-    if user_id != CREATOR_ID:
-        await callback.answer(
-            "🛑 Baholash funksiyasi tez orada ishga tushadi.",
-            show_alert=True
-        )
-        return
 
     anime_id = int(callback.data.split(":")[1])
 

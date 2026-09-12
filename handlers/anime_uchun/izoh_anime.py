@@ -17,13 +17,6 @@ async def anime_comment_handler(callback: CallbackQuery, session):
     # 1. Double-click va tugma "qotib qolishi"ni oldini olish uchun darhol answer beramiz
     await callback.answer()
 
-    # 🔒 Ruxsat tekshiruvi
-    if callback.from_user.id != CREATOR_ID:
-        await callback.answer(
-            text="🛑 Izohlar funksiyasi tez orada ishga tushadi.",
-            show_alert=True
-        )
-        return
 
     try:
         anime_id = int(callback.data.split(":")[1])

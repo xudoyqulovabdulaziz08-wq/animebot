@@ -14,13 +14,6 @@ CREATOR_ID = config.CREATOR_ID
 
 @router.callback_query(F.data.startswith("anime_favorite:"))
 async def anime_favorite_handler(callback: CallbackQuery, session: AsyncSession):
-    # 🔒 Oddiy foydalanuvchilar uchun vaqtincha cheklov
-    if callback.from_user.id != CREATOR_ID:
-        await callback.answer(
-            text="🛑 Sevimlilar funksiyasi tez orada ishga tushadi.",
-            show_alert=True
-        )
-        return
 
     anime_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id

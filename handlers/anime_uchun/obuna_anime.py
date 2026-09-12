@@ -14,12 +14,6 @@ CREATOR_ID = config.CREATOR_ID
 @router.callback_query(F.data.startswith("anime_subscription:"))
 async def anime_subscription_handler(callback: CallbackQuery, session: AsyncSession):
     # 🔒 Oddiy foydalanuvchilar uchun vaqtincha cheklov (Test rejimida)
-    if callback.from_user.id != CREATOR_ID:
-        await callback.answer(
-            text="🛑 Obuna bo'lish funksiyasi tez orada ishga tushadi.",
-            show_alert=True
-        )
-        return
 
     anime_id = int(callback.data.split(":")[1])
     user_id = callback.from_user.id

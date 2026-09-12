@@ -33,13 +33,7 @@ async def animelarim_menu(
     session: AsyncSession, 
     state: FSMContext  # 👈 1. STATE PARAMETRI QO'SHILDI
 ):
-    # 🔒 Oddiy foydalanuvchilar uchun cheklov
-    if callback.from_user.id != CREATOR_ID:
-        await callback.answer(
-            text="📩 Bu funksiya tez orada ishga tushadi.",
-            show_alert=True
-        )
-        return
+    
 
     # 📌 NAVIGATSIYA TARIXIGA QO'SHAMIZ
     nav = NavigationManager(state)
