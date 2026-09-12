@@ -136,7 +136,7 @@ async def start_add_episode(callback: CallbackQuery, state: FSMContext, session:
     _cancel_debounce(callback.from_user.id)
 
     await state.set_state(AddEpisodeStates.waiting_for_videos)
-    await state.update_data(anime_id=anime_id, video_list=[], next_ep=next_ep)
+    await state.update_data(anime_id=anime_id, video_list=[], next_ep=next_ep, anime_title=anime.get("title", "Noma'lum Anime"))
 
     anime_title = html.quote(str(anime.get("title", "Anime")))
 
@@ -250,6 +250,7 @@ async def save_episodes_to_database(callback: CallbackQuery, state: FSMContext, 
     video_list = data.get("video_list", [])
     anime_id = data.get("anime_id")
     next_ep = data.get("next_ep", 1)
+    anime_title = data.get("anime_title", f"Anime #{anime_id}")
     
     # Agar botingizda VIP qism qo'shish tugmasi bo'lsa, state'dan olishingiz mumkin.
     # Hozircha False deb turibdi.
@@ -297,7 +298,8 @@ async def save_episodes_to_database(callback: CallbackQuery, state: FSMContext, 
                         "anime_id": anime_id,
                         "episode_num": current_episode_num,
                         "is_vip": is_vip_episode,
-                        "anime_title": f"Anime #{anime_id}"
+                        "anime_title": anime_title
+                        
                     })
                     
                     
@@ -335,7 +337,7 @@ async def save_episodes_to_database(callback: CallbackQuery, state: FSMContext, 
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [
-            InlineKeyboardButton(text="⬅️ Anime kartasi", callback_data=f"v_anime:{anime_id}:1")
+            InlineKeyboardButton(text="⬅️ Anime kartasi", callback_data=f"v_anime:{anime_id}:1", style="danger"),
         ]
     ])
 

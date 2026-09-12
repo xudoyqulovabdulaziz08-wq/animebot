@@ -53,18 +53,37 @@ async def process_anime_subscriptions(bot: Bot, session_maker, get_subscribers_f
             # 3. Xabar matni va tugmani tayyorlash
             status_text = "🌟 VIP" if is_vip else "🆓 Bepul"
             text = (
+                f"💬YANGI XABAR"
+                f"Xurmatli obunachi!\n\n"
                 f"🎉 <b>Yangi qism chiqdi!</b>\n\n"
                 f"🎬 Anime: <b>{anime_title}</b>\n"
                 f"📺 Qism: {episode_num}-qism ({status_text})\n\n"
                 f"Ko'rish uchun pastdagi tugmani bosing 👇"
             )
 
-            markup = InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(
-                    text="🎬 Tomosha qilish", 
-                    callback_data=f"view_anime_detals_{anime_id}" 
-                )]
-            ])
+            markup = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="🎬 Tomosha qilish", 
+                            callback_data=f"view_anime_detals_{anime_id}",
+                            style="primary" 
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text="📢 Kanalga o'tish",
+                            url="https://t.me/Aninovuz",
+                            style="primary"
+                        ),
+                        InlineKeyboardButton(
+                            text="💬 Guruhga o'tish",
+                            url="https://t.me/aninovuz_chat",
+                            style="primary"
+                        )
+                    ]
+                ]
+            )
 
             # 4. 🚀 Parallel va guruhlangan (Chunk) yuborish
             success_count = 0
