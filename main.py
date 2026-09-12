@@ -183,7 +183,7 @@ async def on_startup(bot: Bot):
     attach_cache_listeners()
 
     # 5. Workerlarni ishga tushirish
-    await start_workers()
+    await start_workers(bot)
     await create_http_session()
 
     # 6. Telegram Webhook o'rnatish
