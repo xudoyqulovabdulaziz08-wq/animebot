@@ -21,7 +21,7 @@ async def guide_menu(callback: CallbackQuery, state: FSMContext):
         "<b>🔔 Obunalar</b>"
         "<blockquote expandable>Sevimli animelaringiz yangilanganda xabar oling. </blockquote>\n"
         "<b>👤 Kabinet</b>"
-        "<blockquote expandable>Profil, VIP va sozlamalarni boshqaring. </blockquote>\n"
+        "<blockquote expandable>Profil, Elite va sozlamalarni boshqaring. </blockquote>\n"
         "<b>📢 Reklama</b>"
         "<blockquote expandable>Reklamangizni joylashtirmoqchi bo'lsangiz admin bilan bo'g'lanish </blockquote>\n"
         "<b>💬 Yordam</b>"
