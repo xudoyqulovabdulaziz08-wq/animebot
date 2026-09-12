@@ -37,7 +37,14 @@ class UserRepository:
             ),
             "sleep_reminder_enabled": user.sleep_reminder_enabled,
             "joined_at": user.joined_at.isoformat() if user.joined_at else None,
-            "is_vip": user.status == UserStatus.VIP,  # Dinamik tekshiruv
+            # 🟢 TUZATILDI: avval faqat status==VIP tekshirilardi, vip_expire_date
+            # e'tiborga olinmasdi — muddati o'tgan VIP foydalanuvchi hali ham
+            # "is_vip": True bo'lib qolardi (DBUser.is_vip hybrid_property bilan
+            # mos kelmasdi). Endi ikkalasi ham bir xil mantiqqa amal qiladi.
+            "is_vip": (
+                user.status == UserStatus.VIP
+                and (user.vip_expire_date is None or user.vip_expire_date > datetime.now(timezone.utc))
+            ),
             "password_hash": getattr(user, "password_hash", None)
         }
 
@@ -301,4 +308,3 @@ class UserRepository:
 
 
         # user_repository.py ga qo'shiladigan metod
-    
