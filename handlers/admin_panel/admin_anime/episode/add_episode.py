@@ -14,6 +14,7 @@ from aiogram.exceptions import (
 )
 
 from services.anime_service import AnimeService
+from services.subscriptionanime_woker import process_anime_subscriptions
 
 logger = logging.getLogger("add_episode")
 router = Router()
@@ -249,13 +250,16 @@ async def save_episodes_to_database(callback: CallbackQuery, state: FSMContext, 
     video_list = data.get("video_list", [])
     anime_id = data.get("anime_id")
     next_ep = data.get("next_ep", 1)
+    
+    # Agar botingizda VIP qism qo'shish tugmasi bo'lsa, state'dan olishingiz mumkin.
+    # Hozircha False deb turibdi.
+    is_vip_episode = data.get("is_vip", False) 
 
     if not video_list or not anime_id:
         await safe_send(callback.message, text="❌ Saqlash uchun videolar topilmadi. Jarayon bekor qilindi.")
         await state.clear()
         _cancel_debounce(callback.from_user.id)
         return
-
 
     await state.clear()
     _cancel_debounce(callback.from_user.id)
@@ -268,28 +272,46 @@ async def save_episodes_to_database(callback: CallbackQuery, state: FSMContext, 
     success_count = 0
     failed_episodes: list[int] = []
 
-
     for index, file_id in enumerate(video_list):
         current_episode_num = next_ep + index
         try:
-            ok = await service.add_episode(
+            # 1. Endi natija lug'at (dict) ko'rinishida qaytadi
+            result = await service.add_episode(
                 anime_id=anime_id,
                 episode_num=current_episode_num,
                 file_id=file_id,
-                dub_group="default", # 👈 Agar alohida dublyaj guruhi bo'lsa nomini yozing
-                is_vip=False
+                dub_group="default", 
+                is_vip=is_vip_episode
             )
-            if ok:
+            
+            # Agar muvaffaqiyatli saqlangan bo'lsa
+            if result.get("success"):
                 success_count += 1
+                
+                # 2. 🛑 SPAM VA VIP TEKSHIRUVI: 
+                if result.get("is_new_stream"):
+                    # ✅ Yangi fayl qo'shildi, obunachilarga xabar yuboramiz.
+                    # Orqa fonda ishlashi uchun asyncio.create_task ga beramiz, 
+                    # shunda admin keyingi videoni kutib turmaydi.
+                    asyncio.create_task(
+                        process_anime_subscriptions(
+                            anime_id=anime_id,
+                            episode_num=current_episode_num,
+                            is_vip=is_vip_episode
+                        )
+                    )
+                else:
+                    # 🛑 Shunchaki mavjud fayl yangilandi (update), xabar bormaydi.
+                    logger.info(f"ℹ️ Fayl yangilandi. Xabar yuborilmaydi. Anime ID: {anime_id}, Qism: {current_episode_num}")
             else:
                 failed_episodes.append(current_episode_num)
+                
         except Exception as e:
             logger.error(
-                f"❌ VIP Epizod saqlashda xatolik: anime_id={anime_id}, episode={current_episode_num}: {e}",
+                f"❌ Epizod saqlashda xatolik: anime_id={anime_id}, episode={current_episode_num}: {e}",
                 exc_info=True
             )
             failed_episodes.append(current_episode_num)
-
 
     if callback.message:
         await safe_delete(callback.message)

@@ -142,3 +142,41 @@ class SubscriptionRepository:
             }
             for row in rows
         ]
+
+
+    # 📢 Anime obunachilarini olish (Katta yuklamalar uchun moslashtirilgan)
+    @staticmethod
+    async def get_subscribers_by_anime_id(
+        session: Any, 
+        anime_id: int,
+        vip_only: bool = False, 
+        limit: int | None = None,
+        offset: int | None = None
+    ) -> List[int]:
+        
+        try:
+            real_session = await SubscriptionRepository._prepare_session(session)
+            
+            # Asosiy SQL so'rovni tuzamiz
+            stmt = select(AnimeSubscription.user_id).where(
+                AnimeSubscription.anime_id == anime_id
+            )
+            if vip_only:
+                # faqat hozir VIP statusi aktiv bo'lgan userlarni olamiz
+                stmt = stmt.join(DBUser, DBUser.user_id == AnimeSubscription.user_id).where(
+                    DBUser.is_vip == True
+                )
+            # Pagination (bo'lib olish) parametrlari berilgan bo'lsa, ularni qo'llaymiz
+            if limit is not None:
+                stmt = stmt.limit(limit)
+            if offset is not None:
+                stmt = stmt.offset(offset)
+                
+            # Ma'lumotni bazadan tortib olish
+            result = await real_session.execute(stmt)
+            return list(result.scalars().all())
+            
+        except Exception as e:
+            # Dastur qulamasligi uchun xatoni ushlab, logga yozamiz
+            logger.error(f"❌ Obunachilarni olishda xatolik (anime_id={anime_id}): {e}")
+            return []

@@ -333,19 +333,17 @@ class AnimeRepository:
     # ================= ADD EPISODE =================
     @staticmethod
     async def add_episode(
-        session: Any, 
-        anime_id: int, 
-        episode_num: int, 
-        file_id: str,
-        dub_group: str = "default",
-        is_vip: bool = False,
-        is_filler: bool = False
-    ) -> bool:
+        session: Any, anime_id: int, episode_num: int, file_id: str,
+        dub_group: str = "default", is_vip: bool = False, is_filler: bool = False
+    ) -> dict:        
         from database.models import Episode, EpisodeStream
         from sqlalchemy import select
 
         real_session = await AnimeRepository._prepare_session(session)
+        is_new_episode = False
+        is_new_stream = False  # 👈 YANGI: Aynan yangi fayl qo'shildimi?
 
+        # 1. Epizod mavjudligini tekshirish
         stmt = select(Episode).where(
             Episode.anime_id == anime_id,
             Episode.episode == episode_num
@@ -356,13 +354,16 @@ class AnimeRepository:
         if not episode:
             episode = Episode(
                 anime_id=anime_id, 
-                episode=episode_num,
+                episode=episode_num, 
                 is_filler=is_filler
             )
             real_session.add(episode)
             await real_session.flush()
+            is_new_episode = True 
+        else:
+            episode.is_filler = is_filler
 
-        # ✅ Stream takrorlanishini oldini olamiz
+        # 2. Stream (file_id) takrorlanishini tekshirish (dub_group va is_vip bo'yicha)
         stmt_st = select(EpisodeStream).where(
             EpisodeStream.episode_id == episode.id,
             EpisodeStream.dub_group == dub_group,
@@ -372,10 +373,11 @@ class AnimeRepository:
         existing_stream = res_st.scalar_one_or_none()
 
         if existing_stream:
+            # 🛑 ESKI FAYL YANGILANDI (Sifati yaxshilandi yoki xatosi tuzatildi)
             existing_stream.file_id = file_id
+            is_new_stream = False  # Xabar yuborilmaydi
         else:
-            episode.is_filler = is_filler
-
+            # ✅ YANGI STREAM QO'SHILDI (Birinchi marta yuklanmoqda)
             stream = EpisodeStream(
                 episode_id=episode.id,
                 dub_group=dub_group,
@@ -383,9 +385,16 @@ class AnimeRepository:
                 file_id=file_id
             )
             real_session.add(stream)
+            is_new_stream = True   # Xabar yuborilishi kerak
 
         await real_session.flush()
-        return True
+        
+        return {
+            "success": True,
+            "is_new_episode": is_new_episode,
+            "is_new_stream": is_new_stream,
+            "is_vip": is_vip
+        }
     # ================= DELETE EPISODE =================
     @staticmethod
     async def delete_episode(session: Any, anime_id: int, episode_num: int) -> bool:

@@ -27,6 +27,8 @@ from services.outbox.worker import OutboxWorker
 from middlewares.middlewere import DbSessionMiddleware
 from middlewares.subscription import CheckSubscriptionMiddleware
 from repositories.channel_repository import ChannelRepository # kerak bo'lsa
+from services.subscriptionanime_woker import process_anime_subscriptions
+from repositories.subscription_repository import SubscriptionRepository # obunachilarni tortuvchi repository
 from utils.http import create_http_session, close_http_session
 
 async def on_startup(bot):
@@ -79,7 +81,7 @@ ai_brain = AICacheBrain()
 # =========================================================
 # 🚀 WORKER BOOTSTRAP
 # =========================================================
-async def start_workers():
+async def start_workers(bot: Bot):
     """Fonda ishlovchi distributed workerlarni xavfsiz ishga tushirish"""
     outbox = OutboxWorker(AsyncSessionLocal)
     cache = CacheInvalidationWorker(AsyncSessionLocal)
@@ -97,6 +99,12 @@ async def start_workers():
     tasks = [
         asyncio.create_task(safe("outbox", outbox.start())),
         asyncio.create_task(safe("cache", cache.run())),
+        # 🌟 Yangi anime obuna xabarnoma workeri:
+        asyncio.create_task(safe("anime_subscriber", process_anime_subscriptions(
+            bot=bot,
+            session_maker=AsyncSessionLocal,
+            get_subscribers_func=SubscriptionRepository.get_subscribers_by_anime_id # o'zingizdagi metod nomi bilan almashtiring
+        ))),
     ]
 
     for t in tasks:
