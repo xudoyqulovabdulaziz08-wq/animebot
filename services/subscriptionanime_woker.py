@@ -51,9 +51,9 @@ async def process_anime_subscriptions(bot: Bot, session_maker, get_subscribers_f
                 continue
             
             # 3. Xabar matni va tugmani tayyorlash
-            status_text = "🌟 VIP" if is_vip else "🆓 Bepul"
+            status_text = "🌟 VIP" if is_vip else "🆓  Bepul"
             text = (
-                f"💬YANGI XABAR"
+                f"<b>💬YANGI XABAR</b> \n\n"
                 f"Xurmatli obunachi!\n\n"
                 f"🎉 <b>Yangi qism chiqdi!</b>\n\n"
                 f"🎬 Anime: <b>{anime_title}</b>\n"
