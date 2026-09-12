@@ -1,9 +1,13 @@
 import logging
 import asyncio
-from typing import Any
+from typing import Any, Optional
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaVideo, BufferedInputFile
-from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import (
+    CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton,
+    InputMediaPhoto, InputMediaVideo, Message
+)
+from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError, TelegramRetryAfter
+
 from handlers.search.anime_card import send_anime_card
 from aiogram.fsm.context import FSMContext
 from services.anime_service import AnimeService
@@ -17,6 +21,40 @@ router = Router()
 # Bir sahifada nechta qism tugmasi chiqishi (4 tadan 3 qator = 12 ta)
 EPISODES_PER_PAGE = 12
 BATCH_SIZE = 12
+
+
+# =======================================================
+# 🧰 YORDAMCHI FUNKSIYALAR (Telegram xatolaridan himoya)
+# =======================================================
+
+async def safe_answer(callback: CallbackQuery, text: Optional[str] = None, show_alert: bool = False) -> None:
+    """CallbackQuery'ga xavfsiz javob berish (kutilgan xatoliklarni yutish va flood'dan himoya)."""
+    try:
+        await callback.answer(text=text, show_alert=show_alert)
+    except TelegramBadRequest as e:
+        msg = str(e).lower()
+        if "query is too old" not in msg and "query id is invalid" not in msg and "response timeout" not in msg:
+            logger.warning(f"safe_answer xatosi (BadRequest): {e}")
+    except TelegramForbiddenError:
+        pass
+    except TelegramRetryAfter as e:
+        logger.warning(f"safe_answer Flood control: retry_after={e.retry_after}")
+    except Exception as e:
+        logger.warning(f"safe_answer kutilmagan xato: {e}")
+
+
+async def safe_send(message: Message, **kwargs) -> Optional[Message]:
+    """Xabarni xavfsiz yuborish (Flood va Network xatolarni ushlash)."""
+    try:
+        return await message.answer(**kwargs)
+    except TelegramRetryAfter as e:
+        logger.warning(f"Flood control: {e.retry_after} soniya kutish kerak.")
+    except (TelegramBadRequest, TelegramForbiddenError, TelegramNetworkError) as e:
+        logger.warning(f"Xabar yuborishda kutilgan xato: {e}")
+    except Exception as e:
+        logger.error(f"Xabar yuborishda kutilmagan xato: {e}", exc_info=True)
+    return None
+
 
 
 @router.callback_query(F.data.startswith("show_episodes_user:") | F.data.startswith("play_ep_page:"))

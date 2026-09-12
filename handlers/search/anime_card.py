@@ -169,9 +169,12 @@ async def send_anime_card(
             logger.error(f"❌ Dubberlarni yuklashda xato: {e}")
             return "Mavjud emas"
 
-    user_data, is_favorite, is_subscribed, user_rating, genres_str, dubbers_str = await asyncio.gather(
-        _get_user(), _get_favorite(), _get_subscribed(), _get_rating(), _get_genres(), _get_dubbers()
-    )
+    user_data = await _get_user()
+    is_favorite = await _get_favorite()
+    is_subscribed = await _get_subscribed()
+    user_rating = await _get_rating()
+    genres_str = await _get_genres()
+    dubbers_str = await _get_dubbers()
 
     is_vip_or_admin = False
     if user_data:
