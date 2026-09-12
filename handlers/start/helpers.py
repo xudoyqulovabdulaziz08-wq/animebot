@@ -13,7 +13,7 @@ async def send_or_edit_start_menu(
     target: Message | CallbackQuery, 
     user_id: int, 
     username: str,
-    session: Any = None  # 🔥 Admin/VIP statusini tekshirish uchun session
+    user_data: dict = None  # 🔥 session o'rniga to'g'ridan-to'g'ri user_data qabul qilamiz
 ):
     """
     Ushbu funksiya start menyusini ko'rsatadi.
@@ -24,31 +24,18 @@ async def send_or_edit_start_menu(
     sayt_url = "https://aninov.uz"
     
     # 🛡️ 1. USER STATUSINI TEKSHIRISH (VIP/ADMIN/CREATOR)
-    # Avvalo user_id Creator ekanligini bazaga kirolmasdan turib ham tekshiramiz:
     is_privileged = (user_id == CREATOR_ID)
     
-    # Agar Creator bo'lmasa, navbatdagi qadamda bazadan tekshiramiz
-    if not is_privileged and session:
-        try:
-            from services.user_service import UserService
-            
-            user_service = UserService(session=session)
-            user_data = await user_service.get_user(user_id)
-
-            if user_data:
-                # "status" string ko'rinishida ("admin", "user", "vip") keladi
-                user_status = user_data.get("status")
-                is_vip = user_data.get("is_vip", False)
-                
-                # Admin yoki VIP bo'lsa huquq beramiz
-                if is_vip or user_status == "admin":
-                    is_privileged = True
-                    
-        except Exception as e:
-            logger.error(f"❌ User statusini tekshirishda xato: {e}")
+    # Keshdan/bazadan kelgan user_data yordamida tekshiramiz
+    if not is_privileged and user_data:
+        # UserStatus qiymati dict ichida oddiy string ("admin", "vip", "user") ko'rinishida bo'ladi
+        user_status = user_data.get("status")
+        is_vip = user_data.get("is_vip", False)
+        
+        if is_vip or user_status == "admin":
+            is_privileged = True
 
     # Mualliflik huquqi himoyasi: 
-    # Imtiyozli userlar (Creator, Admin, VIP) uchun False, oddiy userlar uchun True
     should_protect = not is_privileged
 
     welcome_text = (
@@ -75,7 +62,6 @@ async def send_or_edit_start_menu(
     # 🔄 2. CALLBACK QUERY (Inline tugma bosilganda)
     if isinstance(target, CallbackQuery):
         try:
-            # Silliq media edit qilish
             await target.message.edit_media(
                 media=InputMediaPhoto(
                     media=start_image_file_id,
@@ -87,8 +73,6 @@ async def send_or_edit_start_menu(
             await target.answer()
         except Exception as edit_err:
             logger.warning(f"⚠️ Edit media bajarilmadi, yangi xabar yuborilmoqda: {edit_err}")
-            # Agar edit xato bersa (mualliflik huquqi yoki media tipi to'g'ri kelmasa),
-            # eski xabarni o'chirib yangisini protect statusi bilan yuboramiz
             try:
                 await target.message.delete()
             except Exception:
@@ -106,7 +90,7 @@ async def send_or_edit_start_menu(
     # 📩 3. MESSAGE (/start yuborilganda)
     elif isinstance(target, Message):
         try:
-            await target.delete()  # User yozgan /start buyrug'ini o'chirish
+            await target.delete() 
         except Exception:
             pass
             

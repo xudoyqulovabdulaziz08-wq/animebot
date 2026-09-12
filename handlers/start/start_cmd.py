@@ -14,21 +14,25 @@ from handlers.start.helpers import send_or_edit_start_menu
 logger = logging.getLogger("StartCmdRouter")
 CREATOR_ID = config.CREATOR_ID
 
-
-
 router = Router()
 
 
-
 @router.message(CommandStart())
-async def cmd_start(message: Message, command: CommandObject, session: Any, user: dict, user_service: UserService, state: FSMContext):
+async def cmd_start(
+    message: Message, 
+    command: CommandObject, 
+    session: Any, 
+    user: dict, 
+    user_service: UserService, 
+    state: FSMContext
+):
     await state.clear()
     
     user_id = message.from_user.id
-    username = message.from_user.username or "do'stim"
+    username = message.from_user.username or message.from_user.full_name or "do'stim"
     user_status = user.get('status', 'user').lower()
     
-    # 🚀 KANAL TUGMASIDAN PARAMETR KELGANDA
+    # 🚀 KANAL TUGMASIDAN PARAMETR KELGANDA (DEEP LINKING)
     if command.args:
         waiting_msg = await message.answer("🔍 Yuborilmoqda...")
         clean_args = command.args.strip().rstrip(",")
@@ -49,7 +53,6 @@ async def cmd_start(message: Message, command: CommandObject, session: Any, user
         # Agar ID muvaffaqiyatli aniqlangan bo'lsa
         if anime_id is not None:
             try:
-                from services.anime_service import AnimeService
                 service = AnimeService(session=session)
                 anime = await service.get_anime(anime_id)
                 
@@ -63,19 +66,24 @@ async def cmd_start(message: Message, command: CommandObject, session: Any, user
                 logger.error(f"❌ Deep link ishlashida xatolik: {ex}")
                 try:
                     await waiting_msg.delete()
-                except:
+                except Exception:
                     pass
         else:
-            # Agar argument noto'g'ri formatda bo'lsa xabarni o'chirish
             try:
                 await waiting_msg.delete()
-            except:
+            except Exception:
                 pass
 
-    # Agarda oddiy start bo'lsa yoki anime topilmasa, asosiy menyuni chiqaradi
-    await send_or_edit_start_menu(message, user_id, username)
+    # 🏠 ASOSIY MENYUNI CHIQARISH
+    # 🔥 O'zgarish: user_data=user parametri uzatildi
+    await send_or_edit_start_menu(
+        target=message, 
+        user_id=user_id, 
+        username=username, 
+        user_data=user
+    )
 
-    # Admin/Creator panellari
+    # 👑 ADMIN / CREATOR PANELLARI
     if user_id == CREATOR_ID:
         creator_keyboard = ReplyKeyboardMarkup(
             keyboard=[[KeyboardButton(text="⚙️ Creator Paneli"), KeyboardButton(text="🛠 Admin Paneli")]],
