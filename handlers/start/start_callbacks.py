@@ -15,10 +15,26 @@ logger = logging.getLogger("StartCallbackRouter")
 router = Router()
 
 @router.callback_query(lambda c: c.data == "back_to_start")
-async def back_to_start_handler(callback: CallbackQuery, session: Any = None):
+async def back_to_start_handler(
+    callback: CallbackQuery, 
+    user: dict,                 # 🔥 user qo'shildi
+    state: FSMContext,          # 🔥 state qo'shildi
+    session: Any = None
+):
     user_id = callback.from_user.id
     username = callback.from_user.username or "do'stim"
-    await send_or_edit_start_menu(callback, user_id, username, session=session)
+    
+    # 🧹 1. Xotirani tozalash
+    await state.update_data(nav_history=[{"page": "main_menu", "params": {}}])
+    
+    # 🏠 2. user_data uzatish
+    await send_or_edit_start_menu(
+        target=callback, 
+        user_id=user_id, 
+        username=username, 
+        user_data=user, 
+        session=session
+    )
 
 
 @router.callback_query(F.data.startswith("check_sub"))
@@ -26,7 +42,8 @@ async def check_sub_callback_handler(
     callback: CallbackQuery, 
     session: Any, 
     state: FSMContext, 
-    user_service: UserService
+    user_service: UserService,
+    user: dict                  # 🔥 user qo'shildi
 ):
     await callback.answer("🎉 Rahmat, obuna muvaffaqiyatli tasdiqlandi!", show_alert=True)
     user_id = callback.from_user.id
@@ -64,7 +81,17 @@ async def check_sub_callback_handler(
         except Exception as ex:
             logger.error(f"❌ Check sub ichida animeni yuklashda xato: {ex}")
 
-    await send_or_edit_start_menu(callback.message, user_id, username, session=session)
+    # 🧹 Agar obunadan so'ng anime topilmasa, asosiy menyuga o'tishdan oldin xotirani tozalash
+    await state.update_data(nav_history=[{"page": "main_menu", "params": {}}])
+
+    # 🏠 user_data ni uzatish
+    await send_or_edit_start_menu(
+        target=callback.message, 
+        user_id=user_id, 
+        username=username, 
+        user_data=user, 
+        session=session
+    )
 
 
 @router.callback_query(F.data == "back_global")
