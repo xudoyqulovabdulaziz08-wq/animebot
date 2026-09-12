@@ -78,9 +78,7 @@ async def send_anime_card(
 
     anime_id = anime.get("anime_id")
 
-    # 🟢 TUZATILDI: navigatsiya tarixiga FAQAT yangi ko'rsatishda qo'shiladi.
-    # Avval edit=True bo'lganda ham qo'shilardi — natijada "Orqaga" tugmasi
-    # bir xil kartaga ikki marta qaytarardi.
+    # Navigatsiya tarixiga FAQAT yangi ko'rsatishda qo'shiladi (edit'da emas).
     if state is not None and anime_id and not edit:
         try:
             nav = NavigationManager(state)
@@ -88,11 +86,6 @@ async def send_anime_card(
         except Exception as nav_err:
             logger.error(f"❌ Navigatsiya tarixiga qo'shishda xato: {nav_err}")
 
-    # 🟢 TUZATILDI: `.get(key, default)` — kalit mavjud-u qiymati None bo'lsa,
-    # default ISHLAMAYDI ("Yil: None" ko'rinishi mumkin edi). Endi `or` bilan.
-    # Shu bilan birga barcha matnlar html.quote() bilan HTML-xavfsiz qilindi —
-    # aks holda nomda/tavsifda '<' yoki '&' bo'lsa, Telegram butun xabarni
-    # "can't parse entities" deb rad etardi.
     title = html.quote(str(anime.get("title") or "Nomsiz anime"))
     year = html.quote(str(anime.get("year") or "—"))
     description = html.quote(str(anime.get("description") or "Tavsif kiritilmagan."))
@@ -114,14 +107,8 @@ async def send_anime_card(
         else message.chat.id
     )
 
-    # 🟢 TUZATILDI: CREATOR_ID allaqachon modul darajasida muvaffaqiyatli import
-    # qilingan (aks holda modul umuman yuklanmas edi) — bare `except:` bilan
-    # uni qayta "tiklashga" urinishning hojati yo'q edi.
     c_id = CREATOR_ID
 
-    # 🟢 TUZATILDI: avval user/sevimli/baho so'rovlari try/except'siz edi —
-    # bittasi DB xatosi bersa BUTUN karta ko'rinmay qolardi. Endi har biri
-    # o'zi alohida xavfsiz va PARALLEL (asyncio.gather) bajariladi.
     async def _get_user():
         try:
             return await UserService(session=session).get_user(actual_user_id)
@@ -198,9 +185,18 @@ async def send_anime_card(
 
     fav_text = "❤️ Sevimlida ✓" if is_favorite else "🤍 Sevimli"
     sub_text = "🔔 Obunadasiz ✓" if is_subscribed else "🔔 Obuna"
-    # 🟢 TUZATILDI: `if user_rating:` o'rniga `is not None` — nazariy jihatdan
-    # 0 ball ham "baholanmagan" bilan aralashib ketmasligi uchun.
     rat_text = f"⭐ Bahoingiz: {user_rating}/10" if user_rating is not None else "⭐ Baholash"
+
+    # 🟢 TUZATILDI: "💎 Elite qismlar" tugmasi avval SO'ZSIZ ko'rsatilardi —
+    # hatto animeda birorta ham VIP-qism bo'lmasa ham. Bu foydalanuvchini
+    # "elite oling" deb ALDAYDIGAN, mavjud bo'lmagan kontentga undaydigan
+    # yolg'on UX edi. Endi tugma FAQAT animening kamida bitta streami
+    # is_vip=True bo'lsagina qo'shiladi.
+    has_vip_episodes = any(
+        stream.get("is_vip")
+        for ep in anime.get("episodes", [])
+        for stream in ep.get("streams", [])
+    )
 
     # Caption dizayni
     caption = (
@@ -220,13 +216,18 @@ async def send_anime_card(
         f"<blockquote expandable>{description}</blockquote>"
     )
 
-    user_anime_kb = InlineKeyboardMarkup(inline_keyboard=[
-        [
-            InlineKeyboardButton(text="▶️ Tomosha qilish", callback_data=f"show_episodes_user:{anime_id}", style="primary"),
-        ],
-        [
-            InlineKeyboardButton(text="💎 Elite qismlar", callback_data=f"show_episodes_vip:{anime_id}", style="primary"),
-        ],
+    # Klaviatura qatorlarini bosqichma-bosqich yig'amiz — shu bilan "Elite
+    # qismlar" qatorini shartli ravishda qo'shish/qo'shmaslik oson bo'ladi.
+    keyboard_rows = [
+        [InlineKeyboardButton(text="▶️ Tomosha qilish", callback_data=f"show_episodes_user:{anime_id}", style="primary")],
+    ]
+
+    if has_vip_episodes:
+        keyboard_rows.append(
+            [InlineKeyboardButton(text="💎 Elite qismlar", callback_data=f"show_episodes_vip:{anime_id}", style="primary")]
+        )
+
+    keyboard_rows.extend([
         [
             InlineKeyboardButton(text=sub_text, callback_data=f"anime_subscription:{anime_id}", style="primary"),
             InlineKeyboardButton(text=fav_text, callback_data=f"anime_favorite:{anime_id}", style="primary"),
@@ -239,6 +240,8 @@ async def send_anime_card(
             InlineKeyboardButton(text="⬅️ Orqaga", callback_data="back_global", style="danger")
         ]
     ])
+
+    user_anime_kb = InlineKeyboardMarkup(inline_keyboard=keyboard_rows)
 
     trailer_id = anime.get("trailer_id")
     poster_id = anime.get("poster_id")
@@ -286,17 +289,12 @@ async def send_anime_card(
         except Exception as state_err:
             logger.error(f"❌ last_menu_id tozalashda xato: {state_err}")
 
-    # Silliq o'chirish (eski xabarni tozalash) — edit muvaffaqiyatsiz bo'lib
-    # target allaqachon o'chirilgan bo'lsa, bu urinish xavfsiz jimgina o'tadi.
     try:
         await message.delete()
     except Exception:
         pass
 
     # ================= YANGI XABAR: video -> poster -> matn zanjiri =================
-    # 🟢 TUZATILDI: avval trailer_id yaroqsiz bo'lsa (Telegram rad etsa),
-    # funksiya darhol False qaytarib, foydalanuvchi HECH NARSA ko'rmasdi.
-    # Endi admin panelidagi kabi to'liq zaxira zanjiri qo'llaniladi.
     try:
         if trailer_id:
             try:
