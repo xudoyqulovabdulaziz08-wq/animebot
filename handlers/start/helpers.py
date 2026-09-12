@@ -4,10 +4,9 @@ from aiogram import html
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from config import config
 
-
 logger = logging.getLogger("StartHelpers")
 POSTER_ID = config.RASM_ID
-
+CREATOR_ID = config.CREATOR_ID
 
 
 async def send_or_edit_start_menu(
@@ -18,36 +17,39 @@ async def send_or_edit_start_menu(
 ):
     """
     Ushbu funksiya start menyusini ko'rsatadi.
-    VIP va Adminlar uchun protect_content = False,
+    VIP, Admin va Creatorlar uchun protect_content = False,
     Oddiy foydalanuvchilar uchun protect_content = True bo'ladi.
     """
     start_image_file_id = POSTER_ID 
     sayt_url = "https://aninov.uz"
     
-    # 🛡️ 1. USER STATUSINI TEKSHIRISH (VIP/ADMIN)
-    is_vip_or_admin = False
-    if session:
+    # 🛡️ 1. USER STATUSINI TEKSHIRISH (VIP/ADMIN/CREATOR)
+    # Avvalo user_id Creator ekanligini bazaga kirolmasdan turib ham tekshiramiz:
+    is_privileged = (user_id == CREATOR_ID)
+    
+    # Agar Creator bo'lmasa, navbatdagi qadamda bazadan tekshiramiz
+    if not is_privileged and session:
         try:
             from services.user_service import UserService
-            from config import config
             
             user_service = UserService(session=session)
             user_data = await user_service.get_user(user_id)
-            creator_id = getattr(config, "CREATOR_ID", None)
 
             if user_data:
-                is_vip_or_admin = (
-                    user_data.get("is_vip", False) or 
-                    user_data.get("status") == "admin" or 
-                    user_id == creator_id
-                )
-            else:
-                is_vip_or_admin = user_id == creator_id
+                # "status" string ko'rinishida ("admin", "user", "vip") keladi
+                user_status = user_data.get("status")
+                is_vip = user_data.get("is_vip", False)
+                
+                # Admin yoki VIP bo'lsa huquq beramiz
+                if is_vip or user_status == "admin":
+                    is_privileged = True
+                    
         except Exception as e:
             logger.error(f"❌ User statusini tekshirishda xato: {e}")
 
-    # Mualliflik huquqi himoyasi: Oddiy userlarga True, VIP/Adminlarga False
-    should_protect = not is_vip_or_admin
+    # Mualliflik huquqi himoyasi: 
+    # Imtiyozli userlar (Creator, Admin, VIP) uchun False, oddiy userlar uchun True
+    should_protect = not is_privileged
 
     welcome_text = (
         f"👋 Xush kelibsiz, {html.bold(username)}!\n\n"
