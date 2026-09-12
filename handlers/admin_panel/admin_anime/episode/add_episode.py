@@ -14,8 +14,8 @@ from aiogram.exceptions import (
 )
 
 from services.anime_service import AnimeService
-from services.subscriptionanime_woker import process_anime_subscriptions
 
+from services.subscriptionanime_woker import notification_queue  
 logger = logging.getLogger("add_episode")
 router = Router()
 
@@ -291,15 +291,16 @@ async def save_episodes_to_database(callback: CallbackQuery, state: FSMContext, 
                 # 2. 🛑 SPAM VA VIP TEKSHIRUVI: 
                 if result.get("is_new_stream"):
                     # ✅ Yangi fayl qo'shildi, obunachilarga xabar yuboramiz.
-                    # Orqa fonda ishlashi uchun asyncio.create_task ga beramiz, 
-                    # shunda admin keyingi videoni kutib turmaydi.
-                    asyncio.create_task(
-                        process_anime_subscriptions(
-                            anime_id=anime_id,
-                            episode_num=current_episode_num,
-                            is_vip=is_vip_episode
-                        )
-                    )
+                    
+                    # MANA SHU YER O'ZGARDI 👇
+                    await notification_queue.put({
+                        "anime_id": anime_id,
+                        "episode_num": current_episode_num,
+                        "is_vip": is_vip_episode,
+                        "anime_title": f"Anime #{anime_id}"
+                    })
+                    
+                    
                 else:
                     # 🛑 Shunchaki mavjud fayl yangilandi (update), xabar bormaydi.
                     logger.info(f"ℹ️ Fayl yangilandi. Xabar yuborilmaydi. Anime ID: {anime_id}, Qism: {current_episode_num}")
