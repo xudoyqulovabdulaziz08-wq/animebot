@@ -1,6 +1,6 @@
 from aiogram import Router
 from handlers.search import (
-    search, inline_search, search_id, search_name, search_genr, anime_card, wiev_episode
+    search, inline_search, search_id, search_name, search_genr, anime_card, wiev_episode, vip_wiev_epsiode
 )
 from handlers.anime_uchun import (
     baholash_anime, izoh_anime, obuna_anime, sevimli_anime
@@ -29,6 +29,7 @@ anime_router.include_routers(
     search_genr.router,
     anime_card.router,
     wiev_episode.router,
+    vip_wiev_epsiode.router,
     baholash_anime.router,
     izoh_anime.router,
     obuna_anime.router,

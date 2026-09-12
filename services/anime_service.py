@@ -759,3 +759,30 @@ class AnimeService:
                 await self.session.rollback()
             logger.error(f"❌ Service Layer Error while adding genres: {e}")
             raise e
+        
+    
+    # ==================================================
+    # 💎 GET VIP ANIME EPISODES (CACHE-AWARE)
+    # ==================================================
+    async def get_anime_vip_episodes_cache(self, anime_id: int) -> List[Dict]:
+        """
+        🚀 Keshdan (yoki DB'dan) barcha epizodlarni olib,
+        faqatgina VIP video fayli mavjud bo'lgan epizodlarni filtrlash.
+        """
+        # 1. Barcha epizodlarni standart metod orqali olamiz (bu o'z ichida keshni tekshiradi)
+        all_episodes = await self.get_anime_episodes_cache(anime_id)
+        
+        vip_episodes = []
+        for ep in all_episodes:
+            # 2. Epizodning streamlar ro'yxatidan faqat is_vip=True bo'lganlarini ajratib olamiz
+            vip_streams = [s for s in ep.get("streams", []) if s.get("is_vip") is True]
+            
+            if vip_streams:
+                # 3. Agar VIP stream mavjud bo'lsa, obyektdan nusxa olamiz 
+                # va pleyer to'g'ri o'qishi uchun fayl ID'ni aynan VIPnikiga almashtiramiz
+                vip_ep = ep.copy()
+                vip_ep["streams"] = vip_streams
+                vip_ep["file_id"] = vip_streams[0]["file_id"]  # VIP video fayli
+                vip_episodes.append(vip_ep)
+                
+        return vip_episodes
