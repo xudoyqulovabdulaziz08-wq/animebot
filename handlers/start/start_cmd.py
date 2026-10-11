@@ -66,8 +66,8 @@ async def cmd_start(
             return
         except Exception as ex:
             logger.error(f"❌ Login deep linking xatolik: {ex}")
-    
-    # 🚀 KANAL TUGMASIDAN PARAMETR KELGANDA (DEEP LINKING)
+     
+    # 🚀 KANAL TUGMASIDAN PARAMETR KELGANDA. (DEEP LINKING)
     if command.args:
         waiting_msg = await message.answer("🔍 Yuborilmoqda...")
         clean_args = command.args.strip().rstrip(",")
