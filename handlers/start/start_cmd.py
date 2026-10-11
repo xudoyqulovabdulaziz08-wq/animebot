@@ -51,13 +51,15 @@ async def cmd_start(
                     [
                         InlineKeyboardButton(
                             text="🚀 Saytga avtomatik kirish",
-                            url=site_url
+                            url=site_url,
+                            style="success"
                         )
                     ],
                     [
                         InlineKeyboardButton(
                             text="🔄 Parolni yangilash",
-                            callback_data=f"refresh_web_code:{user_id}"
+                            callback_data=f"refresh_web_code:{user_id}",
+                            style="primary"
                         )
                     ]
                 ]
