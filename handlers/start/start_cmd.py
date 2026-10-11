@@ -2,7 +2,7 @@ import logging
 from typing import Any
 from aiogram import Router
 from aiogram.filters import CommandStart, CommandObject
-from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton
+from aiogram.types import Message, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 
 from services.user_service import UserService
@@ -31,6 +31,41 @@ async def cmd_start(
     user_id = message.from_user.id
     username = message.from_user.username or message.from_user.full_name or "do'stim"
     user_status = user.get('status', 'user').lower()
+
+    # 🔐 SAYTDAN TEZKOR KIRISH (/start login)
+    if command.args and command.args.strip() == "login":
+        try:
+            password = await user_service.generate_web_auth_code(user_id)
+            site_url = f"https://aninov.uz/auth/login?userId={user_id}&code={password}"
+
+            text = (
+                f"🔐 <b>AniNov.uz saytiga tezkor kirish</b>\n\n"
+                f"🆔 <b>Telegram ID:</b> <code>{user_id}</code>\n"
+                f"🔑 <b>Bir martalik parol:</b> <code>{password}</code>\n\n"
+                f"⏳ <i>Parol 15 daqiqa amal qiladi.</i>\n\n"
+                f"Saytga bir bosishda avtomatik ulanish uchun quyidagi tugmani bosing 👇"
+            )
+
+            login_kb = InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [
+                        InlineKeyboardButton(
+                            text="🚀 Saytga avtomatik kirish",
+                            url=site_url
+                        )
+                    ],
+                    [
+                        InlineKeyboardButton(
+                            text="🔄 Parolni yangilash",
+                            callback_data=f"refresh_web_code:{user_id}"
+                        )
+                    ]
+                ]
+            )
+            await message.answer(text, reply_markup=login_kb)
+            return
+        except Exception as ex:
+            logger.error(f"❌ Login deep linking xatolik: {ex}")
     
     # 🚀 KANAL TUGMASIDAN PARAMETR KELGANDA (DEEP LINKING)
     if command.args:
