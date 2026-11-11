@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 API_HOMEPAGE_URL = "https://aninov.uz/api/anime/homepage"
-API_SEARCH_URL = "https://aninov.uz/api/search"
+API_SEARCH_URL = "https://aninov.uz//api/anime/search"
 DEFAULT_POSTER = "https://aninov.uz/static/images/default_poster.jpg"
 BOT_USERNAME = getattr(config, "BOT_USERNAME", "Aninovuz_bot")
 
