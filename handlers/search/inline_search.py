@@ -23,9 +23,15 @@ from config import config
 logger = logging.getLogger(__name__)
 router = Router()
 
-API_HOMEPAGE_URL = "https://aninov.uz/api/anime/homepage"
-API_SEARCH_URL = "https://aninov.uz//api/anime/search"
-DEFAULT_POSTER = "https://aninov.uz/static/images/default_poster.jpg"
+# ==========================================
+# 🌐 ANINOVUZ API VA SAYT SOZLAMALARI
+# ==========================================
+BACKEND_BASE_URL = getattr(config, "API_BASE_URL", "https://aninovuz-backend.xudoyqulovabdulaziz08.workers.dev")
+SITE_BASE_URL = "https://aninov.uz"
+
+API_HOMEPAGE_URL = f"{BACKEND_BASE_URL}/api/homepage"
+API_SEARCH_URL = f"{BACKEND_BASE_URL}/api/anime/search"
+DEFAULT_POSTER = "https://cdn.aninov.uz/posters/default.jpg"
 BOT_USERNAME = getattr(config, "BOT_USERNAME", "Aninovuz_bot")
 
 
@@ -33,22 +39,20 @@ BOT_USERNAME = getattr(config, "BOT_USERNAME", "Aninovuz_bot")
 async def inline_search(inline_query: InlineQuery):
     """
     Inline qidiruv handler.
+    Foydalanuvchi @Aninovuz_bot deb yozganda yoki anime qidirganda ishlaydi.
     """
     query = inline_query.query.strip()
     session = get_http_session()
-    timeout = aiohttp.ClientTimeout(total=2)
+    timeout = aiohttp.ClientTimeout(total=3)
 
     anime_list = []
     is_homepage = False
 
-    # Stringni kichik harflarga o'tkazamiz va ortiqcha nuqtalar hamda probellarni tozalaymiz
+    # Stringni kichik harflarga o'tkazamiz va ortiqcha belgilarni tozalaymiz
     clean_query = query.lower().replace(".", "").strip()
 
     try:
-        # 🎯 ELASTIK SHART (Kawaii bot kabi):
-        # 1. Query bo'sh bo'lsa
-        # 2. Yoki query ichida "anime nomi" / "yozing" iboralari bo'lsa
-        # 3. Yoki tozalangan query uzunligi 2 tadan kam bo'lsa (masalan 1 ta harf bo'lsa)
+        # 🎯 1. Agar qidiruv bo'sh bo'lsa yoki 2 ta harfdan kam bo'lsa -> Homepage (Eng so'nggi animelar)
         if (
             not clean_query 
             or "anime nomi" in clean_query 
@@ -59,36 +63,37 @@ async def inline_search(inline_query: InlineQuery):
             async with session.get(API_HOMEPAGE_URL, timeout=timeout) as response:
                 if response.status == 200:
                     data = await response.json()
-                    if isinstance(data, list):
-                        anime_list = data
-                    elif isinstance(data, dict):
-                        # ✅ Haqiqiy struktura: {"success": true, "data": {"latest": [...]}}
-                        # "data" ichidagi qiymat ko'pincha DICT bo'ladi (list emas!),
-                        # shuning uchun uni yana bir bosqich ichkariga kirib ochish kerak.
+                    if isinstance(data, dict):
                         payload = data.get("data")
                         if isinstance(payload, dict):
+                            # Eng so'nggi yoki trenddagi animelarni olamiz
                             anime_list = (
                                 payload.get("latest")
-                                or payload.get("results")
-                                or payload.get("items")
+                                or payload.get("popular")
+                                or payload.get("hero_slider")
                                 or []
                             )
                         elif isinstance(payload, list):
                             anime_list = payload
                         else:
                             anime_list = data.get("results") or data.get("latest") or []
+                    elif isinstance(data, list):
+                        anime_list = data
                 else:
                     logger.warning(f"Homepage API non-200 status: {response.status}")
 
-        # 🎯 Haqiqiy qidiruv (kamida 2 ta harf yozilganda ishlaydi)
+        # 🎯 2. Haqiqiy qidiruv (kamida 2 ta harf yozilganda ishlaydi)
         else:
-            async with session.get(API_SEARCH_URL, params={"q": query}, timeout=timeout) as response:
+            search_params = {"q": query, "limit": 40}
+            async with session.get(API_SEARCH_URL, params=search_params, timeout=timeout) as response:
                 if response.status == 200:
                     data = await response.json()
                     if isinstance(data, dict):
                         anime_list = data.get("data", [])
                     elif isinstance(data, list):
                         anime_list = data
+                else:
+                    logger.warning(f"Search API non-200 status: {response.status}")
 
     except Exception as e:
         logger.error(f"Inline search network error (is_homepage={is_homepage}): {e}", exc_info=True)
@@ -104,10 +109,8 @@ async def inline_search(inline_query: InlineQuery):
         if not isinstance(anime, dict):
             continue
 
-        raw_id = anime.get("anime_id") if is_homepage else anime.get("id")
-        if not raw_id:
-            raw_id = anime.get("id") or anime.get("anime_id")
-            
+        # ID ni to'g'ri aniqlash
+        raw_id = anime.get("anime_id") or anime.get("id")
         if not raw_id:
             continue
 
@@ -116,10 +119,19 @@ async def inline_search(inline_query: InlineQuery):
         except (TypeError, ValueError):
             continue
 
-        title = html.escape(str(anime.get("title") or "Noma'lum anime"))
-        year = anime.get("year") or "Noma'lum"
-        slug = anime.get("seo_slug") or str(anime_id)
+        # Sarlavhani olish (o'zbekcha va inglizcha nomlar)
+        title_uz = anime.get("title_uz") or anime.get("title") or ""
+        title_en = anime.get("title_en") or ""
 
+        if title_uz and title_en and title_uz.lower() != title_en.lower():
+            display_title = f"{title_uz} / {title_en}"
+        else:
+            display_title = title_uz or title_en or "Noma'lum anime"
+
+        title = html.escape(str(display_title))
+        year = anime.get("year") or "2024"
+
+        # Janrlarni formatlash
         genres_raw = anime.get("genres", [])
         parsed_genres = []
         if isinstance(genres_raw, list):
@@ -128,22 +140,32 @@ async def inline_search(inline_query: InlineQuery):
                     parsed_genres.append(str(g["name"]))
                 elif isinstance(g, str):
                     parsed_genres.append(g)
-        
-        genres = " • ".join(parsed_genres) if parsed_genres else "Janr ko'rsatilmagan"
+
+        genres = " • ".join(parsed_genres) if parsed_genres else "Anime"
         genres = html.escape(genres)
 
-        poster_url = anime.get("poster") or DEFAULT_POSTER
-        if not (isinstance(poster_url, str) and (poster_url.startswith("http://") or poster_url.startswith("https://"))):
+        # Posterni to'g'ri olish (CDN yoki R2 orqali)
+        poster_url = (
+            anime.get("poster_r2_url")
+            or anime.get("poster")
+            or f"https://cdn.aninov.uz/posters/{anime_id}.jpg"
+        )
+        if not (isinstance(poster_url, str) and poster_url.startswith("http")):
             poster_url = DEFAULT_POSTER
 
-        # Xabar matni
+        # Reyting va format
+        rating = anime.get("average_rating") or anime.get("rating")
+        rating_str = f" ⭐ {float(rating):.1f}" if rating and float(rating) > 0 else ""
+        anime_type = anime.get("type") or "TV SERIES"
+
+        # Telegram xabar matni
         message_text = (
             f'<a href="{poster_url}">&#8203;</a>'
-            f"📕 <b>{title}</b>\n\n"
+            f"📕 <b>{title}</b>{rating_str}\n\n"
             f"<blockquote expandable>🎭 <b>Janrlar:</b> {genres}\n</blockquote>"
-            f"📅 <b>Yili:</b> {year}\n"
+            f"📅 <b>Yili:</b> {year} | <b>Turi:</b> {anime_type}\n"
             f"🆔 <b>ID:</b> <code>{anime_id}</code>\n\n"
-            f"<i>Aninovuzda tomosha qiling</i>"
+            f"<i>AniNovuz'da o'zbek tilida tomosha qiling</i>"
         )
 
         message_content = InputTextMessageContent(
@@ -156,18 +178,19 @@ async def inline_search(inline_query: InlineQuery):
             )
         )
 
-        deep_link_url = f"https://t.me/{BOT_USERNAME}?start=anime_{anime_id}"
-        sayt_url = f"https://aninov.uz/anime/{slug}"
+        # Havolalar: Bot, Sayt va Rasmiy Kanal
+        deep_link_url = f"https://t.me/{BOT_USERNAME}?start={anime_id}"
+        sayt_url = f"{SITE_BASE_URL}/anime/{anime_id}"
         kanal_url = "https://t.me/Aninovuz"
 
         inline_kb = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="🤖 Bot", url=deep_link_url, style="success"),
-                    InlineKeyboardButton(text="🌐 Sayt", url=sayt_url, style="success")
+                    InlineKeyboardButton(text="🤖 Botda ochish", url=deep_link_url, style="primary"),
+                    InlineKeyboardButton(text="🌐 Saytda ko'rish", url=sayt_url, style="success")
                 ],
                 [
-                    InlineKeyboardButton(text="📢 Kanal", url=kanal_url, style="primary")
+                    InlineKeyboardButton(text="📢 Rasmiy kanal", url=kanal_url, style="primary")
                 ]
             ]
         )
@@ -175,7 +198,7 @@ async def inline_search(inline_query: InlineQuery):
         results.append(
             InlineQueryResultArticle(
                 id=str(anime_id),
-                title=title,
+                title=title_uz or title,
                 description=f"📅 {year} | 🎭 {genres}",
                 thumbnail_url=poster_url,
                 input_message_content=message_content,
@@ -185,11 +208,9 @@ async def inline_search(inline_query: InlineQuery):
 
     cache_time = 5 if is_homepage else 1
 
-    # 📌 Doim o'zgarmaydigan tugma — natijalar ro'yxatining ENG TEPASIGA
-    # qat'iy joylashadi (scroll bo'lganda birinchi rasm chekkadan "chiqib"
-    # ketish effektini bartaraf qiladi, ayniqsa mobil ilovada).
+    # Yuqori sarlavha tugmasi
     top_button = InlineQueryResultsButton(
-        text="🎬 Aninovuz — barcha animelar",
+        text="🎬 AniNovuz — Barcha animelar",
         start_parameter="from_inline",
     )
 
@@ -201,7 +222,7 @@ async def inline_search(inline_query: InlineQuery):
     )
 
 
-# 🔥 KAWAII BOTIDAGI KABI ISHLAYDIGAN ASOSIY HANDLER
+# 🔥 FOYDALANUVCHI INLINE NATIJASINI TANLAGANDA BOT ICHIDA KARTA YUBORISH
 @router.message(F.via_bot.username == BOT_USERNAME)
 async def process_inline_message_in_pm(message: Message, session: Any, state: FSMContext = None):
     """
@@ -215,7 +236,6 @@ async def process_inline_message_in_pm(message: Message, session: Any, state: FS
         text_to_search = message.text or message.caption or ""
         match = re.search(r"🆔\s*<b>ID:</b>\s*<code>(\d+)</code>", text_to_search)
         if not match:
-            # HTML parsingiz sizda o'chirilgan holatda ham topsin:
             match = re.search(r"ID:\s*(\d+)", text_to_search)
 
         if match:
